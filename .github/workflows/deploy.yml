@@ -1,0 +1,46 @@
+name: EC2 Deployment
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to AWS EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # If the app directory doesn't exist, clone it (first time setup)
+            if [ ! -d "/home/${{ secrets.EC2_USERNAME }}/bharatsales-ai" ]; then
+              git clone https://github.com/${{ github.repository }}.git /home/${{ secrets.EC2_USERNAME }}/bharatsales-ai
+            fi
+            
+            # Go to app directory
+            cd /home/${{ secrets.EC2_USERNAME }}/bharatsales-ai
+            
+            # Pull latest changes
+            git fetch origin
+            git reset --hard origin/main
+            
+            # Export production secrets
+            export MONGO_URI="${{ secrets.MONGO_URI }}"
+            export JWT_SECRET="${{ secrets.JWT_SECRET }}"
+            export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+            export NEXT_PUBLIC_API_URL="${{ secrets.NEXT_PUBLIC_API_URL }}"
+            
+            # Build and deploy using production docker-compose
+            docker-compose -f infra/aws/docker-compose.prod.yml up --build -d
+            
+            # Prune old images to save space
+            docker image prune -af

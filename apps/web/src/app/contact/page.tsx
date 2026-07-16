@@ -1,0 +1,29 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+
+export default function ContactPage() {
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', company: '', industry: '', message: '' });
+  const [successMessage, setSuccessMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setSuccessMessage('Thank you! Your message has been sent. We will get back to you soon.');
+    setFormData({ firstName: '', lastName: '', email: '', company: '', industry: '', message: '' });
+    setLoading(false);
+    setTimeout(() => setSuccessMessage(''), 5000);
+  };
+
+  return (
+    <div className="min-h-screen"><nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm z-50 border-b border-gray-100"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><div className="flex justify-between items-center h-16"><Link href="/" className="flex items-center space-x-2"><div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-saffron-500 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">BS</span></div><span className="text-xl font-bold text-gray-900">BharatSales <span className="text-primary-600">AI</span></span></Link><div className="hidden md:flex items-center space-x-8"><Link href="/features" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">Features</Link><Link href="/industries" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">Industries</Link><Link href="/pricing" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">Pricing</Link><Link href="/contact" className="text-primary-600 font-medium">Contact</Link></div><div className="flex items-center space-x-3"><Link href="/login" className="text-primary-600 font-semibold hover:text-primary-700 transition-colors">Login</Link><Link href="/login" className="btn-primary text-sm py-2 px-4">Start Free Trial</Link></div></div></div></nav>
+      <section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8"><div className="max-w-7xl mx-auto text-center"><h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">Get in <span className="text-gradient">Touch</span></h1><p className="text-lg text-gray-600 max-w-2xl mx-auto">Have questions? Our team is here to help you get started with BharatSales AI.</p></div></section>
+      {successMessage && (<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6"><div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center space-x-2"><span className="text-green-600">✅</span><span className="text-sm text-green-800 font-medium">{successMessage}</span></div></div>)}
+      <section className="pb-20 px-4 sm:px-6 lg:px-8"><div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12"><form onSubmit={handleSubmit} className="space-y-6"><div className="grid sm:grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">First Name</label><input type="text" className="input-field" placeholder="Rahul" value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} required /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label><input type="text" className="input-field" placeholder="Sharma" value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} required /></div></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Work Email</label><input type="email" className="input-field" placeholder="rahul@company.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label><input type="text" className="input-field" placeholder="Your Company Pvt Ltd" value={formData.company} onChange={(e) => setFormData({ ...formData, company: e.target.value })} /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Industry</label><select className="input-field" value={formData.industry} onChange={(e) => setFormData({ ...formData, industry: e.target.value })}><option>Select your industry</option><option>FMCG</option><option>Pharmaceutical</option><option>Consumer Goods</option><option>Paint & Building Materials</option><option>Agri Inputs</option><option>Other</option></select></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Message</label><textarea className="input-field" rows={4} placeholder="Tell us about your distribution challenges..." value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })}></textarea></div><button type="submit" disabled={loading} className="btn-primary w-full text-center disabled:opacity-50">{loading ? 'Sending...' : 'Send Message'}</button></form><div className="space-y-6"><div className="card"><h3 className="font-bold text-gray-900 mb-2">📍 Office Address</h3><p className="text-gray-600 text-sm">4th Floor, Tech Park Tower<br/>HITEC City, Hyderabad<br/>Telangana 500081, India</p></div><div className="card"><h3 className="font-bold text-gray-900 mb-2">📞 Phone</h3><p className="text-gray-600 text-sm">+91 90000 12345<br/>Mon-Sat, 9 AM - 7 PM IST</p></div><div className="card"><h3 className="font-bold text-gray-900 mb-2">📧 Email</h3><p className="text-gray-600 text-sm">support@bharatsales.ai<br/>sales@bharatsales.ai</p></div></div></div></section>
+      <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8"><div className="max-w-7xl mx-auto text-center text-gray-500 text-sm">© 2026 BharatSales AI. All rights reserved.</div></footer>
+    </div>
+  );
+}

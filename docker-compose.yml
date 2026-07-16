@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6.0
+    container_name: bharatsales-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: bharatsales-api
+    ports:
+      - "6002:6002"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/bharatsales
+      - PORT=6002
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: bharatsales-web
+    ports:
+      - "6003:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:6002/api/v1
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  mongo-data:

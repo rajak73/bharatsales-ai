@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # NOTE: For a highly-available production setup, we recommend removing this 
+  # mongo service and using a managed MongoDB Atlas cluster instead.
+  mongo:
+    image: mongo:6.0
+    container_name: bharatsales-mongo-prod
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data-prod:/data/db
+    restart: always
+
+  api:
+    build:
+      context: ../../
+      dockerfile: apps/api/Dockerfile
+    container_name: bharatsales-api-prod
+    ports:
+      - "6002:6002"
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=${MONGO_URI:-mongodb://mongo:27017/bharatsales}
+      - JWT_SECRET=${JWT_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=6002
+    depends_on:
+      - mongo
+    restart: always
+
+  web:
+    build:
+      context: ../../
+      dockerfile: apps/web/Dockerfile
+    container_name: bharatsales-web-prod
+    ports:
+      - "80:3000" # Map port 80 to Next.js 3000
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:6002/api/v1}
+    depends_on:
+      - api
+    restart: always
+
+volumes:
+  mongo-data-prod:
