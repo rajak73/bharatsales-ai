@@ -24,7 +24,8 @@ export class UsersController {
   @AuditEntity('User')
   async createUser(@Request() req: any, @Body() userData: Partial<User> & { password?: string }) {
     const orgId = req.user.orgId;
-    return this.usersService.createUser(orgId, userData);
+    const actorRole = req.user.role;
+    return this.usersService.createUser(orgId, actorRole, userData);
   }
 
   @Put(':id')
@@ -32,7 +33,8 @@ export class UsersController {
   @AuditEntity('User')
   async updateUser(@Request() req: any, @Param('id') id: string, @Body() updateData: Partial<User> & { password?: string }) {
     const orgId = req.user.orgId;
-    return this.usersService.updateUser(orgId, id, updateData);
+    const actorRole = req.user.role;
+    return this.usersService.updateUser(orgId, actorRole, id, updateData);
   }
 
   @Delete(':id')

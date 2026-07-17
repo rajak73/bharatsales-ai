@@ -1,7 +1,7 @@
 import axios from 'axios';
 declare var process: any;
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || 'http://localhost:6002/api/v1';
+const baseURL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || 'http://localhost:6002';
 
 export const apiClient = axios.create({
   baseURL,
@@ -136,3 +136,4 @@ export * from './services/approvals.service';
 export * from './services/devices.service';
 export * from './services/integrations.service';
 export * from './services/performance.service';
+export * from './services/hierarchy.service';

@@ -16,12 +16,12 @@ export class BeatsController {
   @Get('today')
   @RequirePermissions(Resource.Visits, Action.Read)
   async getTodayBeat(@Request() req: any) {
-    return this.beatsService.getTodayBeat(req.user.userId, req.user.organizationId);
+    return this.beatsService.getTodayBeat(req.user.sub, req.user.orgId);
   }
 
   @Get()
   @RequirePermissions(Resource.Visits, Action.Read)
   async getAllBeats(@Request() req: any) {
-    return this.beatsService.getAllBeats(req.user.organizationId);
+    return this.beatsService.getAllBeats(req.user.orgId);
   }
 }

@@ -1,0 +1,2071 @@
+<USER_REQUEST>
+Continue BharatSales AI from the existing repository.
+
+Some modules may already be implemented by another developer or AI agent.
+Inspect and verify the existing work before writing new code. Reuse correct and
+BRD-compliant functionality, edit or complete partially working functionality,
+repair broken but reusable modules and create new code only for genuinely missing
+requirements.
+
+The final application must have one clean, maintainable implementation for each
+feature, without duplicate pages, APIs, models, services, utilities or business
+logic.
+You are the lead product architect, senior full-stack engineer, mobile/PWA engineer,
+database architect, QA engineer and DevOps engineer responsible for completing
+“BharatSales AI”.
+
+You have been provided the document:
+
+“BharatSales AI — Developer-Ready Master BRD, PRD & Functional Specification”
+
+Treat the complete BRD as the primary source of truth.
+
+========================================================
+1. CORE OBJECTIVE
+========================================================
+
+Build BharatSales AI as a REAL, WORKING, MULTI-TENANT SaaS product for Indian
+FMCG, Pharma, Consumer Goods, Paint/Building Material and Agri-input businesses.
+
+The product must include:
+
+1. Public website
+2. SaaS Super Admin Console
+3. Company Admin Portal
+4. National/Zonal/Regional/Area Sales Manager dashboards
+5. Finance and Operations dashboards
+6. Distributor Owner and Distributor Staff portal
+7. Sales Representative mobile application or installable responsive PWA
+8. Backend APIs
+9. Database
+10. Authentication and authorization
+11. Offline data storage and synchronization
+12. Reports and exports
+13. Audit logging
+14. Notifications and integration adapters
+15. Automated tests
+16. Deployment configuration and documentation
+
+This is NOT a UI mock-up task.
+
+Do not complete the task by:
+
+- attaching screenshots;
+- embedding BRD images into pages;
+- creating static dashboard cards;
+- adding buttons that do nothing;
+- using hard-coded arrays as production data;
+- showing fake success messages;
+- returning only an implementation plan;
+- building frontend pages without backend APIs;
+- building APIs without connecting the frontend;
+- marking unimplemented modules as complete;
+- creating duplicate pages or duplicate business logic.
+
+Every important screen must be connected through:
+
+UI → Route → API → Authorization → Business Logic → Database →
+Audit Log → Error Handling → Tests
+
+========================================================
+2. FIRST AUDIT THE EXISTING PROJECT
+========================================================
+
+Before creating or replacing code, inspect the complete existing repository.
+
+Create:
+
+- docs/IMPLEMENTATION_AUDIT.md
+- docs/REQUIREMENT_TRACEABILITY.md
+- docs/KNOWN_GAPS.md
+- docs/TEST_RESULTS.md
+
+For every existing module, classify it as:
+
+- COMPLETE_AND_REUSABLE
+- PARTIALLY_WORKING
+- UI_ONLY
+- BACKEND_ONLY
+- DUPLICATE
+- BROKEN
+- MISSING
+
+For each feature, inspect:
+
+1. Page and component
+2. Route
+3. Form validation
+4. API call
+5. Backend controller/service
+6. Database model
+7. Tenant isolation
+8. Role permissions
+9. Business calculations
+10. Loading, empty, validation, success and error states
+11. Browser refresh behavior
+12. Mobile responsiveness
+13. Tests
+
+Do not rebuild an existing feature merely because the code style is different.
+
+Rules:
+
+- If an existing implementation is correct and reusable, keep it.
+- If it is partially correct, extend or refactor it.
+- If it is duplicated, retain the better implementation and safely remove the duplicate.
+- If it is only a screenshot/static page, replace it with functional components.
+- Do not break existing working functionality.
+- Do not change the current framework, database or package manager without a strong
+  technical reason.
+- Document any major architecture change before implementing it.
+- Preserve existing environment variables and backward compatibility wherever practical.
+
+After the audit, immediately start implementation. Do not stop after producing the audit.
+
+========================================================
+3. TECHNOLOGY AND PROJECT ARCHITECTURE
+========================================================
+
+Prefer the project’s current technology stack.
+
+If the repository only contains a frontend or has no usable architecture, use:
+
+Frontend:
+- React with TypeScript
+- Vite or Next.js according to existing structure
+- Responsive reusable component system
+- React Query/TanStack Query for server state
+- React Hook Form with Zod validation
+- Accessible data tables, forms, drawers, modals and dashboards
+- Chart library already present in the repository
+- Leaflet/OpenStreetMap or the configured maps provider
+
+Backend:
+- Node.js with TypeScript
+- Express.js or NestJS according to existing structure
+- Layered modules: route/controller/service/repository/validator
+- OpenAPI/Swagger
+- Central authorization and tenant middleware
+- Background job architecture for imports, reports, notifications and exports
+
+Database:
+- Preserve the existing production database.
+- If MongoDB is already used, use Mongoose, sessions/transactions, Decimal128 for
+  monetary fields, indexes, schema validation, version fields and soft deletion.
+- Do not store financial values using floating-point numbers.
+- If another working database already exists, do not migrate it without approval.
+
+Caching/jobs:
+- Use Redis/BullMQ or the existing queue system when available.
+- Provide a local development fallback where possible.
+
+Field application:
+- If React Native or Flutter already exists, continue using it.
+- Otherwise build an installable mobile-first PWA supporting offline storage,
+  background synchronization, camera/file capture and location workflows.
+- Do not omit the field-sales application merely because this is also a web project.
+
+Recommended modular structure when a structure does not already exist:
+
+apps/
+  web/
+  api/
+  field-pwa/
+packages/
+  ui/
+  shared-types/
+  validation/
+  permissions/
+  business-rules/
+docs/
+
+Keep all applications independently runnable but share types and business-rule contracts.
+
+========================================================
+4. NON-NEGOTIABLE “WORKING MODE” RULES
+========================================================
+
+A feature is complete only when:
+
+- an authenticated permitted user can access it;
+- the correct role and hierarchy restrictions are applied;
+- frontend data comes from the API;
+- the API validates the request;
+- business rules are applied server-side;
+- the database is updated correctly;
+- organization_id is included in tenant business records;
+- a relevant audit entry is created;
+- loading, empty, success, validation and failure states are visible;
+- browser refresh/deep linking works;
+- mobile behavior is verified;
+- automated or documented QA tests pass.
+
+Never trust organization_id, role, price, tax, discount, credit result, stock result or
+approval status sent only by the client.
+
+Derive tenant and user scope from the authenticated session/token.
+
+========================================================
+5. MULTI-TENANT ORGANIZATION MODEL
+========================================================
+
+Implement the hierarchy:
+
+Organization
+→ Business Unit
+→ Zone
+→ Region
+→ Area
+→ Territory
+→ Beat
+→ Outlet
+
+Allow distributors and warehouses to map to one or more territories according to policy.
+
+Every tenant-owned record must contain organization_id.
+
+Implement tenant lifecycle statuses:
+
+- Trial
+- Active
+- Past Due
+- Suspended
+- Archived
+
+Expected behavior:
+
+Trial:
+- Feature and usage limits
+- Expiry banner
+- Full tenant isolation
+
+Active:
+- Subscribed functionality available
+
+Past Due:
+- Grace-period/read behavior
+- Billing warning
+- Restricted administrative changes
+
+Suspended:
+- Block normal login
+- Allow only billing owner or authorized support recovery
+
+Archived:
+- Read-only data retention
+- No new operational transactions
+- Authorized export support
+
+Build at least two independent demo tenants and automated cross-tenant access tests.
+
+A user from Tenant A must never access Tenant B through:
+
+- URL manipulation
+- ID guessing
+- API body modification
+- search
+- report export
+- file URL
+- websocket/live map
+- import job
+- support tooling
+
+========================================================
+6. USERS, ROLES AND PERMISSIONS
+========================================================
+
+Implement the following roles:
+
+1. Super Admin
+2. Company Admin
+3. National Sales Manager
+4. Zonal Manager
+5. Regional Manager
+6. Area Sales Manager
+7. Sales Representative
+8. Distributor Owner
+9. Distributor Staff
+10. Finance User
+11. Auditor/Viewer
+
+Authorization must evaluate the intersection of:
+
+- tenant feature entitlement;
+- feature permission;
+- action permission;
+- hierarchy scope;
+- territory scope;
+- ownership;
+- record state;
+- field-level permission.
+
+Actions include:
+
+- view
+- create
+- edit
+- submit
+- approve
+- reject
+- cancel
+- reverse
+- export
+- delete where legally and functionally allowed
+
+Examples:
+
+- Sales Representative cannot change an outlet’s credit limit.
+- Distributor cannot change product GST configuration.
+- Auditor cannot mutate data.
+- A manager can see only assigned hierarchy/team data.
+- A dispatched order cannot be edited like a draft.
+- An approved receipt must be reversed through a compensating entry, not deleted.
+
+Do not treat hidden frontend buttons as security.
+
+Enforce every rule in backend services and mutation endpoints.
+
+========================================================
+7. AUTHENTICATION AND SECURITY
+========================================================
+
+Implement:
+
+- Email/password login
+- Mobile/password login
+- Optional OTP login
+- Forgot/reset password
+- Expiring reset token or OTP
+- Access token and refresh-token rotation
+- Logout
+- Logout from all devices
+- Device/session list
+- Remote session revocation
+- User invitation with role, scope and expiry
+- Inactive user blocking
+- Suspended tenant handling
+- Mandatory password reset
+- Login rate limiting
+- Account lockout or progressive delay
+- Authentication audit events
+
+Optional SSO must use provider adapters for Google and Microsoft.
+
+Offline mobile login is allowed only when:
+
+- the device was previously authenticated;
+- the user and tenant were active during the last valid sync;
+- the configured offline-login validity window has not expired;
+- only offline-safe functionality is exposed.
+
+Never reveal whether an account exists through login or password-reset errors.
+
+========================================================
+8. ORGANIZATION ONBOARDING
+========================================================
+
+Create a resumable onboarding wizard with these steps:
+
+1. Company
+   - Legal name
+   - Trade name
+   - GSTIN when applicable
+   - States
+   - Timezone
+   - Currency
+   - Branding
+
+2. Policies
+   - Working days
+   - Shift timing
+   - Attendance
+   - Geofence
+   - GPS accuracy
+   - Visit duration
+   - Credit rules
+   - Order approval rules
+   - Tax and rounding
+   - Offline retention
+   - Selfie/photo rules
+   - Expense limits
+
+3. Hierarchy
+   - Zones
+   - Regions
+   - Areas
+   - Territories
+   - Beats
+
+4. Users
+   - Managers
+   - Representatives
+   - Finance users
+   - Distributor users
+
+5. Products
+   - SKU
+   - Unit
+   - HSN
+   - GST
+   - MRP
+   - Selling price
+   - Minimum price
+
+6. Channels
+   - Distributors
+   - Warehouses
+   - Outlet import
+
+7. Go Live
+   - Validation summary
+   - Missing requirement list
+   - Activation confirmation
+
+Persist every step. Refreshing or logging in later must restore progress.
+
+========================================================
+9. REQUIRED PAGE INVENTORY
+========================================================
+
+Build functional routes for the following areas.
+
+Public:
+- Landing page
+- Features
+- Industries
+- Pricing
+- Contact
+- Privacy policy
+- Terms
+
+Authentication:
+- Login
+- OTP
+- Forgot password
+- Reset password
+- Invite acceptance
+- Device verification
+
+Admin and manager web:
+- Role-specific dashboards
+- Live operations map
+- Employees
+- Territories and beats
+- Outlets
+- Products
+- Prices
+- Schemes
+- Orders
+- Approvals
+- Distributors
+- Inventory
+- Dispatches
+- Deliveries
+- Returns
+- Claims
+- Collections
+- Outstanding
+- Targets
+- Incentives
+- Reports
+- Imports
+- Notifications
+- Integrations
+- Billing
+- Settings
+- Audit logs
+
+Field application:
+- Splash/login
+- OTP/offline login
+- Permission onboarding
+- Home
+- Start day/end day
+- Smart beat
+- Beat map/list
+- Outlet visit
+- Check-in/check-out
+- Outlet 360
+- Order catalogue/cart
+- Schemes and taxes
+- Collection entry
+- Customers
+- Own orders
+- Expenses
+- DSR
+- Performance
+- Attendance history
+- Profile/settings/help
+- Offline queue and sync conflicts
+
+Distributor portal:
+- Dashboard
+- Inventory
+- Batches
+- Orders requiring action
+- Confirm quantity
+- Allocate stock
+- Pick list
+- Packing
+- Dispatch
+- Proof of delivery
+- Returns
+- Claims
+- Invoices
+- Outstanding
+- Staff access
+- Reports
+
+Super Admin:
+- Tenants
+- Plans
+- Feature flags
+- Usage
+- Subscription lifecycle
+- System health
+- Support sessions
+- Audited impersonation
+- Suspension/restoration
+- Audit and incident views
+
+No navigation item should lead to an empty or placeholder route.
+
+========================================================
+10. FIELD ATTENDANCE AND START/END DAY
+========================================================
+
+Start Day must capture:
+
+- user
+- device
+- server timestamp
+- device timestamp
+- latitude
+- longitude
+- GPS accuracy
+- network state
+- battery level when available
+- optional selfie according to policy
+
+Validate:
+
+- GPS enabled
+- acceptable GPS accuracy
+- working window
+- active device
+- duplicate attendance
+- existing working session
+- online/offline state
+
+Expected behavior:
+
+- Duplicate Start Day returns the existing attendance session.
+- It must not create a second session.
+- Offline Start Day creates a signed local event with an idempotency key.
+- Outside working hours must warn, block or request an exception based on policy.
+- Visit operations stay locked until the work session is active.
+
+End Day must show:
+
+- planned visits
+- completed visits
+- productive visits
+- missed visits
+- unplanned visits
+- orders
+- collections
+- distance
+- expenses
+- pending sync records
+
+Require missed-outlet reasons when configured.
+
+Generate the Daily Sales Report after successful End Day or final synchronization.
+
+========================================================
+11. GEOFENCING AND LIVE TRACKING
+========================================================
+
+Default visit radius is 5 metres but must be configurable per organization or outlet.
+
+Server-side check-in logic must:
+
+1. Load stored outlet latitude and longitude.
+2. Load configured allowed radius.
+3. Calculate distance server-side.
+4. Store:
+   - measured distance
+   - allowed radius
+   - GPS accuracy
+   - device timestamp
+   - server timestamp
+   - decision
+   - decision reason
+   - exception reason
+5. Verify, request retry, flag or block according to policy.
+
+Never silently accept an outside-geofence visit.
+
+Track trust signals:
+
+- distance
+- GPS accuracy
+- timestamp difference
+- device/mock-location risk signal when available
+- visit duration
+- photo/order/collection/survey evidence
+- route sequence and abnormal travel speed
+
+Location tracking:
+
+- must only run during an active work session;
+- must respect organization policy and consent;
+- must stop when the day ends;
+- must use adaptive sampling;
+- must show “last updated” time;
+- must not display stale data as live;
+- must be hierarchy-scoped and audited;
+- must follow configured retention.
+
+Implement manager live map, rep status drawer and route replay.
+
+========================================================
+12. BEAT PLANNING
+========================================================
+
+Support beat types:
+
+- Fixed
+- Rotational
+- Dynamic
+- AI-assisted
+- Recovery
+
+Managers must be able to:
+
+- create beats using list and map;
+- assign outlets;
+- assign sales representatives;
+- assign distributors;
+- configure recurrence;
+- detect duplicate outlet assignment;
+- detect out-of-territory assignment;
+- publish a versioned plan;
+- reschedule with reason;
+- approve or reject changes;
+- compare planned and actual routes;
+- view missed and exception outcomes.
+
+Draft beat plans must not appear to representatives.
+
+Published versions must be immutable. A modification creates a new version.
+
+Implement an explainable Smart Priority Score using configurable weighted inputs such as:
+
+- days since last visit
+- reorder probability
+- expected order value
+- outstanding amount
+- strategic tier
+- target gap
+- stock availability
+- travel cost
+
+Show users why an outlet is ranked. Do not silently force the suggested sequence.
+
+========================================================
+13. OUTLET 360
+========================================================
+
+Outlet records must include:
+
+Identity:
+- code
+- legal/trade name
+- owner
+- category
+- tier
+- status
+
+Contact:
+- mobile
+- alternate mobile
+- email
+- language
+
+Location:
+- address
+- state
+- PIN code
+- latitude
+- longitude
+- geofence radius
+- map
+
+Tax/KYC:
+- GSTIN
+- PAN where required
+- licences
+- documents
+
+Commercial:
+- price list
+- credit limit
+- payment terms
+- outstanding
+- fulfilling distributor
+
+Sales:
+- order history
+- order frequency
+- average order value
+- product mix
+- returns
+
+Execution:
+- visit history
+- next visit
+- photos
+- surveys
+- issues
+
+Risk:
+- inactivity
+- revenue decline
+- overdue
+- churn/risk score
+- duplicate score
+
+Representative-created outlets should normally enter Pending Approval.
+
+At creation:
+
+- capture GPS;
+- capture storefront photo when required;
+- detect duplicates using mobile, GSTIN, normalized name and proximity.
+
+Managers can:
+
+- approve
+- reject
+- request correction
+- merge duplicate records
+
+Statuses:
+
+- Pending
+- Active
+- Temporarily Closed
+- Inactive
+- Blacklisted
+- Merged
+
+Do not hard-delete closed, inactive or merged outlets.
+
+========================================================
+14. PRODUCTS, PRICES, GST AND SCHEMES
+========================================================
+
+Product master must support:
+
+- SKU code
+- product name
+- brand
+- category
+- variant
+- pack size
+- base unit
+- case/unit conversion
+- barcode
+- HSN
+- GST rate
+- cess
+- effective dates
+- MRP
+- standard selling price
+- minimum price
+- margin
+- weight/volume
+- shelf life
+- images/catalogue
+- channel availability
+- active dates
+- sales restrictions
+
+Price resolution order:
+
+1. Resolve tenant and transaction date.
+2. Resolve outlet/distributor/channel price list.
+3. Resolve effective SKU price.
+4. Apply unit conversion.
+5. Apply approved scheme and discount precedence.
+6. Validate minimum price.
+7. Validate user discount authority.
+8. Calculate taxable value.
+9. Resolve GST using supply state.
+10. Apply configured rounding consistently.
+
+GST:
+
+- Same fulfilling-entity state and place-of-supply state:
+  CGST + SGST
+- Different states:
+  IGST
+
+Tax rates must be effective-dated and copied to the order/invoice line for audit.
+
+Scheme types:
+
+- Buy/Get
+- Slab discount
+- SKU bundle
+- Retailer tier
+- Focus incentive
+
+Support:
+
+- effective period
+- channel/outlet eligibility
+- qualification
+- free goods
+- stacking rules
+- benefit caps
+- funding source
+- claim tracking
+- stock reservation
+
+========================================================
+15. ORDER BOOKING AND APPROVAL ENGINE
+========================================================
+
+Mobile order screen must show:
+
+- outlet details
+- credit limit
+- outstanding
+- last order
+- product search
+- SKU/barcode/category filters
+- price
+- available-stock indicator
+- scheme badge
+- recommendation reason
+- case/unit quantity stepper
+- subtotal
+- discounts
+- free goods
+- taxable value
+- CGST/SGST/IGST
+- grand total
+
+Before final submission, server must revalidate:
+
+- outlet status and assignment
+- product status
+- price version
+- scheme version
+- stock
+- credit
+- overdue
+- GST master
+- duplicate request/idempotency key
+- authorization
+
+Credit exposure formula:
+
+Projected exposure =
+current outstanding
++ unbilled delivered value
++ eligible approved open-order value
++ new order value
+- unapplied approved receipts
+
+If exposure exceeds the credit limit:
+
+- move the order to Hold_Credit unless an authorized override applies.
+
+If an invoice exceeds overdue tolerance:
+
+- block or hold according to tenant policy.
+
+Implement states:
+
+- Draft
+- Submitted
+- Hold_Credit
+- Hold_Stock
+- Approved
+- Confirmed
+- Ready_Dispatch
+- Dispatched
+- Partial_Delivery
+- Delivered
+- Return_Initiated
+- Cancelled
+- Rejected
+- Closed where applicable
+
+Every state transition must:
+
+- verify allowed source and destination;
+- verify actor permission;
+- store actor, timestamp, source and reason;
+- create an audit record;
+- be idempotent where required.
+
+Approval triggers include:
+
+- discount above authority
+- credit limit exceeded
+- overdue retailer
+- below-minimum price
+- large order
+- manual tax or price override
+
+========================================================
+16. DISTRIBUTOR AND INVENTORY
+========================================================
+
+Distributor dashboard must show:
+
+- inventory health
+- batch ageing
+- pending orders
+- low-stock alerts
+- expiry alerts
+- today/month sales
+- fill rate
+- outstanding
+- returns
+- claims
+- dispatch SLA
+
+Inventory must be derived from immutable stock movements.
+
+Do not use a freely editable “current quantity” as the source of truth.
+
+Stock movements include:
+
+- receipt
+- reservation
+- reservation release
+- transfer
+- dispatch
+- delivery return
+- damage
+- expiry
+- block/unblock
+- adjustment
+- reversal
+
+Stock buckets:
+
+- On Hand
+- Reserved
+- Available
+- Blocked
+- In Transit
+- Expired
+
+Use FEFO for expiry-controlled products.
+
+Prevent allocation from:
+
+- expired batches
+- blocked batches
+- batches failing minimum shelf-life policy
+- insufficient batches
+
+Manual batch selection requires permission and reason.
+
+Every inventory movement must link to:
+
+- tenant
+- product
+- batch
+- warehouse
+- source document
+- actor
+- timestamp
+- quantity and unit
+- previous/reference information
+- reason
+
+========================================================
+17. DISPATCH, DELIVERY, RETURNS AND CLAIMS
+========================================================
+
+Implement fulfilment:
+
+1. Confirm quantities
+2. Allocate batches
+3. Generate pick list
+4. Pack
+5. Validate packed quantity
+6. Create dispatch document
+7. Assign vehicle/courier optionally
+8. Mark dispatched
+9. Capture proof of delivery
+10. Mark delivered, partially delivered or rejected
+11. Release or reverse reservations
+12. Update invoice and outstanding exactly once
+
+Each order line must store:
+
+- ordered
+- confirmed
+- allocated
+- dispatched
+- delivered
+- rejected
+- returned
+- backordered
+
+Partial fulfilment must create a backorder or close the remainder according to policy.
+
+Return categories:
+
+- Commercial
+- Quality
+- Expiry
+- Delivery
+- Market
+
+Require relevant:
+
+- order/invoice reference
+- product
+- batch
+- quantity
+- reason
+- photo/evidence
+- approval
+- claim reference
+
+========================================================
+18. COLLECTIONS, CREDIT AND OUTSTANDING
+========================================================
+
+Payment methods:
+
+- Cash
+- UPI
+- Bank transfer
+- Cheque
+- Credit adjustment
+- Debit adjustment
+- Payment promise without receipt
+
+Collection workflow:
+
+1. Select outlet.
+2. Load outstanding invoices.
+3. Select one or more invoices.
+4. Enter method, amount, reference and date.
+5. Upload evidence when required.
+6. Validate duplicate reference.
+7. Create pending or approved receipt.
+8. Allocate manually or oldest-first.
+9. Update outstanding only after approval.
+10. Generate receipt.
+11. Send configured notification.
+12. Support authorized reversal using compensating entries.
+
+Ageing buckets:
+
+- Current
+- 1–30
+- 31–60
+- 61–90
+- 90+
+
+Never delete approved payments or edit financial history invisibly.
+
+========================================================
+19. TARGETS, INCENTIVES AND PERFORMANCE
+========================================================
+
+Target types:
+
+- Revenue
+- Quantity
+- SKU
+- Category
+- Brand
+- Orders
+- Average order value
+- Visits
+- Productive calls
+- New active outlets
+- Collections
+- Overdue reduction
+- Fill rate
+- Service level
+
+Support assignment to:
+
+- user
+- team
+- area
+- territory
+- distributor
+- hierarchy node
+
+Daily required run rate:
+
+(period target - eligible achieved value) / remaining working days
+
+Make the achievement basis configurable:
+
+- Submitted
+- Confirmed
+- Dispatched
+- Delivered
+- Invoiced
+
+Display the selected basis on dashboards.
+
+Statuses:
+
+- On Track
+- Watch
+- At Risk
+- Achieved
+- Overachieved
+
+========================================================
+20. DASHBOARDS, REPORTS AND EXPORTS
+========================================================
+
+Build role-specific dashboards.
+
+Executive:
+- revenue
+- targets
+- growth
+- regions
+- products
+- distributors
+- forecast
+
+Sales Manager:
+- team activity
+- productive calls
+- route compliance
+- targets
+- risk
+- approvals
+
+Distributor:
+- inventory
+- fill rate
+- pending orders
+- expiry
+- sales
+- outstanding
+
+Finance:
+- collections
+- ageing
+- credit exposure
+- holds
+- reversals
+
+Outlet Analytics:
+- top outlets
+- declining outlets
+- inactive outlets
+- product mix
+- frequency
+- churn risk
+
+Reports:
+
+- Daily Sales Report
+- Attendance and working hours
+- Planned versus actual visits
+- Productive calls
+- Route deviation
+- Outlet coverage
+- Orders and status
+- SKU/category sales
+- Distributor fill rate
+- Inventory and batch ageing
+- Expiry and damage
+- Target versus achievement
+- Collection and ageing
+- Credit holds
+- Returns and claims
+- Expenses
+- Audit logs
+
+Report requirements:
+
+- server-side filtering;
+- tenant and hierarchy scope;
+- pagination;
+- saved views;
+- scheduled reports;
+- large asynchronous export jobs;
+- expiring secure download links;
+- export auditing;
+- KPI definition;
+- time basis;
+- last refresh time;
+- separate zero-data and load-failure states.
+
+========================================================
+21. AI FEATURES
+========================================================
+
+Implement AI as advisory, explainable functionality.
+
+Features:
+
+1. Smart Beat
+2. SKU Recommendation
+3. Demand Forecast
+4. At-Risk Outlet
+5. Manager Copilot
+6. Anomaly Detection
+
+Guardrails:
+
+- Never auto-add a recommended SKU silently.
+- Never automatically blacklist an outlet.
+- Never automatically penalize an employee.
+- Always show input factors/reasons.
+- Show forecast range and confidence.
+- Show missing-data warnings.
+- Only use data the current user is authorized to access.
+- Store model/rule version.
+- Audit sensitive AI-assisted actions.
+
+When no external AI API key exists:
+
+- Smart Beat, SKU suggestion and risk scoring should have a deterministic
+  rule-based fallback.
+- Manager Copilot should show a clear “provider not configured” state.
+- Do not fake AI responses.
+
+========================================================
+22. NOTIFICATIONS, FILES, IMPORTS AND INTEGRATIONS
+========================================================
+
+Notification channels:
+
+- in-app
+- push
+- email
+- SMS/OTP
+- WhatsApp through approved provider
+
+Build notification preferences, templates, escalation, delivery status and retry behavior.
+
+Imports must support:
+
+- employees
+- products
+- distributors
+- outlets
+- prices
+- opening stock
+
+Import workflow:
+
+1. Download template
+2. Upload file
+3. Validate file and columns
+4. Dry run
+5. Show valid/invalid/duplicate counts
+6. Generate row-level error file
+7. Confirm import
+8. Execute asynchronously
+9. Show progress
+10. Provide result
+11. Audit import
+12. Provide safe rollback strategy where supported
+
+Integration adapters:
+
+- Maps/geocoding/routes
+- Tally or ERP
+- WhatsApp provider
+- SMS/OTP provider
+- Email
+- Object storage
+- Payment/UPI reference verification
+- BI/data warehouse
+- Google/Microsoft SSO
+
+When credentials are unavailable:
+
+- implement provider interfaces;
+- configuration screens;
+- environment variables;
+- mock/sandbox adapters;
+- clear “not configured” UI state;
+- webhook endpoints and documentation where relevant.
+
+Do not claim a live integration is connected when no credentials are configured.
+
+========================================================
+23. ADMIN, SUBSCRIPTION AND AUDIT
+========================================================
+
+Settings areas:
+
+- company profile
+- branding
+- hierarchy
+- locations
+- users
+- roles
+- attendance/geofence/route
+- order
+- credit
+- tax
+- schemes
+- approvals
+- products
+- pricing
+- inventory
+- notification templates
+- integrations
+- API credentials
+- subscriptions
+- usage
+- invoices
+- retention
+- exports
+- privacy
+- audit logs
+- feature flags
+
+Audit at minimum:
+
+- login success/failure
+- logout
+- refresh-token activity
+- create
+- update
+- approval
+- rejection
+- cancellation
+- reversal
+- export
+- permission change
+- support impersonation
+- integration credential change
+- tenant lifecycle change
+
+Audit record must contain:
+
+- organization
+- actor
+- action
+- entity type
+- entity ID
+- before/after summary where relevant
+- timestamp
+- IP
+- device/session
+- correlation ID
+- reason/source
+
+Audit logs are append-only.
+
+Super Admin restrictions:
+
+- no routine access to tenant business records;
+- support access requires reason and expiration;
+- support impersonation must show a visible banner;
+- impersonation must be audited;
+- secrets must be masked;
+- secrets must not be stored in source code;
+- suspension/restoration requires elevated confirmation;
+- no cross-tenant usage leakage.
+
+========================================================
+24. DATA MODEL
+========================================================
+
+Implement or map existing equivalents for:
+
+- organizations
+- organization_settings
+- subscriptions
+- users
+- roles
+- permissions
+- user_scopes
+- employee_profiles
+- devices
+- sessions
+- sales_hierarchy_nodes
+- territories
+- beats
+- beat_outlets
+- beat_plans
+- attendance_sessions
+- location_points
+- visits
+- visit_activities
+- outlets
+- outlet_documents
+- outlet_assignments
+- distributors
+- warehouses
+- products
+- product_prices
+- tax_rates
+- schemes
+- inventory_batches
+- stock_movements
+- orders
+- order_items
+- order_status_history
+- approvals
+- dispatches
+- delivery_proofs
+- invoices
+- payments
+- payment_allocations
+- returns
+- claims
+- targets
+- target_assignments
+- expenses
+- notifications
+- files
+- imports
+- sync_events
+- audit_logs
+
+Universal rules:
+
+- UUID/ULID or equivalent globally unique IDs
+- organization_id on tenant records
+- created_at and updated_at
+- created_by where applicable
+- soft delete for business masters
+- cancellation/reversal for transactions
+- decimal financial values
+- UTC storage
+- organization/user timezone rendering
+- version/optimistic locking
+- tenant-scoped indexes
+- tenant-scoped unique constraints
+- encryption/tokenization for sensitive fields
+
+Key relations:
+
+- one active primary outlet-territory assignment with retained history;
+- one active fulfilling distributor per channel/period unless policy allows multiple;
+- order-to-visit linkage according to field-order policy;
+- resolved price/tax/scheme versions stored on order lines;
+- batch mandatory for batch-controlled stock movements;
+- payment-to-invoice many-to-many through allocations;
+- target assignment stores period, metric and scope.
+
+Create migration/index scripts and seed scripts.
+
+========================================================
+25. API CONTRACT
+========================================================
+
+Use versioned REST APIs under /api/v1 unless the project already has a compatible contract.
+
+Required principles:
+
+- JSON request/response
+- bearer access token
+- refresh rotation
+- server-side authorization
+- cursor pagination for large lists
+- explicit filtering and sorting
+- Idempotency-Key for orders, visits, payments, dispatches and offline mutations
+- correlation ID on every response
+- OpenAPI generated and checked in CI
+
+Core endpoint groups should include:
+
+Auth:
+- POST /auth/login
+- POST /auth/otp/request
+- POST /auth/otp/verify
+- POST /auth/refresh
+- POST /auth/logout
+
+Organization:
+- GET/PATCH /organization
+- GET/PATCH /settings
+
+Users:
+- GET/POST /users
+- GET/PATCH /users/:id
+- POST /invites
+
+Attendance:
+- POST /attendance/start
+- POST /attendance/end
+- GET /attendance/me
+
+Beats:
+- GET /beat-plans/today
+- POST /beat-plans
+- PATCH /beat-plans/:id
+
+Outlets:
+- GET/POST /outlets
+- GET/PATCH /outlets/:id
+- POST /outlets/:id/approve
+
+Visits:
+- POST /visits/check-in
+- POST /visits/:id/activities
+- POST /visits/:id/check-out
+
+Products:
+- GET/POST /products
+- GET /catalog
+- GET/POST /prices
+- GET/POST /schemes
+
+Orders:
+- GET/POST /orders
+- GET /orders/:id
+- POST /orders/:id/approve
+- POST /orders/:id/reject
+- POST /orders/:id/cancel
+
+Inventory:
+- GET /inventory
+- POST /stock-movements
+- POST /allocations
+
+Dispatch:
+- POST /dispatches
+- POST /dispatches/:id/deliver
+
+Collections:
+- GET /outstanding
+- POST /payments
+- POST /payments/:id/approve
+- POST /payments/:id/reverse
+
+Targets:
+- GET/POST /targets
+- GET /targets/summary
+
+Reports:
+- POST /reports/run
+- GET /reports/jobs/:id
+- GET /exports/:id
+
+Sync:
+- POST /sync/batch
+- GET /sync/status
+
+Audit:
+- GET /audit-logs
+
+Use a standard error shape:
+
+{
+  "error": {
+    "code": "STABLE_MACHINE_READABLE_CODE",
+    "message": "Safe user-facing message",
+    "field_errors": [],
+    "correlation_id": "...",
+    "retryable": false
+  }
+}
+
+Use HTTP status codes correctly:
+
+- 400 malformed request/invalid transition
+- 401 authentication required
+- 403 permission denied
+- 404 not found within authorized tenant scope
+- 409 duplicate, stale version, conflict or idempotency mismatch
+- 422 field/business validation
+- 429 rate limit
+- 500/503 unexpected or temporary failure
+
+========================================================
+26. OFFLINE MODE AND SYNCHRONIZATION
+========================================================
+
+Offline-supported actions:
+
+- view cached assigned beat
+- view cached assigned outlets
+- view cached product catalogue
+- start/end attendance
+- check-in/check-out
+- create visit activities
+- create order draft
+- queue order submission
+- create collection when policy permits
+- queue photos/documents
+
+Online-only:
+
+- sensitive approvals
+- admin settings
+- tenant management
+- critical master changes
+
+Each sync record must contain:
+
+- local_event_id
+- entity_type
+- operation
+- payload
+- schema version
+- idempotency key
+- device creation time
+- estimated server time
+- master-data version references
+- dependency event IDs
+- retry count
+- last error
+- status
+
+Statuses:
+
+- pending
+- syncing
+- synced
+- conflict
+- failed
+
+Conflict rules:
+
+- Same order retried:
+  return original server record through idempotency.
+
+- Price/scheme changed:
+  server recalculates and requests confirmation when total changes.
+
+- Outlet deactivated:
+  reject mutation, preserve local draft and explain.
+
+- Stock changed:
+  hold, partially fulfil or reject according to policy.
+
+- Concurrent edit:
+  use version field and return latest record with merge options.
+
+- Photo failed:
+  preserve the business event and mark evidence pending when policy permits.
+
+Build a visible sync centre showing:
+
+- pending count
+- failed count
+- conflict count
+- last successful sync
+- per-item error
+- retry action
+- conflict-resolution action
+
+Mobile restart must not lose queued events.
+
+========================================================
+27. SECURITY, PRIVACY AND PERFORMANCE
+========================================================
+
+Security:
+
+- OWASP-aligned secure development
+- dependency and secret scanning
+- TLS
+- managed encryption at rest
+- least-privilege RBAC
+- tenant isolation tests
+- rate limiting
+- credential-stuffing protection
+- secure headers
+- signed upload URLs
+- file type/size validation
+- malware scanning where available
+- masked secrets
+- PII access logging
+- precise-location access logging
+- configurable retention
+- penetration-test readiness
+
+Privacy:
+
+- explain when and why location is collected;
+- collect location only for work operations;
+- stop tracking outside active sessions;
+- distinguish verified facts from inferred risk;
+- do not make disciplinary decisions automatically.
+
+Performance targets:
+
+- common read API p95 below 500 ms;
+- transactional API p95 below 1.5 seconds excluding third parties;
+- core web dashboard usable within 3 seconds on normal broadband after cache;
+- cached field actions respond within 300 ms;
+- background sync must not block normal interaction;
+- architecture must initially support 10,000 concurrent active users;
+- production availability target 99.9%;
+- encrypted backups;
+- RPO no more than 15 minutes;
+- RTO no more than 4 hours for production tier.
+
+Add indexes and query optimization required to approach these targets.
+
+========================================================
+28. UI/UX REQUIREMENTS
+========================================================
+
+Use the BRD reference images only as visual inspiration.
+
+Do not:
+
+- display PDF pages as website screens;
+- use screenshots in place of UI components;
+- copy placeholder product/company names as production data.
+
+Create a professional, premium B2B SaaS design.
+
+Requirements:
+
+- responsive desktop/tablet/mobile layouts;
+- consistent sidebar/top navigation;
+- breadcrumbs;
+- role-aware navigation;
+- searchable and filterable tables;
+- pagination;
+- sortable columns;
+- bulk actions where appropriate;
+- confirmation for destructive/sensitive actions;
+- skeleton loading;
+- empty states;
+- field-level validation;
+- success feedback;
+- error recovery;
+- disabled states;
+- tooltips for calculations;
+- accessible labels;
+- visible keyboard focus;
+- adequate contrast;
+- no critical state communicated by colour alone;
+- large touch targets in the field application;
+- low-data mode;
+- English and Hindi localization architecture;
+- organization branding and theme configuration.
+
+Every list page should include appropriate:
+
+- search
+- filters
+- pagination
+- sort
+- empty state
+- loading state
+- server error state
+- retry
+- detail action
+- permission-controlled create/edit/export
+
+========================================================
+29. TESTING AND CRITICAL UAT
+========================================================
+
+Implement unit, integration and end-to-end tests for critical workflows.
+
+At minimum verify:
+
+UAT-01:
+Company admin completes onboarding and imports valid/invalid masters with
+row-level errors.
+
+UAT-02:
+Representative starts the day online and offline without duplicate attendance.
+
+UAT-03:
+Representative cannot falsely check in outside the geofence without a flagged
+exception.
+
+UAT-04:
+Intra-state order calculates CGST and SGST correctly.
+
+UAT-05:
+Inter-state order calculates IGST and place of supply correctly.
+
+UAT-06:
+Credit-limit breach creates Hold_Credit and authorized approval releases it.
+
+UAT-07:
+Distributor allocates the earliest valid batch and partially fulfils when stock
+is insufficient.
+
+UAT-08:
+Dispatch and delivery update stock, invoice and outstanding exactly once.
+
+UAT-09:
+Collection allocation updates invoices and reversal restores outstanding.
+
+UAT-10:
+Target achievement and daily required run rate use configured eligible status.
+
+UAT-11:
+Manager sees only assigned hierarchy and cannot access another tenant.
+
+UAT-12:
+Offline visits and orders sync after reconnect without duplication.
+
+UAT-13:
+Large report exports asynchronously and respects filters and permissions.
+
+UAT-14:
+Browser refresh and mobile restart preserve safe workflow state.
+
+UAT-15:
+Audit log identifies actor and changes for sensitive operations.
+
+Also test:
+
+- invalid state transitions
+- zero stock
+- expired batches
+- duplicate payment references
+- stale version conflicts
+- disabled users
+- suspended tenants
+- cross-tenant IDs
+- revoked sessions
+- import rollback
+- upload failure
+- notification provider failure
+- network loss during submission
+- repeated API requests
+- missing integration credentials
+
+========================================================
+30. SEED DATA
+========================================================
+
+Create realistic development seed data containing at least:
+
+- 2 organizations
+- 1 Super Admin
+- Company Admin
+- National/Zonal/Regional/Area Managers
+- Sales Representatives
+- Finance User
+- Distributor Owner
+- Distributor Staff
+- Auditor
+- hierarchy from zone to outlet
+- several territories and beats
+- active and pending outlets
+- 20+ products
+- GST rates
+- intra-state and inter-state examples
+- schemes
+- distributors and warehouses
+- inventory batches with different expiries
+- outstanding invoices
+- orders in multiple statuses
+- payments
+- targets
+- visits
+- attendance
+- notifications
+- audit events
+
+Provide safe development-only credentials in the README.
+
+Never use seeded passwords or fixed secrets in production.
+
+========================================================
+31. DEVOPS AND HANDOVER
+========================================================
+
+Provide:
+
+- .env.example
+- startup scripts
+- database migration/index scripts
+- seed command
+- Docker configuration when consistent with the repository
+- health endpoint
+- readiness endpoint
+- CI pipeline
+- lint/type-check/test/build commands
+- OpenAPI documentation
+- database ERD or collection relationship diagram
+- import templates
+- backup and restore instructions
+- deployment guide
+- monitoring/logging guide
+- rollback instructions
+- production checklist
+- demo credentials
+- known limitations
+- requirement traceability matrix
+
+The application must run from a clean checkout using documented steps.
+
+========================================================
+32. IMPLEMENTATION ORDER
+========================================================
+
+Implement in this order while keeping the application runnable:
+
+Phase 0 — Foundation
+- audit
+- architecture
+- design system
+- tenant model
+- authentication
+- RBAC
+- database baseline
+- CI/CD
+
+Phase 1 — Masters and Admin
+- organization
+- hierarchy
+- users
+- products
+- prices
+- distributors
+- outlets
+- imports
+
+Phase 2 — Field Execution
+- field PWA/app
+- attendance
+- beats
+- geofence
+- visits
+- live tracking
+- offline queue
+
+Phase 3 — Orders and Distributor Management
+- order cart
+- GST
+- schemes
+- credit
+- inventory
+- allocation
+- dispatch
+- delivery
+- returns
+
+Phase 4 — Finance and Performance
+- invoices
+- outstanding
+- collections
+- targets
+- DSR
+- dashboards
+- reports
+
+Phase 5 — AI and Enterprise
+- recommendations
+- forecasting
+- risk
+- integrations
+- subscriptions
+- Super Admin hardening
+
+Phase 6 — Production Readiness
+- migration
+- UAT
+- security testing
+- performance testing
+- monitoring
+- deployment
+- rollback
+- documentation
+
+Do not postpone fundamental tenant isolation, permissions, audit logging or
+transaction integrity to the last phase.
+
+========================================================
+33. REQUIRED PROGRESS REPORT FORMAT
+========================================================
+
+After each implementation phase, report:
+
+1. Completed requirements
+2. Reused existing implementation
+3. Modified implementation
+4. Removed duplicate implementation
+5. Files changed
+6. Routes added/fixed
+7. APIs added/fixed
+8. Database models/migrations/indexes
+9. Permissions implemented
+10. Business rules implemented
+11. Tests executed
+12. Test results
+13. Remaining issues
+14. Environment variables still required
+15. Exact local run instructions
+
+Do not use screenshots as the only proof.
+
+Screenshots may be attached only as supplementary visual evidence after the
+functional code, API and test evidence are available.
+
+========================================================
+34. FINAL ACCEPTANCE GATE
+========================================================
+
+Do not mark BharatSales AI complete until:
+
+- public pages work;
+- all major role portals work;
+- login and session handling work;
+- tenant isolation is verified;
+- hierarchy permissions are verified;
+- field attendance works;
+- geofence works;
+- beat execution works;
+- outlet management works;
+- orders calculate prices, schemes and GST correctly;
+- credit holds work;
+- distributor allocation works;
+- FEFO works;
+- dispatch and delivery work;
+- inventory ledger stays consistent;
+- collection and reversal work;
+- targets and dashboards use real data;
+- reports and exports work;
+- offline queue and sync work;
+- audit logs work;
+- loading and failure states exist;
+- browser refresh and deep links work;
+- seed data and demo accounts work;
+- tests pass;
+- documentation is complete.
+
+A screen is not complete merely because it visually resembles the BRD.
+
+A feature is accepted only when its route, API, business logic, database effect,
+role restriction, audit trail, errors, offline/mobile behavior and test evidence
+can be demonstrated end-to-end.
+
+Start by auditing the existing repository, preparing the traceability matrix and
+then immediately implement Phase 0 and the missing P0 requirements.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-07-17T11:32:21+05:30.
+
+The user's current state is as follows:
+Other open documents:
+- /Users/rajakumar/Downloads/bharatsales-ai 2/apps/api/src/live-map/live-map.module.ts (LANGUAGE_TYPESCRIPT)
+- /Users/rajakumar/Downloads/bharatsales-ai 2/apps/api/src/auth/auth.controller.ts (LANGUAGE_TYPESCRIPT)
+- /Users/rajakumar/Downloads/bharatsales-ai 2/apps/api/src/schemas/import-job.schema.ts (LANGUAGE_TYPESCRIPT)
+- /Users/rajakumar/Downloads/bharatsales-ai 2/apps/web/src/app/globals.css (LANGUAGE_CSS)
+- /Users/rajakumar/Downloads/bharatsales-ai 2/apps/api/src/schemas/product.schema.ts (LANGUAGE_TYPESCRIPT)
+</ADDITIONAL_METADATA>

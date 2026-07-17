@@ -10,7 +10,7 @@ export class ReturnsController {
 
   @Get()
   async getReturns(@Request() req: any) {
-    return this.returnsService.getReturns(req.user.organizationId);
+    return this.returnsService.getReturns(req.user.orgId);
   }
 
   @Post()
@@ -18,6 +18,6 @@ export class ReturnsController {
     @Request() req: any, 
     @Body() data: Omit<SharedReturnOrder, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>
   ) {
-    return this.returnsService.create(req.user.organizationId, data, req.user.userId);
+    return this.returnsService.create(req.user.orgId, data, req.user.sub);
   }
 }

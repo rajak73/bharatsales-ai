@@ -12,7 +12,14 @@ export class ProductsService {
     return this.productModel.find({ organizationId }).exec();
   }
 
+  async getCatalog(organizationId: string): Promise<Product[]> {
+    return this.productModel.find({ organizationId, status: 'Active' }).select('-taxHistory -createdAt -updatedAt').exec();
+  }
+
   async create(organizationId: string, productData: Omit<SharedProduct, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>): Promise<Product> {
+    if (productData.pricing?.ptr > productData.pricing?.mrp) {
+      throw new Error('PTR (Price to Retailer) cannot be greater than MRP');
+    }
     const newProduct = new this.productModel({
       ...productData,
       organizationId,
@@ -22,6 +29,10 @@ export class ProductsService {
   }
 
   async update(organizationId: string, id: string, updateData: Partial<SharedProduct>): Promise<Product> {
+    if (updateData.pricing && updateData.pricing.ptr > updateData.pricing.mrp) {
+      throw new Error('PTR (Price to Retailer) cannot be greater than MRP');
+    }
+
     const product = await this.productModel.findOneAndUpdate(
       { _id: id, organizationId },
       { $set: updateData },

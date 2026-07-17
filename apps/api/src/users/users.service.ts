@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
@@ -12,7 +12,11 @@ export class UsersService {
     return this.userModel.find({ organizationId }).select('-password').exec();
   }
 
-  async createUser(organizationId: string, userData: Partial<User> & { password?: string }) {
+  async createUser(organizationId: string, actorRole: string, userData: Partial<User> & { password?: string }) {
+    if (userData.role === 'Super Admin' && actorRole !== 'Super Admin') {
+      throw new ForbiddenException('Only Super Admins can create other Super Admins.');
+    }
+
     if (!userData.email) {
       throw new BadRequestException('Email is required');
     }
@@ -38,7 +42,11 @@ export class UsersService {
     return result;
   }
 
-  async updateUser(organizationId: string, id: string, updateData: Partial<User> & { password?: string }) {
+  async updateUser(organizationId: string, actorRole: string, id: string, updateData: Partial<User> & { password?: string }) {
+    if (updateData.role === 'Super Admin' && actorRole !== 'Super Admin') {
+      throw new ForbiddenException('Only Super Admins can assign the Super Admin role.');
+    }
+
     if (updateData.password) {
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }

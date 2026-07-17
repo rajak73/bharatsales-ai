@@ -1,161 +1,187 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { getModelToken } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 
 async function bootstrap() {
-  const app = await NestFactory.createApplicationContext(AppModule);
-  
-  console.log('Seeding database...');
-  
-  const userModel = app.get<Model<any>>(getModelToken('User'));
-  const orgModel = app.get<Model<any>>(getModelToken('Tenant'));
-  const productModel = app.get<Model<any>>(getModelToken('Product'));
-  const outletModel = app.get<Model<any>>(getModelToken('Outlet'));
-  const invoiceModel = app.get<Model<any>>(getModelToken('Invoice'));
-  const hierarchyNodeModel = app.get<Model<any>>(getModelToken('HierarchyNode'));
+  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales';
+  await mongoose.connect(uri);
+  console.log('Connected to MongoDB:', uri);
 
-  // Clear existing
-  await userModel.deleteMany({});
-  await orgModel.deleteMany({});
-  await productModel.deleteMany({});
-  await outletModel.deleteMany({});
-  await invoiceModel.deleteMany({});
-  await hierarchyNodeModel.deleteMany({});
+  const db = mongoose.connection.db;
+  if (!db) {
+    throw new Error('Database connection not established');
+  }
 
-  // 1. Create Organization (Tenant)
-  const org = await orgModel.create({
-    name: 'BharatSales AI Corp',
+  // Clear existing data
+  console.log('Clearing existing data...');
+  const collections = ['tenants', 'hierarchy_nodes', 'users', 'products', 'price_lists', 'distributors', 'outlets'];
+  for (const collectionName of collections) {
+    try {
+      await db.collection(collectionName).deleteMany({});
+    } catch (e) {
+      console.log(`Collection ${collectionName} might not exist yet.`);
+    }
+  }
+
+  // 1. Tenants
+  const tenant1 = await db.collection('tenants').insertOne({
+    name: 'FMCG Corp',
     status: 'Active',
     plan: 'Enterprise',
     timezone: 'Asia/Kolkata',
     currency: 'INR',
+    createdAt: new Date(),
+    updatedAt: new Date()
   });
-
-  // 1.5 Create Hierarchy Nodes
-  const zone = await hierarchyNodeModel.create({
-    organizationId: org._id.toString(),
-    name: 'North Zone',
-    level: 'Zone',
-    status: 'Active',
-  });
-
-  const region = await hierarchyNodeModel.create({
-    organizationId: org._id.toString(),
-    name: 'Delhi NCR',
-    level: 'Region',
-    parentId: zone._id,
-    status: 'Active',
-  });
-
-  const area = await hierarchyNodeModel.create({
-    organizationId: org._id.toString(),
-    name: 'South Delhi',
-    level: 'Area',
-    parentId: region._id,
-    status: 'Active',
-  });
-
-  const territory = await hierarchyNodeModel.create({
-    organizationId: org._id.toString(),
-    name: 'Saket Territory',
-    level: 'Territory',
-    parentId: area._id,
-    status: 'Active',
-  });
-
-  // 2. Create Users
-  const hashedPassword = await bcrypt.hash('password123', 10);
   
-  await userModel.create([
+  const tenant2 = await db.collection('tenants').insertOne({
+    name: 'Pharma Inc',
+    status: 'Active',
+    plan: 'Growth',
+    timezone: 'Asia/Kolkata',
+    currency: 'INR',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+
+  const org1Id = tenant1.insertedId.toString();
+  const org2Id = tenant2.insertedId.toString();
+
+  // 2. Hierarchy for org1
+  const zoneId = (await db.collection('hierarchy_nodes').insertOne({
+    organizationId: org1Id, name: 'North Zone', level: 'Zone', status: 'Active', createdAt: new Date(), updatedAt: new Date()
+  })).insertedId.toString();
+
+  const regionId = (await db.collection('hierarchy_nodes').insertOne({
+    organizationId: org1Id, name: 'Delhi NCR', level: 'Region', parentId: zoneId, status: 'Active', createdAt: new Date(), updatedAt: new Date()
+  })).insertedId.toString();
+
+  const areaId = (await db.collection('hierarchy_nodes').insertOne({
+    organizationId: org1Id, name: 'South Delhi', level: 'Area', parentId: regionId, status: 'Active', createdAt: new Date(), updatedAt: new Date()
+  })).insertedId.toString();
+
+  const territoryId = (await db.collection('hierarchy_nodes').insertOne({
+    organizationId: org1Id, name: 'Saket', level: 'Territory', parentId: areaId, status: 'Active', createdAt: new Date(), updatedAt: new Date()
+  })).insertedId.toString();
+
+  // 3. Users for org1
+  const defaultPassword = await bcrypt.hash('password123', 10);
+  
+  await db.collection('users').insertMany([
     {
-      organizationId: org._id.toString(),
+      organizationId: org1Id,
       name: 'Super Admin',
-      email: 'admin@bharatsales.in',
-      mobile: '9876543210',
-      password: hashedPassword,
+      email: 'admin@fmcgcorp.com',
+      password: defaultPassword,
       role: 'Super Admin',
       status: 'Active',
+      createdAt: new Date(),
+      updatedAt: new Date()
     },
     {
-      organizationId: org._id.toString(),
-      name: 'Ravi Kumar',
-      email: 'ravi@bharatsales.in',
-      mobile: '9876543211',
-      password: hashedPassword,
+      organizationId: org1Id,
+      name: 'Regional Manager',
+      email: 'rm@fmcgcorp.com',
+      password: defaultPassword,
+      role: 'Regional Sales Manager',
+      territoryIds: [regionId],
+      status: 'Active',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      organizationId: org1Id,
+      name: 'Sales Rep Saket',
+      email: 'rep@fmcgcorp.com',
+      password: defaultPassword,
       role: 'Sales Representative',
-      territoryIds: [territory._id.toString()],
+      territoryIds: [territoryId],
       status: 'Active',
+      createdAt: new Date(),
+      updatedAt: new Date()
     }
   ]);
 
-  // 3. Create Products
-  await productModel.create([
+  // Hierarchy for org2
+  await db.collection('users').insertOne({
+    organizationId: org2Id,
+    name: 'Pharma Admin',
+    email: 'admin@pharmainc.com',
+    password: defaultPassword,
+    role: 'Company Admin',
+    status: 'Active',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+
+  // 4. Products for org1
+  await db.collection('products').insertMany([
     {
-      organizationId: org._id.toString(),
-      name: 'Premium Tea 500g',
-      sku: 'TEA-500',
-      category: 'Beverages',
-      brand: 'BharatBrew',
+      organizationId: org1Id,
+      name: 'Premium Soap',
+      sku: 'SKU-SOAP-01',
+      category: 'Personal Care',
+      pricing: { mrp: 50, ptr: 40, basePrice: 40, gstPercentage: 18 },
       status: 'Active',
-      pricing: {
-        mrp: 250,
-        basePrice: 180,
-        gstPercentage: 5,
-      },
-      stock: {
-        available: 1000,
-        uom: 'Pouch',
-      }
+      createdAt: new Date(),
+      updatedAt: new Date()
     },
     {
-      organizationId: org._id.toString(),
-      name: 'Coffee Powder 250g',
-      sku: 'COF-250',
-      category: 'Beverages',
-      brand: 'BharatBrew',
+      organizationId: org1Id,
+      name: 'Shampoo 200ml',
+      sku: 'SKU-SHMP-01',
+      category: 'Personal Care',
+      pricing: { mrp: 120, ptr: 100, basePrice: 100, gstPercentage: 18 },
       status: 'Active',
-      pricing: {
-        mrp: 300,
-        basePrice: 220,
-        gstPercentage: 5,
-      },
-      stock: {
-        available: 500,
-        uom: 'Jar',
-      }
+      createdAt: new Date(),
+      updatedAt: new Date()
     }
   ]);
 
-  // 4. Create Mock Outlet
-  const mockOutlet = await outletModel.create({
-    organizationId: org._id.toString(),
-    name: 'Sharma Kirana Store',
-    code: 'OUT-SHARMA-001',
+  // 5. Distributors and Outlets
+  const distributorId = (await db.collection('distributors').insertOne({
+    organizationId: org1Id,
+    name: 'Saket Distributors',
+    code: 'DIST-001',
+    territoryId: territoryId,
+    status: 'Active',
+    contactPerson: 'Raj Kumar',
+    mobile: '9876543210',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  })).insertedId.toString();
+
+  await db.collection('outlets').insertOne({
+    organizationId: org1Id,
+    name: 'Aggarwal Stores',
     type: 'Retail',
-    routeId: 'ROUTE-01',
+    status: 'Active',
     commercial: {
-      outstandingBalance: 15000,
+      assignedDistributorId: distributorId,
       creditLimit: 50000
     },
-    status: 'Active'
+    location: {
+      address: 'Select City Walk, Saket',
+      city: 'New Delhi',
+      state: 'Delhi',
+      coordinates: { lat: 28.5284, lng: 77.2183 }
+    },
+    createdAt: new Date(),
+    updatedAt: new Date()
   });
 
-  // 5. Create Mock Invoice
-  await invoiceModel.create({
-    organizationId: org._id.toString(),
-    invoiceNumber: 'INV-SHARMA-001',
-    outletId: mockOutlet._id.toString(),
-    outlet: mockOutlet._id,
-    orderId: 'ORDER-DUMMY',
-    totalAmount: 15000,
-    paidAmount: 0,
-    status: 'Unpaid',
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-  });
+  console.log('Database seeded successfully.');
+  
+  console.log('\n--- SEED DATA ---');
+  console.log('Tenant 1 ID:', org1Id);
+  console.log('Tenant 2 ID:', org2Id);
+  console.log('Super Admin Email: admin@fmcgcorp.com');
+  console.log('Super Admin Password: password123');
 
-  console.log('Database seeded successfully!');
-  await app.close();
+  await mongoose.disconnect();
+  process.exit(0);
 }
-bootstrap();
+
+bootstrap().catch(err => {
+  console.error('Failed to seed database:', err);
+  process.exit(1);
+});

@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../database/db';
 import { Trash2, Plus, Minus, CheckCircle2, AlertTriangle, Tag } from 'lucide-react';
 import type { Scheme } from '@bharatsales/shared-types';
+import { VoiceOrderButton } from '../components/VoiceOrderButton';
 
 export function CartScreen() {
   const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -147,6 +148,8 @@ export function CartScreen() {
   return (
     <div className="p-4 space-y-4 pb-24">
       <h1 className="text-2xl font-bold text-gray-900 mb-4">Review Order</h1>
+
+      <VoiceOrderButton />
 
       {cart.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">

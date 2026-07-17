@@ -13,4 +13,9 @@ export class DispatchService {
     const response = await apiClient.post<Dispatch>('/dispatch', data);
     return response.data;
   }
+
+  static async updateDispatchStatus(id: string, status: string): Promise<Dispatch> {
+    const response = await apiClient.patch<Dispatch>(`/dispatch/${id}/status`, { status });
+    return response.data;
+  }
 }

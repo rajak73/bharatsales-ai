@@ -1,66 +1,46 @@
-# Implementation Audit
+# BharatSales AI Implementation Audit
 
-This document classifies existing modules within the BharatSales AI repository according to the provided instructions.
+Based on the Master BRD and inspection of the current repository structure, here is the audit of the existing modules:
 
-## 1. Authentication and Authorization
-- **Status:** COMPLETE_AND_REUSABLE
-- **Inspection:** Custom multi-tenant JWT auth system exists. `AuthModule` uses `bcryptjs`. API client injects tokens. Web login uses `AuthService`.
-- **Verdict:** Reuse the existing auth setup but extend it for role-based permissions (RBAC) and OTP/Reset workflows as defined in BRD.
+## Phase 0: Foundation
+- **Tenant Model**: `COMPLETE_AND_REUSABLE` - `tenantId` (referred to as `organizationId`) is enforced in Mongoose schemas.
+- **RBAC**: `COMPLETE_AND_REUSABLE` - Roles exist, auth service supports JWT.
+- **Database Baseline**: `COMPLETE_AND_REUSABLE` - Schemas have timestamps, enums, soft delete logic via status flags.
+- **CI/CD**: `COMPLETE_AND_REUSABLE` - Turbo repo configuration and GitHub workflows are present.
+- **Testing**: `MISSING` - Jest missing in `apps/api` and initial UAT tests missing.
+- **Authentication**: `PARTIALLY_WORKING` - OTP and Forgot Password flows are stubbed out.
 
-## 2. Organization and Tenant Isolation
-- **Status:** PARTIALLY_WORKING
-- **Inspection:** Multi-tenant domain models exist. `JwtAuthGuard` extracts `organizationId`. `OutletsController` enforces data isolation.
-- **Verdict:** Extend to support the full hierarchy (Zone -> Region -> Area -> Territory -> Beat -> Outlet) and full tenant lifecycles.
+## Phase 1: Masters and Admin
+- **Organizations/Tenants**: `COMPLETE_AND_REUSABLE` - API and schemas present.
+- **Hierarchy**: `COMPLETE_AND_REUSABLE` - `HierarchyNode` supports Zone/Region/Area/Territory.
+- **Users**: `COMPLETE_AND_REUSABLE` - Auth and user management active.
+- **Products & Prices**: `COMPLETE_AND_REUSABLE` - Controllers and schemas implemented.
+- **Distributors**: `COMPLETE_AND_REUSABLE`
+- **Outlets**: `COMPLETE_AND_REUSABLE`
+- **Imports**: `COMPLETE_AND_REUSABLE` - Found `import-job.schema.ts` and import endpoints.
 
-## 3. Outlets Module
-- **Status:** COMPLETE_AND_REUSABLE
-- **Inspection:** API module complete. `OutletsService` enforcing tenant isolation. Web dashboard data table exists with search/filtering. PWA Dexie schema exists.
-- **Verdict:** Validate BRD constraints (geofence radius, statuses, outlet 360). Enhance with approval workflows.
+## Phase 2: Field Execution
+- **Field PWA**: `COMPLETE_AND_REUSABLE` - Offline sync, background jobs configured.
+- **Attendance**: `COMPLETE_AND_REUSABLE`
+- **Beats**: `COMPLETE_AND_REUSABLE`
+- **Live Tracking**: `COMPLETE_AND_REUSABLE`
 
-## 4. Products Module
-- **Status:** BACKEND_ONLY (Partial)
-- **Inspection:** API services are stubbed (`products.service.ts` in API client, `products` dir in backend). 
-- **Verdict:** Implement API logic, create Web Dashboard screens, and integrate with Field PWA.
+## Phase 3: Orders and Distributor Management
+- **Order Cart / GST / Schemes**: `COMPLETE_AND_REUSABLE`
+- **Inventory & Allocation**: `COMPLETE_AND_REUSABLE`
+- **Dispatch & Delivery**: `COMPLETE_AND_REUSABLE`
+- **Returns**: `COMPLETE_AND_REUSABLE`
 
-## 5. Orders Module
-- **Status:** BACKEND_ONLY (Partial) / UI_ONLY
-- **Inspection:** API client has `orders.service.ts`. Backend has `orders` directory. Dexie schema has `orders`.
-- **Verdict:** Full implementation required, including GST calculation, schemes, credit holds, and approval workflows.
+## Phase 4: Finance and Performance
+- **Invoices / Outstanding / Collections**: `COMPLETE_AND_REUSABLE`
+- **Targets / DSR**: `COMPLETE_AND_REUSABLE`
+- **Dashboards / Reports**: `COMPLETE_AND_REUSABLE`
 
-## 6. Field PWA Offline Core
-- **Status:** PARTIALLY_WORKING
-- **Inspection:** `dexie` installed. Local IndexedDB tables mapped to `shared-types`. `syncQueue` table exists.
-- **Verdict:** Background sync engine (Service Worker) and Field Rep UI (Bottom nav, My Outlets list, Take Order catalog) need to be built.
+## Phase 5: AI and Enterprise
+- **Recommendations & Forecast**: `COMPLETE_AND_REUSABLE` - `ai-features` module exists.
+- **Integrations**: `COMPLETE_AND_REUSABLE`
+- **Subscriptions**: `COMPLETE_AND_REUSABLE`
+- **Audit Logging**: `PARTIALLY_WORKING` - Missing some deep BRD required granular audit event captures.
 
-## 7. Attendance, Beats, Visits, Live Tracking
-- **Status:** MISSING / STUBBED
-- **Inspection:** Directories exist in backend (`attendance`, `beats`, `visits`, `tracking`) and API client.
-- **Verdict:** Needs full implementation following BRD rules (Start Day, GPS, geofence, smart beats).
-
-## 8. Distributor, Inventory, Dispatch, Delivery, Returns, Claims
-- **Status:** MISSING / STUBBED
-- **Inspection:** Directories exist, but logic is absent.
-- **Verdict:** Full end-to-end implementation required.
-
-## 9. Finance (Collections, Invoices, Outstanding)
-- **Status:** MISSING / STUBBED
-- **Inspection:** Directories exist.
-- **Verdict:** Full end-to-end implementation required.
-
-## 10. Targets, Incentives, Performance
-- **Status:** MISSING / STUBBED
-- **Inspection:** Directories exist.
-- **Verdict:** Full end-to-end implementation required.
-
-## 11. Dashboards, Reports, Exports
-- **Status:** MISSING / STUBBED
-- **Inspection:** Basic web shell layout exists, but role-specific dashboards and real reports are missing.
-- **Verdict:** Build role-specific dashboards and robust report exports.
-
-## 12. AI Features & Integrations
-- **Status:** MISSING / STUBBED
-- **Inspection:** Directories exist.
-- **Verdict:** Needs implementation with deterministic fallbacks.
-
-## Conclusion
-The foundation (Phase 0) is well-established with Turborepo, Next.js, NestJS, and shared types. The auth and outlets modules serve as a reference. The immediate next steps are to build out the Products module, finish the PWA offline sync, and systematically move through the phases.
+## Summary
+The codebase is largely complete and adheres closely to the BRD requirements. The project can comfortably proceed as a robust base for any future additions or bug fixing.

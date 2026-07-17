@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
-import { UserDocument, TenantDocument, SessionDocument } from '../schemas';
+import { UserDocument, TenantDocument, SessionDocument, TokenDocument } from '../schemas';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +12,7 @@ export class AuthService {
     @InjectModel('User') private userModel: Model<UserDocument>,
     @InjectModel('Tenant') private tenantModel: Model<TenantDocument>,
     @InjectModel('Session') private sessionModel: Model<SessionDocument>,
+    @InjectModel('Token') private tokenModel: Model<TokenDocument>,
     private jwtService: JwtService
   ) {}
 
@@ -53,6 +54,11 @@ export class AuthService {
       throw new UnauthorizedException('User account is not active or not found');
     }
 
+    const tenant = await this.tenantModel.findById(user.organizationId).exec();
+    if (!tenant || tenant.status === 'Suspended' || tenant.status === 'Archived') {
+      throw new UnauthorizedException('Organization account is suspended or archived.');
+    }
+
     if (password) {
       if (!user.password) {
         throw new UnauthorizedException('Invalid credentials');
@@ -62,10 +68,19 @@ export class AuthService {
         throw new UnauthorizedException('Invalid credentials');
       }
     } else if (otp) {
-      // OTP verification stub
-      if (otp !== '123456') { // Mock OTP logic
-        throw new UnauthorizedException('Invalid OTP');
+      const validToken = await this.tokenModel.findOne({
+        userId: user._id.toString(),
+        token: otp,
+        type: 'OTP',
+        used: false,
+        expiresAt: { $gt: new Date() }
+      }).exec();
+
+      if (!validToken) {
+        throw new UnauthorizedException('Invalid or expired OTP');
       }
+      validToken.used = true;
+      await validToken.save();
     } else {
       throw new BadRequestException('Password or OTP is required for login');
     }
@@ -93,16 +108,45 @@ export class AuthService {
     if (!user || user.status !== 'Active') {
       throw new BadRequestException('User account is not active or not found');
     }
+    
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+    
+    const token = new this.tokenModel({
+      userId: user._id.toString(),
+      token: otp,
+      type: 'OTP',
+      expiresAt,
+      used: false
+    });
+    await token.save();
+    
     // TODO: Integrate SMS/Email provider to send OTP
+    console.log(`[Mock SMS/Email] OTP for ${email} is ${otp}`);
     return { success: true, message: 'OTP sent to registered email/mobile.' };
   }
 
   async verifyOtp(email: string, otp: string) {
-    // Basic verification stub, in reality check DB for cached OTP
-    if (otp === '123456') {
+    const user = await this.userModel.findOne({ email }).exec();
+    if (!user) {
+      throw new UnauthorizedException('Invalid OTP');
+    }
+
+    const validToken = await this.tokenModel.findOne({
+      userId: user._id.toString(),
+      token: otp,
+      type: 'OTP',
+      used: false,
+      expiresAt: { $gt: new Date() }
+    }).exec();
+
+    if (validToken) {
+      validToken.used = true;
+      await validToken.save();
       return { success: true };
     }
-    throw new UnauthorizedException('Invalid OTP');
+    throw new UnauthorizedException('Invalid or expired OTP');
   }
 
   async forgotPassword(email: string) {
@@ -111,15 +155,48 @@ export class AuthService {
       // Don't leak user existence
       return { success: true, message: 'If the account exists, a reset link has been sent.' };
     }
+    
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
+
+    const token = new this.tokenModel({
+      userId: user._id.toString(),
+      token: resetToken,
+      type: 'PASSWORD_RESET',
+      expiresAt,
+      used: false
+    });
+    await token.save();
+
     // TODO: Generate reset token and send email
+    console.log(`[Mock Email] Password reset link: http://localhost:6003/reset-password?token=${resetToken}`);
     return { success: true, message: 'If the account exists, a reset link has been sent.' };
   }
 
   async resetPassword(token: string, newPassword: string) {
-    // TODO: Verify reset token
-    // const user = ...
-    // user.password = await bcrypt.hash(newPassword, 10);
-    // await user.save();
+    const validToken = await this.tokenModel.findOne({
+      token,
+      type: 'PASSWORD_RESET',
+      used: false,
+      expiresAt: { $gt: new Date() }
+    }).exec();
+
+    if (!validToken) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const user = await this.userModel.findById(validToken.userId).exec();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    validToken.used = true;
+    await validToken.save();
+
     return { success: true, message: 'Password reset successful.' };
   }
 
@@ -132,6 +209,11 @@ export class AuthService {
     const user = await this.userModel.findById(session.userId).exec();
     if (!user || user.status !== 'Active') {
       throw new UnauthorizedException('User account is not active');
+    }
+
+    const tenant = await this.tenantModel.findById(user.organizationId).exec();
+    if (!tenant || tenant.status === 'Suspended' || tenant.status === 'Archived') {
+      throw new UnauthorizedException('Organization account is suspended or archived.');
     }
 
     const newRefreshToken = crypto.randomBytes(40).toString('hex');

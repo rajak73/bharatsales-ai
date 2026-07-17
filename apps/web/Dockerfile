@@ -11,6 +11,7 @@ RUN npm install -g pnpm
 COPY --from=builder /app/out/json/ .
 RUN pnpm install --no-frozen-lockfile
 COPY --from=builder /app/out/full/ .
+COPY tsconfig.json .
 RUN pnpm turbo run build --filter=@bharatsales/web
 
 # Runner Stage

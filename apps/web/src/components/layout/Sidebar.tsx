@@ -5,7 +5,8 @@ import {
   ShoppingCart, CheckSquare, Package, Box, Factory,
   Truck, Percent, Tags, Gift, ArrowDownToLine,
   Bell, Link as LinkIcon, UserCog, Smartphone, CreditCard,
-  Sparkles, CalendarClock, Settings, ShieldCheck, Repeat, Receipt
+  Sparkles, CalendarClock, Settings, ShieldCheck, Repeat, Receipt, Network,
+  BarChart3
 } from 'lucide-react';
 
 const ALL_ROLES = ['Super Admin', 'Company Admin', 'Area Manager', 'Sales Representative'];
@@ -13,6 +14,7 @@ const ADMIN_ROLES = ['Super Admin', 'Company Admin'];
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ALL_ROLES },
+  { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
   { icon: Users, label: 'Team', href: '/dashboard/team', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
   { icon: MapPin, label: 'Live Map', href: '/dashboard/live-map', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
   { icon: Target, label: 'Beats', href: '/dashboard/beats', roles: ALL_ROLES },
@@ -43,6 +45,7 @@ const navItems = [
   { icon: Sparkles, label: 'AI Features', href: '/dashboard/ai-features', roles: ADMIN_ROLES },
   { icon: CalendarClock, label: 'Scheduled Reports', href: '/dashboard/scheduled-reports', roles: ADMIN_ROLES },
   { icon: Settings, label: 'Settings', href: '/dashboard/settings', roles: ADMIN_ROLES },
+  { icon: Network, label: 'Hierarchy', href: '/dashboard/hierarchy', roles: ADMIN_ROLES },
 ];
 
 export function Sidebar({ open, user }: { open: boolean, user?: { role: string } }) {

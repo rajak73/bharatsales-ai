@@ -13,12 +13,12 @@ export class OrdersController {
   @Get()
   async getOrders(@Request() req: any) {
     // req.user is populated by the JwtAuthGuard
-    return this.ordersService.findAll(req.user.organizationId);
+    return this.ordersService.findAll(req.user.orgId);
   }
 
   @Post()
   async createOrder(@Request() req: any, @Body() orderData: Partial<Order>) {
-    return this.ordersService.create(req.user.organizationId, orderData);
+    return this.ordersService.create(req.user.orgId, req.user.sub, orderData);
   }
 
   @Put(':id/status')
@@ -29,10 +29,10 @@ export class OrdersController {
     @Body() data: { status: Order['status'], reason?: string }
   ) {
     return this.ordersService.updateStatus(
-      req.user.organizationId, 
+      req.user.orgId, 
       orderId, 
       data.status, 
-      req.user.userId, 
+      req.user.sub, 
       data.reason
     );
   }
@@ -40,12 +40,12 @@ export class OrdersController {
   @Post(':id/approve')
   @Roles('Super Admin', 'Company Admin', 'Area Manager')
   async approveOrder(@Request() req: any, @Param('id') orderId: string) {
-    return this.ordersService.approveOrder(req.user.organizationId, orderId, req.user.userId);
+    return this.ordersService.approveOrder(req.user.orgId, orderId, req.user.sub);
   }
 
   @Post(':id/dispatch')
   @Roles('Super Admin', 'Company Admin', 'Area Manager')
   async dispatchOrder(@Request() req: any, @Param('id') orderId: string) {
-    return this.ordersService.dispatchOrder(req.user.organizationId, orderId, req.user.userId);
+    return this.ordersService.dispatchOrder(req.user.orgId, orderId, req.user.sub);
   }
 }

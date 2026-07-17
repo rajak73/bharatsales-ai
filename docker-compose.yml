@@ -3,7 +3,7 @@ version: '3.8'
 services:
   mongo:
     image: mongo:6.0
-    container_name: bharatsales-mongo
+    container_name: bharatsales-mongodb
     ports:
       - "27017:27017"
     volumes:
@@ -34,7 +34,7 @@ services:
       - "6003:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:6002/api/v1
+      - NEXT_PUBLIC_API_URL=http://localhost:6002
     depends_on:
       - api
     restart: unless-stopped

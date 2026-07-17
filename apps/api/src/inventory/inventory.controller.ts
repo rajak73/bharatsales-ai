@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 
@@ -8,15 +8,15 @@ export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
   @Get()
-  async getInventory(@Query('organizationId') organizationId: string) {
-    return this.inventoryService.getInventory(organizationId);
+  async getInventory(@Request() req: any) {
+    return this.inventoryService.getInventory(req.user.orgId);
   }
 
   @Post('adjust')
   async adjustStock(
-    @Query('organizationId') organizationId: string,
+    @Request() req: any,
     @Body() adjustment: any
   ) {
-    return this.inventoryService.adjustStock(organizationId, adjustment);
+    return this.inventoryService.adjustStock(req.user.orgId, adjustment);
   }
 }

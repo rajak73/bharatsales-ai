@@ -18,7 +18,7 @@ export class User implements Omit<IUser, 'id' | 'createdAt' | 'updatedAt'> {
   @Prop({ required: true })
   password?: string; // Hashed password
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   role: UserRole;
 
   @Prop()

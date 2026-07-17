@@ -2,19 +2,19 @@ import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/
 import { AiFeaturesService } from './ai-features.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 
-@Controller('api/v1/ai-features')
+@Controller('ai-features')
 @UseGuards(JwtAuthGuard)
 export class AiFeaturesController {
   constructor(private readonly aiFeaturesService: AiFeaturesService) {}
 
   @Get('insights')
   async getInsights(@Request() req: any) {
-    return this.aiFeaturesService.generateInsights(req.user.organizationId);
+    return this.aiFeaturesService.generateInsights(req.user.orgId);
   }
 
   @Get('recommendations/:outletId')
   async getRecommendations(@Request() req: any, @Param('outletId') outletId: string) {
-    return this.aiFeaturesService.getRecommendations(outletId, req.user.organizationId);
+    return this.aiFeaturesService.getRecommendations(outletId, req.user.orgId);
   }
 
   @Post('parse-voice')
@@ -22,6 +22,6 @@ export class AiFeaturesController {
     if (!data.transcription) {
       return { items: [] };
     }
-    return this.aiFeaturesService.parseVoiceToOrder(req.user.organizationId, data.transcription);
+    return this.aiFeaturesService.parseVoiceToOrder(req.user.orgId, data.transcription);
   }
 }

@@ -23,7 +23,7 @@ export class OrdersService {
     return this.orderModel.find({ organizationId }).sort({ createdAt: -1 }).exec();
   }
 
-  async create(organizationId: string, orderData: Partial<Order>): Promise<Order> {
+  async create(organizationId: string, userId: string, orderData: Partial<Order>): Promise<Order> {
     if (!orderData.idempotencyKey) {
       throw new BadRequestException('idempotencyKey is required');
     }
@@ -87,6 +87,9 @@ export class OrdersService {
 
       return {
         ...item,
+        sku: product.sku,
+        name: product.name,
+        discount: item.discount || 0,
         gstPercentage: gstRate,
         subTotal: parseFloat(subTotal.toFixed(2)),
         cgstAmount,
@@ -123,6 +126,8 @@ export class OrdersService {
 
     const newOrder = new this.orderModel({
       ...orderData,
+      orderNumber: orderData.orderNumber || `ORD-${Date.now()}`,
+      createdByUserId: userId,
       items,
       totals,
       organizationId,

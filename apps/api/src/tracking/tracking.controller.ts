@@ -13,6 +13,6 @@ export class TrackingController {
     @Request() req: any,
     @Body() body: { pings: any[] }
   ) {
-    return this.trackingService.bulkCreatePings(req.user.userId, req.user.organizationId, body.pings);
+    return this.trackingService.bulkCreatePings(req.user.sub, req.user.orgId, body.pings);
   }
 }

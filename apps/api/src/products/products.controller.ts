@@ -19,6 +19,12 @@ export class ProductsController {
     return this.productsService.findAllByOrgId(orgId);
   }
 
+  @Get('catalog')
+  async getCatalog(@Request() req: any) {
+    const orgId = req.user.orgId;
+    return this.productsService.getCatalog(orgId);
+  }
+
   @Post()
   @Roles('Super Admin', 'Company Admin')
   @AuditEntity('Product')

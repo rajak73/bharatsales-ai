@@ -64,4 +64,22 @@ export class OutletsService {
     outlet.status = 'Inactive';
     return outlet.save();
   }
+
+  async update(organizationId: string, id: string, data: any): Promise<Outlet> {
+    const outlet = await this.outletModel.findOne({ _id: id, organizationId });
+    if (!outlet) {
+      throw new NotFoundException('Outlet not found');
+    }
+
+    // Safely apply dot-notation update using mongoose $set (e.g. { 'commercial.assignedDistributorId': 'dist_id' })
+    const updated = await this.outletModel.findOneAndUpdate(
+      { _id: id, organizationId },
+      { $set: data },
+      { new: true }
+    );
+    if (!updated) {
+      throw new NotFoundException('Outlet not found during update');
+    }
+    return updated;
+  }
 }

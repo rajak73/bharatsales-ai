@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { TenantSchema, UserSchema, OutletSchema, ProductSchema, OrderSchema, SchemeSchema, DistributorSchema, InvoiceSchema, CollectionSchema, TargetSchema, WarehouseSchema, InventorySchema, DispatchSchema, ReturnSchema, NotificationLogSchema, SessionSchema, AuditLogSchema, AttendanceSessionSchema, VisitSchema, BeatSchema, BeatScheduleSchema, LocationPingSchema, IntegrationSchema, ApprovalSchema, ApprovalRuleSchema } from './schemas';
+import { TenantSchema, UserSchema, OutletSchema, ProductSchema, OrderSchema, SchemeSchema, DistributorSchema, InvoiceSchema, CollectionSchema, TargetSchema, WarehouseSchema, InventorySchema, DispatchSchema, ReturnSchema, NotificationLogSchema, SessionSchema, AuditLogSchema, AttendanceSessionSchema, VisitSchema, BeatSchema, BeatScheduleSchema, LocationPingSchema, IntegrationSchema, ApprovalSchema, ApprovalRuleSchema, ExpenseSchema, PriceListSchema, TaxRateSchema } from './schemas';
 import { AuthModule } from './auth/auth.module';
+import { HealthModule } from './health/health.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuditModule } from './audit/audit.module';
 import { OutletsModule } from './outlets/outlets.module';
 import { ProductsModule } from './products/products.module';
@@ -22,12 +24,12 @@ import { ImportsModule } from './imports/imports.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { DispatchModule } from './dispatch/dispatch.module';
 import { ReturnsModule } from './returns/returns.module';
-import { HealthModule } from './health/health.module';
 import { LiveMapModule } from './live-map/live-map.module';
 import { Outlet360Module } from './outlet-360/outlet-360.module';
 import { TargetsModule } from './targets/targets.module';
 import { BeatsModule } from './beats/beats.module';
 import { TrackingModule } from './tracking/tracking.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { SettingsModule } from './settings/settings.module';
 import { HierarchyModule } from './hierarchy/hierarchy.module';
 import { UsersModule } from './users/users.module';
@@ -36,10 +38,18 @@ import { IntegrationsModule } from './integrations/integrations.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
+import { ExpensesModule } from './expenses/expenses.module';
+import { PriceListsModule } from './price-lists/price-lists.module';
+import { TaxRatesModule } from './tax-rates/tax-rates.module';
+import { CollectionsModule } from './collections/collections.module';
 
 @Module({
   imports: [
-    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://root:secret@localhost:27017/bharatsales?authSource=admin'),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 100,
+    }]),
+    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales'),
     MongooseModule.forFeature([
       { name: 'Tenant', schema: TenantSchema },
       { name: 'User', schema: UserSchema },
@@ -66,6 +76,9 @@ import { ReportsModule } from './reports/reports.module';
       { name: 'Integration', schema: IntegrationSchema },
       { name: 'Approval', schema: ApprovalSchema },
       { name: 'ApprovalRule', schema: ApprovalRuleSchema },
+      { name: 'Expense', schema: ExpenseSchema },
+      { name: 'PriceList', schema: PriceListSchema },
+      { name: 'TaxRate', schema: TaxRateSchema },
     ]),
     AuthModule,
     AuditModule,
@@ -78,6 +91,7 @@ import { ReportsModule } from './reports/reports.module';
     PerformanceModule,
     AiFeaturesModule,
     SubscriptionsModule,
+    HealthModule,
     NotificationsModule,
     DistributorsModule,
     WarehousesModule,
@@ -85,7 +99,6 @@ import { ReportsModule } from './reports/reports.module';
     InventoryModule,
     DispatchModule,
     ReturnsModule,
-    HealthModule,
     LiveMapModule,
     Outlet360Module,
     TargetsModule,
@@ -99,6 +112,11 @@ import { ReportsModule } from './reports/reports.module';
     ApprovalsModule,
     AnalyticsModule,
     ReportsModule,
+    OnboardingModule,
+    ExpensesModule,
+    PriceListsModule,
+    TaxRatesModule,
+    CollectionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

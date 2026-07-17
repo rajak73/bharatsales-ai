@@ -1,23 +1,18 @@
 import { Controller, Get } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
+import { HealthCheckService, MongooseHealthIndicator, HealthCheck } from '@nestjs/terminus';
 
 @Controller('health')
 export class HealthController {
-  constructor(@InjectConnection() private readonly connection: Connection) {}
+  constructor(
+    private health: HealthCheckService,
+    private mongoose: MongooseHealthIndicator,
+  ) {}
 
   @Get()
-  async check() {
-    const isDbConnected = this.connection.readyState === 1;
-    
-    return {
-      status: isDbConnected ? 'ok' : 'error',
-      timestamp: new Date().toISOString(),
-      services: {
-        api: 'ok',
-        database: isDbConnected ? 'ok' : 'disconnected',
-      },
-      memory: process.memoryUsage(),
-    };
+  @HealthCheck()
+  check() {
+    return this.health.check([
+      () => this.mongoose.pingCheck('mongodb'),
+    ]);
   }
 }

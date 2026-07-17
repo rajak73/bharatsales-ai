@@ -3,7 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { UserSchema, TenantSchema, SessionSchema } from '../schemas';
+import { UserSchema, TenantSchema, SessionSchema, TokenSchema } from '../schemas';
 
 @Module({
   imports: [
@@ -11,6 +11,7 @@ import { UserSchema, TenantSchema, SessionSchema } from '../schemas';
       { name: 'User', schema: UserSchema },
       { name: 'Tenant', schema: TenantSchema },
       { name: 'Session', schema: SessionSchema },
+      { name: 'Token', schema: TokenSchema },
     ]),
     JwtModule.register({
       global: true,

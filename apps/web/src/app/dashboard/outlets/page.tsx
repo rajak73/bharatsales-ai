@@ -2,28 +2,64 @@
 
 import { useState, useEffect } from 'react';
 import { Card, Button } from '@bharatsales/ui';
-import { OutletsService } from '@bharatsales/api-client';
-import { Outlet } from '@bharatsales/shared-types';
+import { OutletsService, DistributorsService } from '@bharatsales/api-client';
+import { Outlet, Distributor } from '@bharatsales/shared-types';
 import { Plus, Search, MapPin, Phone, MoreVertical, Store, Loader2 } from 'lucide-react';
 
 export default function OutletsPage() {
   const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const [distributors, setDistributors] = useState<Distributor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  // Assignment Modal State
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
+  const [selectedDistributorId, setSelectedDistributorId] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
+
   useEffect(() => {
-    fetchOutlets();
+    fetchData();
   }, []);
 
-  const fetchOutlets = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const data = await OutletsService.getOutlets();
-      setOutlets(data);
+      const [outletsData, distData] = await Promise.all([
+        OutletsService.getOutlets(),
+        DistributorsService.getDistributors('org-1')
+      ]);
+      setOutlets(outletsData || []);
+      setDistributors(distData || []);
     } catch (error) {
-      console.error('Failed to fetch outlets:', error);
+      console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAssignDistributor = async () => {
+    if (!selectedOutlet || !selectedDistributorId) return;
+    try {
+      setIsAssigning(true);
+      await OutletsService.updateOutlet(selectedOutlet.id, {
+        commercial: {
+          ...selectedOutlet.commercial,
+          assignedDistributorId: selectedDistributorId
+        }
+      });
+      // Update local state
+      setOutlets(outlets.map(o => o.id === selectedOutlet.id ? {
+        ...o,
+        commercial: { ...o.commercial, assignedDistributorId: selectedDistributorId }
+      } : o));
+      setAssignModalOpen(false);
+      setSelectedOutlet(null);
+      setSelectedDistributorId('');
+    } catch (error) {
+      console.error('Failed to assign distributor', error);
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -115,7 +151,14 @@ export default function OutletsPage() {
                           <span className="text-gray-400 italic">No mobile</span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-500">{outlet.ownerName || 'Unknown Owner'}</div>
+                      <div className="text-sm text-gray-500 flex flex-col gap-1">
+                        <span>{outlet.ownerName || 'Unknown Owner'}</span>
+                        {outlet.commercial?.assignedDistributorId && (
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block w-fit">
+                            Distributor: {distributors.find(d => d.id === outlet.commercial?.assignedDistributorId)?.name || outlet.commercial?.assignedDistributorId}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -125,8 +168,18 @@ export default function OutletsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button 
+                        onClick={() => {
+                          setSelectedOutlet(outlet);
+                          setSelectedDistributorId(outlet.commercial?.assignedDistributorId || '');
+                          setAssignModalOpen(true);
+                        }}
+                        className="text-primary-600 hover:text-primary-900 mr-4 text-xs font-medium"
+                      >
+                        Assign Distributor
+                      </button>
                       <button className="text-gray-400 hover:text-gray-600">
-                        <MoreVertical className="w-5 h-5" />
+                        <MoreVertical className="w-5 h-5 inline-block" />
                       </button>
                     </td>
                   </tr>
@@ -136,6 +189,48 @@ export default function OutletsPage() {
           </div>
         )}
       </Card>
+
+      {/* Assign Distributor Modal */}
+      {assignModalOpen && selectedOutlet && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Assign Distributor</h3>
+            <p className="text-sm text-gray-500 mb-4">Select a distributor for <span className="font-semibold text-gray-700">{selectedOutlet.name}</span></p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Distributor</label>
+                <select 
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-primary-500 focus:border-primary-500"
+                  value={selectedDistributorId}
+                  onChange={(e) => setSelectedDistributorId(e.target.value)}
+                >
+                  <option value="">-- Select a Distributor --</option>
+                  {distributors.filter(d => d.status === 'Active').map(d => (
+                    <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <button 
+                onClick={() => setAssignModalOpen(false)} 
+                className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssignDistributor}
+                disabled={isAssigning || !selectedDistributorId}
+                className="flex-1 py-2 px-4 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 flex justify-center items-center"
+              >
+                {isAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Assign'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

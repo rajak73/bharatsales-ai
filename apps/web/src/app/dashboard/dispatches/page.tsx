@@ -12,6 +12,11 @@ export default function DispatchesPage() {
   const [dispatches, setDispatches] = useState<Dispatch[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // New Dispatch Modal State
+  const [newDispatchModalOpen, setNewDispatchModalOpen] = useState(false);
+  const [newDispatchForm, setNewDispatchForm] = useState({ orderId: '', vehicle: '', driver: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
     fetchDispatches();
   }, []);
@@ -36,10 +41,35 @@ export default function DispatchesPage() {
   });
 
   const handleCapturePOD = async (id: string) => {
-    // In a real app we'd call an API here
-    setDispatches(dispatches.map(d => d.id === id ? { ...d, status: 'Delivered' } : d));
-    setSuccessMessage(`Proof of Delivery captured for ${id}!`);
-    setTimeout(() => setSuccessMessage(''), 3000);
+    try {
+      await DispatchService.updateDispatchStatus(id, 'Delivered');
+      setDispatches(dispatches.map(d => d.id === id ? { ...d, status: 'Delivered' } : d));
+      setSuccessMessage(`Proof of Delivery captured for ${id}!`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error('Failed to capture POD:', error);
+    }
+  };
+
+  const handleCreateDispatch = async () => {
+    try {
+      setIsSubmitting(true);
+      const created = await DispatchService.createDispatch({
+        orderId: newDispatchForm.orderId,
+        vehicle: newDispatchForm.vehicle,
+        driver: newDispatchForm.driver,
+        status: 'Pending'
+      });
+      setDispatches([...dispatches, created]);
+      setSuccessMessage(`Dispatch created successfully!`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+      setNewDispatchModalOpen(false);
+      setNewDispatchForm({ orderId: '', vehicle: '', driver: '' });
+    } catch (error) {
+      console.error('Failed to create dispatch:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -67,7 +97,7 @@ export default function DispatchesPage() {
             <option>Delivered</option>
             <option>Partial Delivery</option>
           </select>
-          <button className="btn-primary text-sm">+ New Dispatch</button>
+          <button onClick={() => setNewDispatchModalOpen(true)} className="btn-primary text-sm">+ New Dispatch</button>
         </div>
       </div>
 
@@ -118,6 +148,59 @@ export default function DispatchesPage() {
           </table>
         </div>
       </div>
+
+      {/* New Dispatch Modal */}
+      {newDispatchModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">New Dispatch</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Order ID</label>
+                <input
+                  type="text"
+                  className="input-field w-full"
+                  placeholder="e.g. ORD-2024-001"
+                  value={newDispatchForm.orderId}
+                  onChange={(e) => setNewDispatchForm({ ...newDispatchForm, orderId: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Details</label>
+                <input
+                  type="text"
+                  className="input-field w-full"
+                  placeholder="e.g. MH 12 AB 1234"
+                  value={newDispatchForm.vehicle}
+                  onChange={(e) => setNewDispatchForm({ ...newDispatchForm, vehicle: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name / Contact</label>
+                <input
+                  type="text"
+                  className="input-field w-full"
+                  placeholder="e.g. Ramesh Kumar"
+                  value={newDispatchForm.driver}
+                  onChange={(e) => setNewDispatchForm({ ...newDispatchForm, driver: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <button onClick={() => setNewDispatchModalOpen(false)} className="flex-1 btn-secondary text-sm">
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateDispatch}
+                disabled={isSubmitting || !newDispatchForm.orderId}
+                className="flex-1 btn-primary text-sm disabled:opacity-50 flex justify-center items-center"
+              >
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Dispatch'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

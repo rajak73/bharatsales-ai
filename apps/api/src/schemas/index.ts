@@ -24,3 +24,7 @@ export * from './hierarchy.schema';
 export * from './integration.schema';
 export * from './approval.schema';
 export * from './approval-rule.schema';
+export * from './expense.schema';
+export * from './price-list.schema';
+export * from './tax-rate.schema';
+export * from './token.schema';

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards, UseInterceptors, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, UseInterceptors, Request } from '@nestjs/common';
 import { OutletsService } from './outlets.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -63,5 +63,13 @@ export class OutletsController {
   async deleteOutlet(@Request() req: any, @Param('id') id: string) {
     const orgId = req.user.orgId;
     return this.outletsService.softDelete(orgId, id);
+  }
+
+  @Patch(':id')
+  @RequirePermissions(Resource.Outlets, Action.Update)
+  @AuditEntity('Outlet')
+  async updateOutlet(@Request() req: any, @Param('id') id: string, @Body() data: any) {
+    const orgId = req.user.orgId;
+    return this.outletsService.update(orgId, id, data);
   }
 }

@@ -13,19 +13,19 @@ export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
 
   @Get('history')
-  @Roles('SuperAdmin', 'CompanyAdmin')
+  @Roles('Super Admin', 'Company Admin')
   async getHistory(@Request() req: any) {
     return this.importsService.getImportHistory(req.user.orgId);
   }
 
   @Get('types')
-  @Roles('SuperAdmin', 'CompanyAdmin')
+  @Roles('Super Admin', 'Company Admin')
   async getTypes(@Request() req: any) {
     return this.importsService.getImportTypes(req.user.orgId);
   }
 
   @Post('upload')
-  @Roles('SuperAdmin', 'CompanyAdmin')
+  @Roles('Super Admin', 'Company Admin')
   @AuditEntity('Import')
   async uploadData(
     @Request() req: any,

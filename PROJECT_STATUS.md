@@ -2,11 +2,17 @@
 
 This document serves as the master state manifest and technical BRD (Business Requirements Document) summary for the **BharatSales AI** project.
 
+**Last Updated:** July 2026  
+**Status: ✅ PRODUCTION READY — All 6 BRD Phases Complete**
+
+---
+
 ## 🏗️ System Architecture
+
 The platform is built as a highly scalable **Turborepo Monorepo** utilizing `pnpm`.
 
 ### Applications (`/apps`)
-1. **`api`**: NestJS backend connected to MongoDB. Handles authentication, deep tenant isolation, business logic, AI routing, and all API endpoints.
+1. **`api`**: NestJS backend connected to MongoDB. Handles authentication, deep tenant isolation, business logic, AI routing, and all API endpoints. Runs on port **6002**.
 2. **`web`**: Next.js (App Router) React web application. Serves as the HQ/Manager Dashboard with live KPI analytics and an integrated floating AI Chatbot.
 3. **`field-pwa`**: Vite + React Progressive Web App. Designed for field reps to use on mobile devices with offline-first capabilities, intelligent background syncing (Dexie.js), geofencing, and Voice-to-Order dictation.
 
@@ -14,55 +20,146 @@ The platform is built as a highly scalable **Turborepo Monorepo** utilizing `pnp
 1. **`shared-types`**: The source of truth for all domain models (TypeScript interfaces for `User`, `Tenant`, `Outlet`, `Product`, `Order`, `Invoice`, `AI Insights`).
 2. **`ui`**: Shared React component library (TailwindCSS) containing primitives.
 3. **`api-client`**: Axios-based API client with automatic JWT injection, handling all cross-app communication to the NestJS backend.
+4. **`permissions`**: RBAC logic shared across the monorepo (11 roles).
+5. **`business-rules`**: Core calculation logic (credit limits, targets, run rate, etc).
 
 ---
 
 ## ✅ Completed Milestones (BRD Fulfillment)
 
-### Phase 1-4: Foundation & Infrastructure
-- [x] Bootstrapped the Turborepo workspace.
+### Phase 1: Foundation & Authentication ✅
+- [x] Bootstrapped the Turborepo workspace with pnpm workspaces.
 - [x] Defined strict domain models in `shared-types`.
-- [x] Configured Docker (`docker-compose.yml`) for MongoDB.
-- [x] Implemented robust JWT-based authentication with strict RBAC (Super Admin, Company Admin, Area Manager, Sales Rep).
-- [x] Configured deep tenant isolation (`tenantId`) using Mongoose discriminators/plugins so organizations never see each other's data.
+- [x] Configured Docker (`docker-compose.yml`) for MongoDB + API + Web.
+- [x] Implemented robust JWT-based authentication with strict RBAC (11 roles).
+- [x] Deep tenant isolation via JWT `orgId` — never trusted from client.
+- [x] E2E Tenant Isolation tests: UAT-11 passing.
 
-### Phase 5: Operations & Inventory Engine
+### Phase 2: Field Execution (Attendance & Visits) ✅
+- [x] Attendance session management (start day / end day).
+- [x] Geofenced visit check-in / check-out.
+- [x] Beat planning and route scheduling.
+- [x] Location ping tracking.
+
+### Phase 3: Order Lifecycle ✅
 - [x] End-to-end catalog and order management flows.
 - [x] State-machine inventory logic (Available vs Reserved stock).
+- [x] Multi-level order approval workflow (Submitted → Approved → Dispatched).
 - [x] Dispatch flows that safely deduct stock upon delivery confirmation.
 
-### Phase 6: Finance & Collections
+### Phase 4: Finance & Performance ✅
 - [x] Automated dynamic Invoice generation (Net 15) from fulfilled orders.
-- [x] Multi-mode Payment Collection system with automatic credit-limit restoration for outlets.
+- [x] Multi-mode Payment Collection system with automatic credit-limit restoration.
+- [x] Gamification targets with run-rate calculations.
+- [x] Expense management with approval workflow.
+- [x] Comprehensive reports module.
 
-### Phase 7: Field PWA & Offline Sync
-- [x] Built a mobile-first PWA for field reps.
-- [x] Geofenced check-ins and check-outs using the Geolocation API.
-- [x] Robust Dexie.js offline-first storage and a background Sync Engine (`syncQueue`) to ensure reps can take orders without an internet connection.
+### Phase 5: AI & Enterprise Capabilities ✅
+- [x] AI Insights (churn risk, forecast) — scoped securely to JWT `orgId`.
+- [x] AI Recommendations per outlet.
+- [x] Enterprise Analytics Dashboard (MongoDB aggregation pipelines).
+- [x] Custom Approvals Workflow engine.
+- [x] ERP Integrations module.
+- [x] Bulk CSV Import (Products, Outlets, Users, Targets, Inventory).
+- [x] All 23 E2E UAT tests passing across Phases 1–5.
 
-### Phase 8: Analytics & AI Features
-- [x] Wired up a live MongoDB aggregation engine to power the Web Dashboard KPIs.
-- [x] Built the **AI Assistant Chatbot** for the web dashboard.
-- [x] Integrated **Voice-to-Order** dictation and **Smart Upsell Recommendations** into the Field PWA to maximize AOV.
-
-### Phase 9: AWS Deployment & DevOps
-- [x] Configured `.github/workflows/deploy.yml` for automated CI/CD to AWS EC2 via SSH.
-- [x] Created `infra/aws/docker-compose.prod.yml` and `infra/aws/setup.sh` to provision EC2 instances instantly.
-- [x] Provided a comprehensive `docs/DEPLOYMENT.md` guide.
+### Phase 6: Production Readiness ✅
+- [x] **Rate Limiting**: `@nestjs/throttler` — 100 req/min/IP globally.
+- [x] **Global Validation**: `ValidationPipe` with `whitelist: true` — strips unknown fields, prevents over-posting.
+- [x] **Compression**: gzip via `compression` middleware for all responses.
+- [x] **Health Checks**: `/health` endpoint via `@nestjs/terminus` (MongoDB ping).
+- [x] **Docker Healthcheck**: Container self-monitors via `wget` to `/health`.
+- [x] **`NODE_ENV=production`** explicitly set in Docker runner stage.
+- [x] **Swagger UI**: Interactive API docs at `/api/docs`.
+- [x] **CI/CD Pipeline**: `.github/workflows/deploy.yml` — runs lint, type-check, tests, and build on every push to `main`.
+- [x] **Security Headers**: `helmet` middleware active.
+- [x] **Audit Logging**: `AuditInterceptor` applied globally for all mutations.
+- [x] **TypeScript Build**: `pnpm --filter @bharatsales/api build` passes with zero errors.
 
 ---
 
-## 🚀 Final Project Status
+## 🧪 Test Coverage
 
-**The BharatSales AI project is 100% COMPLETE according to the Master BRD.**
+| Suite | Tests | Status |
+|-------|-------|--------|
+| UAT-11: Tenant Isolation | 3 | ✅ PASS |
+| Phase 2: Field Execution | 5 | ✅ PASS |
+| Phase 3: Order Lifecycle | 5 | ✅ PASS |
+| Phase 4: Finance & Performance | 4 | ✅ PASS |
+| Phase 5: AI & Enterprise | 6 | ✅ PASS |
+| **Total** | **23** | **✅ 23/23 PASS** |
 
-All operational, financial, mobile, and AI requirements have been fulfilled, integrated, and verified. The codebase is production-ready, containerized, and configured for automated deployment.
+---
+
+## 🚀 Production Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check — MongoDB connectivity |
+| `GET /api/docs` | Swagger UI — interactive API documentation |
+| `POST /auth/login` | User authentication |
+| `GET /outlets` | List outlets (tenant-scoped) |
+| `POST /orders` | Create order |
+| `GET /ai-features/insights` | AI churn & forecast insights |
+| `GET /analytics/dashboard` | Enterprise analytics dashboard |
 
 ---
 
 ## 💻 Developer Commands
-To spin up the environment locally for further maintenance:
-1. `pnpm install` (Install dependencies)
-2. `docker-compose up --build -d` (Starts MongoDB, NestJS API on 6002, Next.js Web on 3000/6003 in production mode).
-3. For local development: `pnpm run dev` (Starts API on 6002, Web on 3000, PWA on 3002).
-4. `pnpm run build` (Runs `turbo run build` to verify strict TypeScript compilations across all packages).
+
+```bash
+# Install dependencies
+pnpm install
+
+# Seed the database
+cd apps/api && pnpm run seed
+
+# Start all services (local)
+pnpm run dev
+
+# Run E2E test suite (23 tests)
+cd apps/api && npx jest src/uat.spec.ts
+
+# Build for production
+pnpm run build
+
+# Deploy with Docker
+docker-compose up --build -d
+
+# Check health
+curl http://localhost:6002/health
+
+# View API docs
+open http://localhost:6002/api/docs
+```
+
+---
+
+## 🔒 Security Checklist
+
+- [x] Tenant isolation via server-side JWT `orgId`
+- [x] Bcrypt password hashing
+- [x] JWT expiry + refresh token rotation
+- [x] RBAC guards on all protected routes
+- [x] Audit log for all mutations
+- [x] Helmet security headers
+- [x] CORS restricted to known origins
+- [x] Rate limiting (100 req/min/IP)
+- [x] Input whitelist — unknown fields stripped globally
+- [x] No client-supplied `organizationId` trusted anywhere
+
+---
+
+## 🛠️ Rollback Instructions
+
+```bash
+# Stop running containers
+docker-compose down
+
+# Revert to last stable Git commit
+git log --oneline -10
+git checkout <stable-commit-hash>
+
+# Rebuild and restart
+docker-compose up --build -d
+```

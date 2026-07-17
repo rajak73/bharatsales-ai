@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { IntegrationsService } from './integrations.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -9,7 +9,7 @@ export class IntegrationsController {
   constructor(private readonly integrationsService: IntegrationsService) {}
 
   @Get()
-  async getIntegrations(@Query('organizationId') organizationId: string) {
-    return this.integrationsService.findAllByOrgId(organizationId);
+  async getIntegrations(@Request() req: any) {
+    return this.integrationsService.findAllByOrgId(req.user.orgId);
   }
 }

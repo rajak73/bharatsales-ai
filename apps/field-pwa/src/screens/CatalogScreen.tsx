@@ -7,6 +7,7 @@ import { useCart } from '../contexts/CartContext';
 import { AiFeaturesService } from '@bharatsales/api-client';
 import type { Product } from '@bharatsales/shared-types';
 
+export function CatalogScreen() {
   const { state } = useLocation();
   const outletId = state?.outletId;
   const [search, setSearch] = useState('');
