@@ -10,9 +10,13 @@
       "cache": false,
       "persistent": true
     },
-    "lint": {},
+    "lint": {
+      "dependsOn": ["^build"]
+    },
     "test": {},
-    "type-check": {},
+    "type-check": {
+      "dependsOn": ["^build"]
+    },
     "clean": {
       "cache": false
     }

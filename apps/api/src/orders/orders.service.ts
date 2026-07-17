@@ -45,7 +45,7 @@ export class OrdersService {
     }
 
     // 2. Fetch Product Master Data to validate prices and calculate exact GST
-    const productIds = (orderData.items || []).map(i => i.productId);
+    const productIds = (orderData.items || []).map((i: any) => i.productId);
     const products = await this.productModel.find({ _id: { $in: productIds } });
     const productMap = new Map(products.map(p => [p._id.toString(), p]));
 
@@ -59,7 +59,7 @@ export class OrdersService {
     }
 
     // 4. Validate Items (BR-022 Minimum Price & BR-004 GST Calculation)
-    const items = (orderData.items || []).map(item => {
+    const items = (orderData.items || []).map((item: any) => {
       const product = productMap.get(item.productId);
       if (!product) {
         throw new BadRequestException(`Product ${item.productId} not found`);
@@ -100,12 +100,12 @@ export class OrdersService {
     });
 
     const totals = {
-      subTotal: parseFloat(items.reduce((sum, item) => sum + item.subTotal, 0).toFixed(2)),
-      discountTotal: parseFloat(items.reduce((sum, item) => sum + item.discount, 0).toFixed(2)),
-      cgstTotal: parseFloat(items.reduce((sum, item) => sum + item.cgstAmount, 0).toFixed(2)),
-      sgstTotal: parseFloat(items.reduce((sum, item) => sum + item.sgstAmount, 0).toFixed(2)),
-      igstTotal: parseFloat(items.reduce((sum, item) => sum + item.igstAmount, 0).toFixed(2)),
-      grandTotal: parseFloat(items.reduce((sum, item) => sum + item.total, 0).toFixed(2)),
+      subTotal: parseFloat(items.reduce((sum: number, item: any) => sum + item.subTotal, 0).toFixed(2)),
+      discountTotal: parseFloat(items.reduce((sum: number, item: any) => sum + item.discount, 0).toFixed(2)),
+      cgstTotal: parseFloat(items.reduce((sum: number, item: any) => sum + item.cgstAmount, 0).toFixed(2)),
+      sgstTotal: parseFloat(items.reduce((sum: number, item: any) => sum + item.sgstAmount, 0).toFixed(2)),
+      igstTotal: parseFloat(items.reduce((sum: number, item: any) => sum + item.igstAmount, 0).toFixed(2)),
+      grandTotal: parseFloat(items.reduce((sum: number, item: any) => sum + item.total, 0).toFixed(2)),
     };
 
     // 5. Credit Exposure Calculation (BR-006)
