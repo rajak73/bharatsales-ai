@@ -39,6 +39,9 @@ jobs:
       - name: Type Check
         run: pnpm run type-check
 
+      - name: Seed Database
+        run: pnpm run --filter @bharatsales/api seed
+
       - name: Run Unit Tests
         run: pnpm run test
 
