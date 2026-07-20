@@ -1,4 +1,4 @@
-import { Controller, Get, Request, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Request, UseGuards, UseInterceptors } from '@nestjs/common';
 import { BeatsService } from './beats.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -23,5 +23,23 @@ export class BeatsController {
   @RequirePermissions(Resource.Visits, Action.Read)
   async getAllBeats(@Request() req: any) {
     return this.beatsService.getAllBeats(req.user.orgId);
+  }
+
+  @Post()
+  @RequirePermissions(Resource.Visits, Action.Create)
+  async createBeat(@Request() req: any, @Body() data: any) {
+    return this.beatsService.createBeat(req.user.orgId, data);
+  }
+
+  @Patch(':id')
+  @RequirePermissions(Resource.Visits, Action.Update)
+  async updateBeat(@Request() req: any, @Param('id') id: string, @Body() data: any) {
+    return this.beatsService.updateBeat(req.user.orgId, id, data);
+  }
+
+  @Post(':id/publish')
+  @RequirePermissions(Resource.Visits, Action.Update)
+  async publishBeat(@Request() req: any, @Param('id') id: string) {
+    return this.beatsService.publishBeat(req.user.orgId, id);
   }
 }

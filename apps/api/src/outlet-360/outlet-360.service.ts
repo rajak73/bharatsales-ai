@@ -24,20 +24,20 @@ export class Outlet360Service {
     return {
       code: outlet.code,
       name: outlet.name,
-      owner: outlet.owner || 'Unknown',
+      owner: outlet.ownerName || 'Unknown',
       status: outlet.status,
-      tier: 'Gold', // Mock tier
-      category: outlet.type || 'General',
-      mobile: outlet.phone || 'N/A',
+      tier: outlet.tier || 'C',
+      category: outlet.category || 'General',
+      mobile: outlet.mobile || 'N/A',
       email: outlet.email || 'N/A',
       language: 'English',
-      address: outlet.address || 'N/A',
-      state: 'Maharashtra',
-      pin: '400001',
-      gstin: '27AAAAA0000A1Z5',
-      creditLimit: '₹50,000',
-      outstanding: '₹12,500',
-      distributor: 'Super Distributor Pvt Ltd'
+      address: outlet.location?.address || 'N/A',
+      state: outlet.location?.state || 'Unknown',
+      pin: outlet.location?.pinCode || 'Unknown',
+      gstin: outlet.tax?.gstin || 'N/A',
+      creditLimit: `₹${(outlet.commercial?.creditLimit || 0).toLocaleString()}`,
+      outstanding: `₹${(outlet.commercial?.outstandingBalance || 0).toLocaleString()}`,
+      distributor: outlet.commercial?.assignedDistributorId || 'Unassigned'
     };
   }
 

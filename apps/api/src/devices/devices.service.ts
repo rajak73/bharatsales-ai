@@ -13,24 +13,7 @@ export class DevicesService {
   async findAllByOrgId(organizationId: string): Promise<SharedDevice[]> {
     const records = await this.deviceModel.find({ organizationId }).exec();
     if (records.length === 0) {
-      const defaults = [
-        { organizationId, deviceId: 'DEV-8821', user: 'Amit Patel', model: 'Samsung Galaxy Tab S7', os: 'Android 13', appVersion: 'v2.1.0', lastSync: '10 mins ago', status: 'Online' as const },
-        { organizationId, deviceId: 'DEV-4451', user: 'Rahul Singh', model: 'Motorola Edge 40', os: 'Android 13', appVersion: 'v2.0.5', lastSync: '2 hours ago', status: 'Offline' as const },
-      ];
-      await this.deviceModel.insertMany(defaults);
-      const newRecords = await this.deviceModel.find({ organizationId }).exec();
-      return newRecords.map(doc => ({
-        id: doc.id,
-        organizationId: doc.organizationId,
-        deviceId: doc.deviceId,
-        user: doc.user,
-        model: doc.deviceModel,
-        os: doc.os,
-        appVersion: doc.appVersion,
-        lastSync: doc.lastSync,
-        status: doc.status,
-        trusted: true,
-      }));
+      return [];
     }
     return records.map(doc => ({
       id: doc.id,

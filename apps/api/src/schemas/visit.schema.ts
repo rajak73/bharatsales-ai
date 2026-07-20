@@ -29,6 +29,9 @@ export class Visit extends Document {
 
   @Prop({ required: true, enum: ['Active', 'Completed'] })
   status: string;
+
+  @Prop({ type: [Object], default: [] })
+  activities?: any[];
 }
 
 export const VisitSchema = SchemaFactory.createForClass(Visit);

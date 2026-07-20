@@ -56,4 +56,51 @@ export class ReportsService {
       pendingExport: 0
     };
   }
+
+  // Simulated Async Reporting Jobs
+  private reportJobs = new Map<string, { status: string, progress: number, url?: string }>();
+
+  async runReport(organizationId: string, payload: any): Promise<{ jobId: string }> {
+    const jobId = `job-${Date.now()}`;
+    this.reportJobs.set(jobId, { status: 'Processing', progress: 0 });
+
+    // Simulate background processing
+    setTimeout(() => {
+      const job = this.reportJobs.get(jobId);
+      if (job) {
+        job.progress = 50;
+      }
+    }, 1000);
+
+    setTimeout(() => {
+      const job = this.reportJobs.get(jobId);
+      if (job) {
+        job.status = 'Completed';
+        job.progress = 100;
+        job.url = `/api/reports/exports/${jobId}`;
+      }
+    }, 3000);
+
+    return { jobId };
+  }
+
+  async getJobStatus(organizationId: string, jobId: string): Promise<any> {
+    const job = this.reportJobs.get(jobId);
+    if (!job) {
+      throw new Error(`Job ${jobId} not found`);
+    }
+    return job;
+  }
+
+  async getExport(organizationId: string, jobId: string): Promise<any> {
+    const job = this.reportJobs.get(jobId);
+    if (!job || job.status !== 'Completed') {
+      throw new Error(`Export for job ${jobId} is not ready`);
+    }
+    // Return a mock CSV download URL or stream
+    return {
+      downloadUrl: `https://storage.bharatsales.com/exports/org_${organizationId}/${jobId}.csv`,
+      expiresAt: new Date(Date.now() + 86400000).toISOString()
+    };
+  }
 }

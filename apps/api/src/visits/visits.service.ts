@@ -82,4 +82,19 @@ export class VisitsService {
     visit.status = 'Completed';
     return visit.save();
   }
+
+  async addActivity(userId: string, visitId: string, activity: any) {
+    const visit = await this.visitModel.findOne({ _id: visitId, user: userId, status: 'Active' });
+    if (!visit) {
+      throw new NotFoundException('Active visit not found or already completed');
+    }
+
+    visit.activities = visit.activities || [];
+    visit.activities.push({
+      ...activity,
+      timestamp: new Date()
+    });
+
+    return visit.save();
+  }
 }

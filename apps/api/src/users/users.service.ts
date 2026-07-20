@@ -42,6 +42,42 @@ export class UsersService {
     return result;
   }
 
+  async inviteUser(organizationId: string, actorRole: string, email: string, role: string) {
+    if (role === 'Super Admin' && actorRole !== 'Super Admin') {
+      throw new ForbiddenException('Only Super Admins can invite other Super Admins.');
+    }
+
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+
+    const existing = await this.userModel.findOne({ email }).exec();
+    if (existing) {
+      throw new BadRequestException('Email already exists in the system');
+    }
+
+    // Creating a user in "Invited" status with a random password.
+    // In a real application, you'd send an email with a setup link.
+    const randomPassword = await bcrypt.hash(Math.random().toString(36).slice(-8), 10);
+    const newUser = new this.userModel({
+      email,
+      role,
+      name: 'Invited User',
+      password: randomPassword,
+      organizationId,
+      status: 'Invited'
+    });
+
+    const saved = await newUser.save();
+    const result = saved.toObject();
+    delete result.password;
+    
+    return {
+      message: 'Invitation sent successfully',
+      user: result
+    };
+  }
+
   async updateUser(organizationId: string, actorRole: string, id: string, updateData: Partial<User> & { password?: string }) {
     if (updateData.role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can assign the Super Admin role.');

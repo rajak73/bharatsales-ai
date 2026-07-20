@@ -16,6 +16,11 @@ export class OrdersController {
     return this.ordersService.findAll(req.user.orgId);
   }
 
+  @Get(':id')
+  async getOrderById(@Request() req: any, @Param('id') orderId: string) {
+    return this.ordersService.findById(req.user.orgId, orderId);
+  }
+
   @Post()
   async createOrder(@Request() req: any, @Body() orderData: Partial<Order>) {
     return this.ordersService.create(req.user.orgId, req.user.sub, orderData);
@@ -47,5 +52,17 @@ export class OrdersController {
   @Roles('Super Admin', 'Company Admin', 'Area Manager')
   async dispatchOrder(@Request() req: any, @Param('id') orderId: string) {
     return this.ordersService.dispatchOrder(req.user.orgId, orderId, req.user.sub);
+  }
+
+  @Post(':id/reject')
+  @Roles('Super Admin', 'Company Admin', 'Area Manager')
+  async rejectOrder(@Request() req: any, @Param('id') orderId: string, @Body() data: { reason?: string }) {
+    return this.ordersService.rejectOrder(req.user.orgId, orderId, req.user.sub, data.reason);
+  }
+
+  @Post(':id/cancel')
+  async cancelOrder(@Request() req: any, @Param('id') orderId: string, @Body() data: { reason?: string }) {
+    // Usually the person who placed the order or manager can cancel
+    return this.ordersService.cancelOrder(req.user.orgId, orderId, req.user.sub, data.reason);
   }
 }

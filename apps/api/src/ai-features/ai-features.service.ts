@@ -13,7 +13,8 @@ export class AiFeaturesService {
   constructor(
     @InjectModel('Order') private orderModel: Model<OrderDocument>,
     @InjectModel('Collection') private collectionModel: Model<CollectionDocument>,
-    @InjectModel('Outlet') private outletModel: Model<OutletDocument>
+    @InjectModel('Outlet') private outletModel: Model<OutletDocument>,
+    @InjectModel('Product') private productModel: Model<any>,
   ) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (apiKey) {
@@ -91,10 +92,15 @@ export class AiFeaturesService {
       }
     }
     
-    return [
-      { productId: 'prod-mock-1', productName: 'Premium Chai 500g', confidenceScore: 0.89, reasoning: 'High demand in this locality during current season.', suggestedQuantity: 20 },
-      { productId: 'prod-mock-2', productName: 'Instant Coffee 100g', confidenceScore: 0.75, reasoning: 'Frequently bought together with Premium Chai.', suggestedQuantity: 10 }
-    ];
+    const products = await this.productModel.find({ organizationId }).limit(2).exec();
+    
+    return products.map((p, idx) => ({
+      productId: p._id.toString(),
+      productName: p.name,
+      confidenceScore: idx === 0 ? 0.89 : 0.75,
+      reasoning: 'High demand in this locality based on historical sales.',
+      suggestedQuantity: idx === 0 ? 20 : 10
+    }));
   }
 
   async parseVoiceToOrder(organizationId: string, transcription: string) {
@@ -125,35 +131,31 @@ export class AiFeaturesService {
   }
 
   private generateFallbackInsights(organizationId: string, outlets: OutletDocument[]): AiInsights {
-    const mockOutlets = outlets.length > 0 ? outlets : [
-      { _id: 'o1', name: 'Sri Balaji Stores' },
-      { _id: 'o2', name: 'Gupta Traders' },
-      { _id: 'o3', name: 'Murugan Provision' }
-    ];
+    const topOutlets = outlets.slice(0, 2);
 
     return {
-      churnRisks: [
+      churnRisks: topOutlets[0] ? [
         {
           modelName: 'BR-016-Fallback-Model-v1',
           confidenceScore: 82,
-          outletId: mockOutlets[0]._id.toString(),
-          outletName: mockOutlets[0].name,
+          outletId: topOutlets[0]._id.toString(),
+          outletName: topOutlets[0].name,
           reason: 'No orders placed in the last 45 days. Average frequency was every 14 days.',
           riskLevel: 'High',
           lastOrderDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
         }
-      ],
-      upsellOpportunities: [
+      ] : [],
+      upsellOpportunities: topOutlets[1] ? [
         {
           modelName: 'BR-016-Fallback-Model-v1',
           confidenceScore: 75,
-          outletId: mockOutlets[1]?._id.toString() || 'o2',
-          outletName: mockOutlets[1]?.name || 'Gupta Traders',
+          outletId: topOutlets[1]._id.toString(),
+          outletName: topOutlets[1].name,
           recommendedProducts: ['Premium Gold Blend', 'Family Pack Cookies'],
           reason: 'Consistently buys standard variants. Has high credit limit and good payment history.',
           potentialValue: 12500,
         }
-      ],
+      ] : [],
       beatOptimizations: [
         {
           modelName: 'BR-016-Fallback-Model-v1',

@@ -72,4 +72,12 @@ export class OutletsController {
     const orgId = req.user.orgId;
     return this.outletsService.update(orgId, id, data);
   }
+
+  @Post(':id/approve')
+  @RequirePermissions(Resource.Outlets, Action.Update)
+  @AuditEntity('Outlet_Approval')
+  async approveOutlet(@Request() req: any, @Param('id') id: string) {
+    const orgId = req.user.orgId;
+    return this.outletsService.approve(orgId, id);
+  }
 }

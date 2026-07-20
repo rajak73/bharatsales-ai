@@ -8,7 +8,10 @@ import { Inventory as SharedInventory } from '@bharatsales/shared-types';
 export class InventoryService {
   private readonly logger = new Logger(InventoryService.name);
 
-  constructor(@InjectModel(Inventory.name) private inventoryModel: Model<Inventory>) {}
+  constructor(
+    @InjectModel(Inventory.name) private inventoryModel: Model<Inventory>,
+    @InjectModel('Product') private productModel: Model<any>,
+  ) {}
 
   async getInventory(organizationId: string): Promise<Inventory[]> {
     this.logger.log(`Fetching inventory for org ${organizationId}`);
@@ -21,6 +24,12 @@ export class InventoryService {
       organizationId,
     });
     return newInventory.save();
+  }
+
+  async checkStockAvailable(organizationId: string, productId: string, quantity: number): Promise<boolean> {
+    const inventoryItems = await this.inventoryModel.find({ organizationId, productId }).exec();
+    const totalStock = inventoryItems.reduce((sum, item) => sum + (item.stock || 0), 0);
+    return totalStock >= quantity;
   }
 
   async reserveStock(organizationId: string, productId: string, quantity: number, warehouseId?: string): Promise<void> {
@@ -60,6 +69,24 @@ export class InventoryService {
     await inventory.save();
   }
 
+  async releaseReservedStock(organizationId: string, productId: string, quantity: number, warehouseId?: string): Promise<void> {
+    this.logger.log(`Releasing ${quantity} of reserved product ${productId} for org ${organizationId}`);
+    
+    const query: any = { organizationId, productId, reservedStock: { $gte: quantity } };
+    if (warehouseId) query.warehouseId = warehouseId;
+
+    const inventory = await this.inventoryModel.findOne(query).sort({ expiry: 1 }).exec();
+    
+    if (!inventory) {
+      throw new Error(`Insufficient reserved stock for product ${productId} to release`);
+    }
+
+    // Move from reservedStock back to stock
+    inventory.reservedStock -= quantity;
+    inventory.stock += quantity;
+    await inventory.save();
+  }
+
   async adjustStock(organizationId: string, adjustment: { productId: string, batch: string, type: string, quantity: number, reason?: string, warehouseId?: string }): Promise<Inventory> {
     const query: any = { organizationId, productId: adjustment.productId, batch: adjustment.batch };
     if (adjustment.warehouseId) query.warehouseId = adjustment.warehouseId;
@@ -80,11 +107,16 @@ export class InventoryService {
     } else {
       if (adjustmentQty < 0) throw new Error('Cannot reduce stock below 0 for a non-existent batch.');
       
+      const product = await this.productModel.findById(adjustment.productId).exec();
+      if (!product) {
+        throw new Error(`Product ${adjustment.productId} not found`);
+      }
+
       const newInventory = new this.inventoryModel({
         organizationId,
         productId: adjustment.productId,
-        productName: adjustment.productId, // Mock, usually look up product
-        sku: adjustment.productId, // Mock
+        productName: product.name,
+        sku: product.sku,
         batch: adjustment.batch,
         stock: adjustmentQty,
         warehouseId: adjustment.warehouseId,

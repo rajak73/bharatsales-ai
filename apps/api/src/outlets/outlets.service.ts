@@ -65,6 +65,15 @@ export class OutletsService {
     return outlet.save();
   }
 
+  async approve(organizationId: string, id: string): Promise<Outlet> {
+    const outlet = await this.outletModel.findOne({ _id: id, organizationId });
+    if (!outlet) {
+      throw new NotFoundException('Outlet not found');
+    }
+    outlet.status = 'Active';
+    return outlet.save();
+  }
+
   async update(organizationId: string, id: string, data: any): Promise<Outlet> {
     const outlet = await this.outletModel.findOne({ _id: id, organizationId });
     if (!outlet) {

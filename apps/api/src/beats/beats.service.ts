@@ -19,9 +19,13 @@ export class BeatsService {
     const schedule = await this.beatScheduleModel.findOne({
       user: userId,
       organizationId,
+    const schedule = await this.beatScheduleModel.findOne({
+      user: userId,
+      organizationId,
       date: { $gte: todayStart, $lte: todayEnd }
     }).populate({
       path: 'beat',
+      match: { status: 'Active' },
       populate: {
         path: 'outlets'
       }
@@ -36,5 +40,43 @@ export class BeatsService {
 
   async getAllBeats(organizationId: string) {
     return this.beatModel.find({ organizationId }).populate('outlets').exec();
+  }
+
+  async createBeat(organizationId: string, data: Partial<Beat>) {
+    const newBeat = new this.beatModel({
+      ...data,
+      organizationId,
+      status: 'Draft',
+      version: 1
+    });
+    return newBeat.save();
+  }
+
+  async updateBeat(organizationId: string, beatId: string, data: Partial<Beat>) {
+    const updated = await this.beatModel.findOneAndUpdate(
+      { _id: beatId, organizationId },
+      { $set: data },
+      { new: true }
+    ).exec();
+    
+    if (!updated) {
+      throw new Error(`Beat ${beatId} not found`);
+    }
+    
+    return updated;
+  }
+
+  async publishBeat(organizationId: string, beatId: string) {
+    const updated = await this.beatModel.findOneAndUpdate(
+      { _id: beatId, organizationId },
+      { $set: { status: 'Active' }, $inc: { version: 1 } },
+      { new: true }
+    ).exec();
+    
+    if (!updated) {
+      throw new Error(`Beat ${beatId} not found`);
+    }
+    
+    return updated;
   }
 }

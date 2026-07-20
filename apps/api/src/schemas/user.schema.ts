@@ -29,6 +29,12 @@ export class User implements Omit<IUser, 'id' | 'createdAt' | 'updatedAt'> {
 
   @Prop([String])
   territoryIds?: string[];
+
+  @Prop({ default: 0 })
+  failedLoginAttempts?: number;
+
+  @Prop()
+  lockedUntil?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

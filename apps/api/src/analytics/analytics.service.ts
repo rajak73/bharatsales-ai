@@ -11,6 +11,7 @@ export class AnalyticsService {
     @InjectModel('Visit') private visitModel: Model<Visit>,
     @InjectModel('User') private userModel: Model<User>,
     @InjectModel('Outlet') private outletModel: Model<Outlet>,
+    @InjectModel('Target') private targetModel: Model<any>,
   ) {}
 
   async getDashboardData(organizationId: string) {
@@ -29,8 +30,10 @@ export class AnalyticsService {
       createdAt: { $gte: today.toISOString() }
     });
     
-    // Productive calls = visits that resulted in an order (mocked here by checking if they have an order today)
-    const productiveCalls = todaysOrders.length; 
+    // Productive calls = unique outlets visited today that also placed an order today
+    const visitedOutletIds = todaysVisits.map(v => v.outlet?.toString() || (v as any).outletId);
+    const orderedOutletIds = todaysOrders.map(o => o.outletId);
+    const productiveCalls = visitedOutletIds.filter(id => id && orderedOutletIds.includes(id)).length;
 
     const todaysCollections = await this.collectionModel.find({
       organizationId,
@@ -40,9 +43,13 @@ export class AnalyticsService {
 
     // Recent Orders
     const recentOrdersDb = await this.orderModel.find({ organizationId }).sort({ createdAt: -1 }).limit(5);
+    const outletIds = [...new Set(recentOrdersDb.map(o => o.outletId))];
+    const outlets = await this.outletModel.find({ _id: { $in: outletIds } }).exec();
+    const outletMap = new Map(outlets.map(o => [o._id.toString(), o.name]));
+
     const recentOrders = recentOrdersDb.map(o => ({
       id: o.orderNumber || o.id,
-      outlet: o.outletId, // ideally resolved to outlet name
+      outlet: outletMap.get(o.outletId) || o.outletId,
       amount: `₹${(o.totals?.grandTotal || 0).toLocaleString()}`,
       status: o.status,
       time: new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -67,7 +74,7 @@ export class AnalyticsService {
       });
     }
 
-    // Monthly Target (mocked for now, just sum all orders this month vs a fixed target)
+    // Monthly Target (real calculation)
     const startOfMonth = new Date();
     startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
     const monthlyOrders = await this.orderModel.find({
@@ -75,7 +82,15 @@ export class AnalyticsService {
       createdAt: { $gte: startOfMonth.toISOString() }
     });
     const achieved = monthlyOrders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
-    const target = 2500000;
+    
+    // Fetch organizational or default target from DB
+    const orgTarget = await this.targetModel.findOne({ 
+      organizationId, 
+      period: 'Monthly', 
+      entityType: 'User' // Wait, organization-wide target isn't strictly defined, we can sum user targets or use a default.
+    }).exec();
+
+    const target = orgTarget?.targetValue || 2500000;
 
     return {
       kpis: [

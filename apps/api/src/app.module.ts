@@ -42,6 +42,7 @@ import { ExpensesModule } from './expenses/expenses.module';
 import { PriceListsModule } from './price-lists/price-lists.module';
 import { TaxRatesModule } from './tax-rates/tax-rates.module';
 import { CollectionsModule } from './collections/collections.module';
+import { SyncModule } from './sync/sync.module';
 
 @Module({
   imports: [
@@ -117,6 +118,7 @@ import { CollectionsModule } from './collections/collections.module';
     PriceListsModule,
     TaxRatesModule,
     CollectionsModule,
+    SyncModule,
   ],
   controllers: [AppController],
   providers: [AppService],

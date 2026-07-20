@@ -118,10 +118,24 @@ export class OrdersService {
     const unbilledOrderExposure = openOrders.reduce((sum, ord) => sum + ord.totals.grandTotal, 0);
     const projectedExposure = outlet.commercial.outstandingBalance + unbilledOrderExposure + totals.grandTotal;
 
+    let initialStatus = 'Submitted';
     if (projectedExposure > outlet.commercial.creditLimit) {
-      throw new BadRequestException(
-        `Order exceeds outlet credit limit. Projected Exposure: ₹${projectedExposure}, Limit: ₹${outlet.commercial.creditLimit}`
-      );
+      initialStatus = 'Hold_Credit';
+      this.logger.warn(`Order placed on Hold_Credit. Projected Exposure: ₹${projectedExposure}, Limit: ₹${outlet.commercial.creditLimit}`);
+    } else {
+      // BR-016: If exposure is fine, check stock availability.
+      let hasInsufficientStock = false;
+      for (const item of items) {
+        const isStockAvailable = await this.inventoryService.checkStockAvailable(organizationId, item.productId, item.quantity);
+        if (!isStockAvailable) {
+          hasInsufficientStock = true;
+          break;
+        }
+      }
+      if (hasInsufficientStock) {
+        initialStatus = 'Hold_Stock';
+        this.logger.warn(`Order placed on Hold_Stock due to insufficient inventory for one or more items.`);
+      }
     }
 
     const newOrder = new this.orderModel({
@@ -131,7 +145,7 @@ export class OrdersService {
       items,
       totals,
       organizationId,
-      status: 'Submitted',
+      status: initialStatus,
     });
 
     try {
@@ -207,5 +221,53 @@ export class OrdersService {
     await this.dispatchService.createDispatchFromOrder(organizationId, orderId);
 
     return this.updateStatus(organizationId, orderId, 'Dispatched', actorId, 'Dispatched via operations');
+  }
+
+  async findById(organizationId: string, orderId: string): Promise<Order> {
+    const order = await this.orderModel.findOne({ _id: orderId, organizationId }).exec();
+    if (!order) {
+      throw new BadRequestException(`Order ${orderId} not found`);
+    }
+    return order as any;
+  }
+
+  async rejectOrder(organizationId: string, orderId: string, actorId: string, reason?: string): Promise<Order> {
+    const order = await this.orderModel.findOne({ _id: orderId, organizationId });
+    if (!order) {
+      throw new BadRequestException(`Order ${orderId} not found`);
+    }
+
+    if (['Dispatched', 'Delivered', 'Cancelled', 'Rejected'].includes(order.status as string)) {
+      throw new BadRequestException(`Order cannot be rejected from status ${order.status}`);
+    }
+
+    // Release stock if it was approved
+    if (order.status === 'Approved') {
+      for (const item of order.items || []) {
+        await this.inventoryService.releaseReservedStock(organizationId, item.productId, item.quantity);
+      }
+    }
+
+    return this.updateStatus(organizationId, orderId, 'Rejected', actorId, reason || 'Rejected by manager');
+  }
+
+  async cancelOrder(organizationId: string, orderId: string, actorId: string, reason?: string): Promise<Order> {
+    const order = await this.orderModel.findOne({ _id: orderId, organizationId });
+    if (!order) {
+      throw new BadRequestException(`Order ${orderId} not found`);
+    }
+
+    if (['Dispatched', 'Delivered', 'Cancelled', 'Rejected'].includes(order.status as string)) {
+      throw new BadRequestException(`Order cannot be cancelled from status ${order.status}`);
+    }
+
+    // Release stock if it was approved
+    if (order.status === 'Approved') {
+      for (const item of order.items || []) {
+        await this.inventoryService.releaseReservedStock(organizationId, item.productId, item.quantity);
+      }
+    }
+
+    return this.updateStatus(organizationId, orderId, 'Cancelled', actorId, reason || 'Cancelled by user');
   }
 }

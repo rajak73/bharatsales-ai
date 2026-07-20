@@ -44,4 +44,13 @@ export class UsersController {
     const orgId = req.user.orgId;
     return this.usersService.deleteUser(orgId, id);
   }
+
+  @Post('invites')
+  @Roles('Super Admin', 'Company Admin')
+  @AuditEntity('User_Invite')
+  async inviteUser(@Request() req: any, @Body() data: { email: string; role: string }) {
+    const orgId = req.user.orgId;
+    const actorRole = req.user.role;
+    return this.usersService.inviteUser(orgId, actorRole, data.email, data.role);
+  }
 }

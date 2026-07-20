@@ -59,12 +59,19 @@ export class AuthService {
       throw new UnauthorizedException('Organization account is suspended or archived.');
     }
 
+    // Account Lockout Check
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new UnauthorizedException(`Account is locked due to too many failed attempts. Try again later.`);
+    }
+
     if (password) {
       if (!user.password) {
+        await this.handleFailedLogin(user);
         throw new UnauthorizedException('Invalid credentials');
       }
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
+        await this.handleFailedLogin(user);
         throw new UnauthorizedException('Invalid credentials');
       }
     } else if (otp) {
@@ -100,7 +107,24 @@ export class AuthService {
     });
     await session.save();
 
+    // Reset failed login attempts on success
+    if (user.failedLoginAttempts! > 0 || user.lockedUntil) {
+      user.failedLoginAttempts = 0;
+      user.lockedUntil = undefined;
+      await user.save();
+    }
+
     return this.generateTokenResponse(user, refreshToken);
+  }
+
+  private async handleFailedLogin(user: UserDocument) {
+    user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+    if (user.failedLoginAttempts >= 5) {
+      const lockTime = new Date();
+      lockTime.setMinutes(lockTime.getMinutes() + 15);
+      user.lockedUntil = lockTime;
+    }
+    await user.save();
   }
 
   async requestOtp(email: string) {
