@@ -1,12 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SyncController } from './sync.controller';
 
+import { JwtService } from '@nestjs/jwt';
+import { SyncService } from './sync.service';
+
 describe('SyncController', () => {
   let controller: SyncController;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SyncController],
+      providers: [
+        { provide: SyncService, useValue: {} },
+        { provide: JwtService, useValue: {} },
+      ],
     }).compile();
 
     controller = module.get<SyncController>(SyncController);

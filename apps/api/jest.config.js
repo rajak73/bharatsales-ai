@@ -8,4 +8,7 @@ module.exports = {
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
+  moduleNameMapper: {
+    '^@bharatsales/(.*)$': '<rootDir>/../../../packages/$1/src/index.ts',
+  },
 };

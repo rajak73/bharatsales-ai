@@ -125,9 +125,8 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
 
     it('Sales Rep should be able to check out of an outlet', async () => {
       const res = await request(app.getHttpServer())
-        .post('/visits/check-out')
+        .post(`/visits/${visitId}/check-out`)
         .set('Authorization', `Bearer ${token1}`)
-        .send({ visitId })
         .expect(201);
 
       expect(res.body.status).toBe('Completed');
