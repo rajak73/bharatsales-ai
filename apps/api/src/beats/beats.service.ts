@@ -19,9 +19,6 @@ export class BeatsService {
     const schedule = await this.beatScheduleModel.findOne({
       user: userId,
       organizationId,
-    const schedule = await this.beatScheduleModel.findOne({
-      user: userId,
-      organizationId,
       date: { $gte: todayStart, $lte: todayEnd }
     }).populate({
       path: 'beat',
