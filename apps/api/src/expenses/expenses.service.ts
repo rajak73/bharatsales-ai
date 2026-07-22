@@ -26,4 +26,29 @@ export class ExpensesService {
 
     return expense;
   }
+
+  async create(organizationId: string, data: any): Promise<Expense> {
+    delete data.organizationId;
+    delete data._id;
+    const newExpense = new this.expenseModel({ ...data, organizationId });
+    return newExpense.save();
+  }
+
+  async update(organizationId: string, id: string, data: any): Promise<Expense> {
+    delete data.organizationId;
+    delete data._id;
+    const expense = await this.expenseModel.findOneAndUpdate(
+      { _id: id, organizationId },
+      { $set: data },
+      { new: true }
+    ).exec();
+    if (!expense) throw new NotFoundException('Expense not found');
+    return expense;
+  }
+
+  async remove(organizationId: string, id: string): Promise<{ deleted: boolean }> {
+    const expense = await this.expenseModel.findOneAndDelete({ _id: id, organizationId }).exec();
+    if (!expense) throw new NotFoundException('Expense not found');
+    return { deleted: true };
+  }
 }

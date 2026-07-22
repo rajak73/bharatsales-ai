@@ -15,8 +15,19 @@ export function HomeScreen() {
   useEffect(() => {
     const fetchTarget = async () => {
       try {
-        const targets = await TargetsService.getTargets('org-1');
-        const myTarget = targets.find(t => t.entityType === 'User' && t.entityId === 'rep-1' && t.period === 'Monthly');
+        const targets = await TargetsService.getTargets();
+        
+        // Extract userId from JWT
+        let userId = 'unknown';
+        try {
+          const token = localStorage.getItem('bharatsales_token');
+          if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userId = payload.sub;
+          }
+        } catch (e) {}
+
+        const myTarget = targets.find(t => t.entityType === 'User' && t.entityId === userId && t.period === 'Monthly');
         if (myTarget) setTarget(myTarget);
       } catch (err) {
         console.error('Failed to fetch target', err);
@@ -33,7 +44,7 @@ export function HomeScreen() {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      await SyncEngine.pullSync('org-1');
+      await SyncEngine.pullSync();
       await SyncEngine.triggerSync();
     } catch (e) {
       console.error(e);

@@ -10,7 +10,7 @@ export default function SettingsPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<Settings>({
-    organizationId: 'org-1',
+    organizationId: '',
     companyName: '',
     industry: 'FMCG',
     timezone: 'Asia/Kolkata',
@@ -32,7 +32,7 @@ export default function SettingsPage() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const data = await SettingsService.getSettings('org-1');
+      const data = await SettingsService.getSettings();
       if (data) setSettings(data);
     } catch (error) {
       console.error('Failed to fetch settings:', error);
@@ -43,7 +43,7 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     try {
-      await SettingsService.updateSettings('org-1', settings);
+      await SettingsService.updateSettings(settings);
       setSuccessMessage('Settings saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {

@@ -21,8 +21,8 @@ export default function PriceListsPage() {
     try {
       setLoading(true);
       const [lists, items] = await Promise.all([
-        PriceListsService.getPriceLists('org-1'),
-        PriceListsService.getPriceListItems('org-1')
+        PriceListsService.getPriceLists(),
+        PriceListsService.getPriceListItems()
       ]);
       setPriceLists(lists || []);
       setPrices(items || []);

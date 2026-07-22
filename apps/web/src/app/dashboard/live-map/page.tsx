@@ -27,7 +27,7 @@ export default function LiveMapPage() {
   const fetchData = async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      const reps = await LiveMapService.getLiveReps('org-1');
+      const reps = await LiveMapService.getLiveReps();
       setLiveReps(reps || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);

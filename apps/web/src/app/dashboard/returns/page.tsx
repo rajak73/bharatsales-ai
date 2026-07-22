@@ -11,12 +11,10 @@ export default function ReturnsPage() {
   const [returns, setReturns] = useState<ReturnOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const organizationId = 'org-123';
-
   useEffect(() => {
     const fetchReturns = async () => {
       try {
-        const data = await ReturnsService.getReturns(organizationId);
+        const data = await ReturnsService.getReturns();
         setReturns(data);
       } catch (error) {
         console.error('Failed to fetch returns', error);
@@ -90,8 +88,8 @@ export default function ReturnsPage() {
             <tbody>
               {filteredReturns.map((ret) => {
                 const date = ret.createdAt ? new Date(ret.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Unknown Date';
-                const product = 'Mock Product'; // Product info missing from schema currently
-                const qty = 1; // qty missing
+                const product = ret.items?.[0]?.product || 'Unknown Product';
+                const qty = ret.items?.reduce((sum, item) => sum + item.qty, 0) || 0;
                 
                 return (
                   <tr key={ret.id} className="border-t border-gray-100">

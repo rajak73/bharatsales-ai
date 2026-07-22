@@ -20,8 +20,8 @@ export default function IncentivesPage() {
     try {
       setLoading(true);
       const [plans, items] = await Promise.all([
-        IncentivesService.getIncentivePlans('org-1'),
-        IncentivesService.getIncentivePayouts('org-1')
+        IncentivesService.getIncentivePlans(),
+        IncentivesService.getIncentivePayouts()
       ]);
       setIncentivePlans(plans || []);
       setPayouts(items || []);

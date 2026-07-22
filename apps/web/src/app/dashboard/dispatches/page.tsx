@@ -24,7 +24,7 @@ export default function DispatchesPage() {
   const fetchDispatches = async () => {
     try {
       setLoading(true);
-      const data = await DispatchService.getDispatches('org-1');
+      const data = await DispatchService.getDispatches();
       setDispatches(data || []);
     } catch (error) {
       console.error('Failed to fetch dispatches:', error);

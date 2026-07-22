@@ -2,10 +2,8 @@ import { apiClient } from '../index';
 import type { Distributor } from '@bharatsales/shared-types';
 
 export class DistributorsService {
-  static async getDistributors(organizationId: string): Promise<Distributor[]> {
-    const response = await apiClient.get<Distributor[]>('/distributors', {
-      params: { organizationId },
-    });
+  static async getDistributors(): Promise<Distributor[]> {
+    const response = await apiClient.get<Distributor[]>('/distributors');
     return response.data;
   }
 

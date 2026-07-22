@@ -35,7 +35,7 @@ export default function HierarchyPage() {
       setLoading(true);
       const [hierarchyData, usersData] = await Promise.all([
         HierarchyService.getHierarchyNodes(),
-        UsersService.getUsers('org-123')
+        UsersService.getUsers()
       ]);
       setNodes(hierarchyData || []);
       // Filter out only managers (Area Managers, etc)

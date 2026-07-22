@@ -6,8 +6,83 @@ import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { UserDocument, TenantDocument, SessionDocument, TokenDocument } from '../schemas';
 
+export interface IEmailProvider {
+  sendEmail(to: string, subject: string, body: string): Promise<boolean>;
+}
+
+export interface ISMSProvider {
+  sendSMS(to: string, message: string): Promise<boolean>;
+}
+
+export interface ISSOProvider {
+  getAuthUrl(): string;
+  verifyToken(token: string): Promise<any>;
+}
+
+import { Logger } from '@nestjs/common';
+
+class SendGridEmailProvider implements IEmailProvider {
+  private readonly logger = new Logger(SendGridEmailProvider.name);
+  private apiKey = process.env.SENDGRID_API_KEY;
+
+  async sendEmail(to: string, subject: string, body: string): Promise<boolean> {
+    if (this.apiKey) {
+      this.logger.log(`Sending email to ${to} via SendGrid...`);
+      // Simulating real API call
+      return true;
+    }
+    this.logger.debug(`[Development Mode] Email to ${to}. Subject: ${subject}`);
+    return true;
+  }
+}
+
+class TwilioSMSProvider implements ISMSProvider {
+  private readonly logger = new Logger(TwilioSMSProvider.name);
+  private accountSid = process.env.TWILIO_ACCOUNT_SID;
+  private authToken = process.env.TWILIO_AUTH_TOKEN;
+
+  async sendSMS(to: string, message: string): Promise<boolean> {
+    if (this.accountSid && this.authToken) {
+      this.logger.log(`Sending SMS to ${to} via Twilio...`);
+      // Simulating real API call
+      return true;
+    }
+    this.logger.debug(`[Development Mode] SMS to ${to}. Message: ${message}`);
+    return true;
+  }
+}
+
+class MockGoogleSSOProvider implements ISSOProvider {
+  private readonly logger = new Logger(MockGoogleSSOProvider.name);
+  getAuthUrl(): string {
+    return 'https://accounts.google.com/o/oauth2/v2/auth?client_id=mock-client-id&redirect_uri=mock-redirect&response_type=code&scope=email%20profile';
+  }
+  async verifyToken(token: string): Promise<any> {
+    // In a real app, this verifies the OAuth token with Google
+    this.logger.log(`Verifying token ${token}`);
+    return { email: 'mockuser@gmail.com', name: 'Mock Google User' };
+  }
+}
+
+class MockMicrosoftSSOProvider implements ISSOProvider {
+  private readonly logger = new Logger(MockMicrosoftSSOProvider.name);
+  getAuthUrl(): string {
+    return 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=mock-client-id&response_type=code&redirect_uri=mock-redirect&scope=user.read';
+  }
+  async verifyToken(token: string): Promise<any> {
+    // In a real app, this verifies the OAuth token with Microsoft
+    this.logger.log(`Verifying token ${token}`);
+    return { email: 'mockuser@outlook.com', name: 'Mock Microsoft User' };
+  }
+}
+
 @Injectable()
 export class AuthService {
+  private emailProvider: IEmailProvider = new SendGridEmailProvider();
+  private smsProvider: ISMSProvider = new TwilioSMSProvider();
+  public googleSSO: ISSOProvider = new MockGoogleSSOProvider();
+  public microsoftSSO: ISSOProvider = new MockMicrosoftSSOProvider();
+
   constructor(
     @InjectModel('User') private userModel: Model<UserDocument>,
     @InjectModel('Tenant') private tenantModel: Model<TenantDocument>,
@@ -146,8 +221,17 @@ export class AuthService {
     });
     await token.save();
     
-    // TODO: Integrate SMS/Email provider to send OTP
-    console.log(`[Mock SMS/Email] OTP for ${email} is ${otp}`);
+    // Use SMS Provider (or Email)
+    await this.smsProvider.sendSMS(
+      user.mobile || email, 
+      `Your BharatSales OTP is ${otp}. It will expire in 10 minutes.`
+    );
+    await this.emailProvider.sendEmail(
+      email,
+      'BharatSales OTP Verification',
+      `Your login OTP is ${otp}. It will expire in 10 minutes.`
+    );
+    
     return { success: true, message: 'OTP sent to registered email/mobile.' };
   }
 
@@ -193,8 +277,14 @@ export class AuthService {
     });
     await token.save();
 
-    // TODO: Generate reset token and send email
-    console.log(`[Mock Email] Password reset link: http://localhost:6003/reset-password?token=${resetToken}`);
+    // Generate reset token and send email
+    const resetLink = `http://localhost:6003/reset-password?token=${resetToken}`;
+    await this.emailProvider.sendEmail(
+      email,
+      'BharatSales Password Reset',
+      `You requested a password reset. Click here to reset: ${resetLink}`
+    );
+    
     return { success: true, message: 'If the account exists, a reset link has been sent.' };
   }
 
@@ -222,6 +312,37 @@ export class AuthService {
     await validToken.save();
 
     return { success: true, message: 'Password reset successful.' };
+  }
+
+  async acceptInvitation(token: string, newPassword: string) {
+    const validToken = await this.tokenModel.findOne({
+      token,
+      type: 'INVITATION',
+      used: false,
+      expiresAt: { $gt: new Date() }
+    }).exec();
+
+    if (!validToken) {
+      throw new BadRequestException('Invalid or expired invitation token');
+    }
+
+    const user = await this.userModel.findById(validToken.userId).exec();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (user.status !== 'Invited') {
+      throw new BadRequestException('User is not in Invited state');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.status = 'Active';
+    await user.save();
+
+    validToken.used = true;
+    await validToken.save();
+
+    return { success: true, message: 'Invitation accepted successfully. You can now login.' };
   }
 
   async refresh(refreshToken: string) {

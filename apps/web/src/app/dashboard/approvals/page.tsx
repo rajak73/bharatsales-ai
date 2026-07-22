@@ -22,8 +22,8 @@ export default function ApprovalsPage() {
     try {
       setLoading(true);
       const [approvalsData, rulesData] = await Promise.all([
-        ApprovalsService.getApprovals('org-1'),
-        ApprovalsService.getApprovalRules('org-1')
+        ApprovalsService.getApprovals(),
+        ApprovalsService.getApprovalRules()
       ]);
       setApprovals(approvalsData || []);
       setApprovalRules(rulesData || []);

@@ -2,10 +2,8 @@ import { apiClient } from '../index';
 import type { ReturnOrder } from '@bharatsales/shared-types';
 
 export class ReturnsService {
-  static async getReturns(organizationId: string): Promise<ReturnOrder[]> {
-    const response = await apiClient.get<ReturnOrder[]>('/returns', {
-      params: { organizationId },
-    });
+  static async getReturns(): Promise<ReturnOrder[]> {
+    const response = await apiClient.get<ReturnOrder[]>('/returns');
     return response.data;
   }
 

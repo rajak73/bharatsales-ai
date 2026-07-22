@@ -20,7 +20,7 @@ export default function ExpensesPage() {
   const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const data = await ExpensesService.getExpenses('org-1');
+      const data = await ExpensesService.getExpenses();
       setExpenses(data || []);
     } catch (error) {
       console.error('Failed to fetch expenses:', error);

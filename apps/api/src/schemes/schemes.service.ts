@@ -25,6 +25,10 @@ export class SchemesService {
   }
 
   async create(organizationId: string, data: Omit<SharedScheme, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>): Promise<Scheme> {
+    delete (data as any).organizationId;
+    delete (data as any)._id;
+    delete (data as any).createdAt;
+    delete (data as any).updatedAt;
     const newScheme = new this.schemeModel({
       ...data,
       organizationId,

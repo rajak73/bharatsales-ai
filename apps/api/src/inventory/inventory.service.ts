@@ -19,6 +19,10 @@ export class InventoryService {
   }
 
   async create(organizationId: string, data: Omit<SharedInventory, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>): Promise<Inventory> {
+    delete (data as any).organizationId;
+    delete (data as any)._id;
+    delete (data as any).createdAt;
+    delete (data as any).updatedAt;
     const newInventory = new this.inventoryModel({
       ...data,
       organizationId,
@@ -32,7 +36,7 @@ export class InventoryService {
     return totalStock >= quantity;
   }
 
-  async reserveStock(organizationId: string, productId: string, quantity: number, warehouseId?: string): Promise<void> {
+  async reserveStock(organizationId: string, productId: string, quantity: number, warehouseId?: string, session?: any): Promise<void> {
     this.logger.log(`Reserving ${quantity} of product ${productId} for org ${organizationId}`);
     
     // Find the oldest batch with sufficient stock (FIFO-like), or simply just take from available.
@@ -40,7 +44,7 @@ export class InventoryService {
     const query: any = { organizationId, productId, stock: { $gte: quantity } };
     if (warehouseId) query.warehouseId = warehouseId;
     
-    const inventory = await this.inventoryModel.findOne(query).sort({ expiry: 1 }).exec();
+    const inventory = await this.inventoryModel.findOne(query).sort({ expiry: 1 }).session(session).exec();
     
     if (!inventory) {
       throw new Error(`Insufficient stock for product ${productId}`);
@@ -49,16 +53,16 @@ export class InventoryService {
     // Move stock to reservedStock
     inventory.stock -= quantity;
     inventory.reservedStock = (inventory.reservedStock || 0) + quantity;
-    await inventory.save();
+    await inventory.save({ session });
   }
 
-  async deductStock(organizationId: string, productId: string, quantity: number, warehouseId?: string): Promise<void> {
+  async deductStock(organizationId: string, productId: string, quantity: number, warehouseId?: string, session?: any): Promise<void> {
     this.logger.log(`Deducting ${quantity} of product ${productId} for org ${organizationId}`);
     
     const query: any = { organizationId, productId, reservedStock: { $gte: quantity } };
     if (warehouseId) query.warehouseId = warehouseId;
 
-    const inventory = await this.inventoryModel.findOne(query).sort({ expiry: 1 }).exec();
+    const inventory = await this.inventoryModel.findOne(query).sort({ expiry: 1 }).session(session).exec();
     
     if (!inventory) {
       throw new Error(`Insufficient reserved stock for product ${productId} to deduct`);
@@ -66,16 +70,16 @@ export class InventoryService {
 
     // Permanently remove from reservedStock
     inventory.reservedStock -= quantity;
-    await inventory.save();
+    await inventory.save({ session });
   }
 
-  async releaseReservedStock(organizationId: string, productId: string, quantity: number, warehouseId?: string): Promise<void> {
+  async releaseReservedStock(organizationId: string, productId: string, quantity: number, warehouseId?: string, session?: any): Promise<void> {
     this.logger.log(`Releasing ${quantity} of reserved product ${productId} for org ${organizationId}`);
     
     const query: any = { organizationId, productId, reservedStock: { $gte: quantity } };
     if (warehouseId) query.warehouseId = warehouseId;
 
-    const inventory = await this.inventoryModel.findOne(query).sort({ expiry: 1 }).exec();
+    const inventory = await this.inventoryModel.findOne(query).sort({ expiry: 1 }).session(session).exec();
     
     if (!inventory) {
       throw new Error(`Insufficient reserved stock for product ${productId} to release`);
@@ -84,14 +88,14 @@ export class InventoryService {
     // Move from reservedStock back to stock
     inventory.reservedStock -= quantity;
     inventory.stock += quantity;
-    await inventory.save();
+    await inventory.save({ session });
   }
 
-  async adjustStock(organizationId: string, adjustment: { productId: string, batch: string, type: string, quantity: number, reason?: string, warehouseId?: string }): Promise<Inventory> {
+  async adjustStock(organizationId: string, adjustment: { productId: string, batch: string, type: string, quantity: number, reason?: string, warehouseId?: string }, session?: any): Promise<Inventory> {
     const query: any = { organizationId, productId: adjustment.productId, batch: adjustment.batch };
     if (adjustment.warehouseId) query.warehouseId = adjustment.warehouseId;
 
-    let inventory = await this.inventoryModel.findOne(query).exec();
+    let inventory = await this.inventoryModel.findOne(query).session(session).exec();
     
     const isAddition = ['Correction (Positive)', 'Transfer In', 'Purchase'].includes(adjustment.type);
     const isSubtraction = ['Damage', 'Expiry', 'Correction (Negative)', 'Transfer Out'].includes(adjustment.type);
@@ -103,7 +107,7 @@ export class InventoryService {
       if (inventory.stock < 0) {
          throw new Error(`Adjustment would result in negative stock. Current stock: ${inventory.stock - adjustmentQty}`);
       }
-      return inventory.save();
+      return inventory.save({ session });
     } else {
       if (adjustmentQty < 0) throw new Error('Cannot reduce stock below 0 for a non-existent batch.');
       
@@ -121,7 +125,7 @@ export class InventoryService {
         stock: adjustmentQty,
         warehouseId: adjustment.warehouseId,
       });
-      return newInventory.save();
+      return newInventory.save({ session });
     }
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Approval } from '../schemas/approval.schema';
@@ -14,29 +14,6 @@ export class ApprovalsService {
 
   async findAllApprovals(organizationId: string): Promise<SharedApproval[]> {
     const records = await this.approvalModel.find({ organizationId }).exec();
-    
-    // Seed for demo if empty
-    if (records.length === 0) {
-      const defaults = [
-        { id: 'APP-1001', organizationId, outlet: 'Supermart', order: 'ORD-5001', type: 'Credit Limit', reason: 'Order exceeds current credit limit by ₹5,000', amount: 5000, priority: 'High' as const, requestedBy: 'Amit Patel', date: '2024-03-15', status: 'Pending' as const },
-        { id: 'APP-1002', organizationId, outlet: 'Kirana Store', order: 'ORD-5002', type: 'Discount', reason: 'Requested 15% discount for bulk order', amount: 2500, priority: 'Medium' as const, requestedBy: 'Rahul Singh', date: '2024-03-14', status: 'Approved' as const },
-      ];
-      await this.approvalModel.insertMany(defaults);
-      const newRecords = await this.approvalModel.find({ organizationId }).exec();
-      return newRecords.map(doc => ({
-        id: doc.id,
-        organizationId: doc.organizationId,
-        outlet: doc.outlet,
-        order: doc.order,
-        type: doc.type,
-        reason: doc.reason,
-        amount: doc.amount,
-        priority: doc.priority,
-        requestedBy: doc.requestedBy,
-        date: doc.date,
-        status: doc.status
-      }));
-    }
 
     return records.map(doc => ({
       id: doc.id,
@@ -46,38 +23,76 @@ export class ApprovalsService {
       type: doc.type,
       reason: doc.reason,
       amount: doc.amount,
-      priority: doc.priority,
+      priority: doc.priority as 'High'|'Medium'|'Low',
       requestedBy: doc.requestedBy,
       date: doc.date,
-      status: doc.status
+      status: doc.status as 'Pending'|'Approved'|'Rejected'
     }));
   }
 
   async findAllRules(organizationId: string): Promise<SharedRule[]> {
     const records = await this.ruleModel.find({ organizationId }).exec();
-    
-    if (records.length === 0) {
-      const defaults = [
-        { organizationId, trigger: 'Order Value > ₹50,000', approver: 'Regional Manager', enabled: true },
-        { organizationId, trigger: 'Discount > 10%', approver: 'Sales Head', enabled: true },
-        { organizationId, trigger: 'Credit Limit Exceeded', approver: 'Finance Team', enabled: true },
-        { organizationId, trigger: 'New Distributor Onboarding', approver: 'Director', enabled: false },
-      ];
-      await this.ruleModel.insertMany(defaults);
-      const newRecords = await this.ruleModel.find({ organizationId }).exec();
-      return newRecords.map(doc => ({
-        organizationId: doc.organizationId,
-        trigger: doc.trigger,
-        approver: doc.approver,
-        enabled: doc.enabled
-      }));
-    }
 
     return records.map(doc => ({
+      id: doc.id,
       organizationId: doc.organizationId,
       trigger: doc.trigger,
       approver: doc.approver,
       enabled: doc.enabled
     }));
+  }
+
+  // --- Approvals CRUD ---
+
+  async createApproval(organizationId: string, data: any): Promise<Approval> {
+    const approval = new this.approvalModel({
+      ...data,
+      organizationId,
+      date: new Date().toISOString(),
+      status: 'Pending'
+    });
+    return approval.save();
+  }
+
+  async updateApproval(organizationId: string, id: string, data: any): Promise<Approval> {
+    const approval = await this.approvalModel.findOneAndUpdate(
+      { _id: id, organizationId },
+      { $set: data },
+      { new: true }
+    ).exec();
+    if (!approval) throw new NotFoundException('Approval not found');
+    return approval;
+  }
+
+  async deleteApproval(organizationId: string, id: string): Promise<{ deleted: boolean }> {
+    const approval = await this.approvalModel.findOneAndDelete({ _id: id, organizationId }).exec();
+    if (!approval) throw new NotFoundException('Approval not found');
+    return { deleted: true };
+  }
+
+  // --- Approval Rules CRUD ---
+
+  async createRule(organizationId: string, data: any): Promise<ApprovalRule> {
+    const rule = new this.ruleModel({
+      ...data,
+      organizationId
+    });
+    return rule.save();
+  }
+
+  async updateRule(organizationId: string, id: string, data: any): Promise<ApprovalRule> {
+    const rule = await this.ruleModel.findOneAndUpdate(
+      { _id: id, organizationId },
+      { $set: data },
+      { new: true }
+    ).exec();
+    if (!rule) throw new NotFoundException('Approval rule not found');
+    return rule;
+  }
+
+  async deleteRule(organizationId: string, id: string): Promise<{ deleted: boolean }> {
+    const rule = await this.ruleModel.findOneAndDelete({ _id: id, organizationId }).exec();
+    if (!rule) throw new NotFoundException('Approval rule not found');
+    return { deleted: true };
   }
 }

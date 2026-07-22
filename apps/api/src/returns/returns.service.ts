@@ -52,4 +52,22 @@ export class ReturnsService {
 
     return newReturn;
   }
+
+  async update(organizationId: string, id: string, data: Partial<SharedReturnOrder>): Promise<ReturnOrder> {
+    delete (data as any).organizationId;
+    delete (data as any)._id;
+    const returnOrder = await this.returnModel.findOneAndUpdate(
+      { _id: id, organizationId },
+      { $set: data },
+      { new: true }
+    ).exec();
+    if (!returnOrder) throw new NotFoundException('Return order not found');
+    return returnOrder;
+  }
+
+  async remove(organizationId: string, id: string): Promise<{ deleted: boolean }> {
+    const returnOrder = await this.returnModel.findOneAndDelete({ _id: id, organizationId }).exec();
+    if (!returnOrder) throw new NotFoundException('Return order not found');
+    return { deleted: true };
+  }
 }

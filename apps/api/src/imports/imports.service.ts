@@ -25,7 +25,11 @@ export class ImportsService {
   constructor(
     @InjectModel('ImportJob') private importJobModel: Model<ImportJobDocument>,
     @InjectModel('Product') private productModel: Model<any>,
-    @InjectModel('Outlet') private outletModel: Model<any>
+    @InjectModel('Outlet') private outletModel: Model<any>,
+    @InjectModel('User') private userModel: Model<any>,
+    @InjectModel('Distributor') private distributorModel: Model<any>,
+    @InjectModel('Target') private targetModel: Model<any>,
+    @InjectModel('Inventory') private inventoryModel: Model<any>
   ) {}
 
   async getImportHistory(organizationId: string) {
@@ -44,13 +48,36 @@ export class ImportsService {
   }
 
   async getImportTypes(organizationId: string) {
+    const [productsCount, outletsCount, usersCount, distributorsCount, targetsCount, inventoryCount] = await Promise.all([
+      this.productModel.countDocuments({ organizationId }),
+      this.outletModel.countDocuments({ organizationId }),
+      this.userModel.countDocuments({ organizationId }),
+      this.distributorModel.countDocuments({ organizationId }),
+      this.targetModel.countDocuments({ organizationId }),
+      this.inventoryModel.countDocuments({ organizationId })
+    ]);
+
+    const getLastImport = async (type: string) => {
+      const job = await this.importJobModel.findOne({ organizationId, type, status: 'Completed' }).sort({ createdAt: -1 }).exec();
+      return job ? new Date((job as any).createdAt).toLocaleString() : 'Never';
+    };
+
+    const [productsLast, outletsLast, usersLast, distributorsLast, targetsLast, inventoryLast] = await Promise.all([
+      getLastImport('products'),
+      getLastImport('outlets'),
+      getLastImport('users'),
+      getLastImport('distributors'),
+      getLastImport('targets'),
+      getLastImport('inventory')
+    ]);
+
     return [
-      { id: 'products', name: 'Products', icon: '📦', count: 12450, lastImport: '2 days ago' },
-      { id: 'outlets', name: 'Outlets', icon: '🏪', count: 4890, lastImport: '1 week ago' },
-      { id: 'users', name: 'Users', icon: '👥', count: 145, lastImport: '1 month ago' },
-      { id: 'distributors', name: 'Distributors', icon: '🏭', count: 45, lastImport: '3 days ago' },
-      { id: 'targets', name: 'Targets', icon: '🎯', count: 450, lastImport: 'Today' },
-      { id: 'inventory', name: 'Inventory', icon: '📋', count: 8900, lastImport: 'Yesterday' }
+      { id: 'products', name: 'Products', icon: '📦', count: productsCount, lastImport: productsLast },
+      { id: 'outlets', name: 'Outlets', icon: '🏪', count: outletsCount, lastImport: outletsLast },
+      { id: 'users', name: 'Users', icon: '👥', count: usersCount, lastImport: usersLast },
+      { id: 'distributors', name: 'Distributors', icon: '🏭', count: distributorsCount, lastImport: distributorsLast },
+      { id: 'targets', name: 'Targets', icon: '🎯', count: targetsCount, lastImport: targetsLast },
+      { id: 'inventory', name: 'Inventory', icon: '📋', count: inventoryCount, lastImport: inventoryLast }
     ];
   }
 

@@ -2,10 +2,8 @@ import { apiClient } from '../index';
 import type { Expense } from '@bharatsales/shared-types';
 
 export class ExpensesService {
-  static async getExpenses(organizationId: string): Promise<Expense[]> {
-    const response = await apiClient.get<Expense[]>('/expenses', {
-      params: { organizationId },
-    });
+  static async getExpenses(): Promise<Expense[]> {
+    const response = await apiClient.get<Expense[]>('/expenses');
     return response.data;
   }
 

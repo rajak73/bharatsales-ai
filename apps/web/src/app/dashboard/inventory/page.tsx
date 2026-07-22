@@ -13,12 +13,10 @@ export default function InventoryPage() {
   const [allInventory, setAllInventory] = useState<Inventory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const organizationId = 'org-123';
-
   useEffect(() => {
     const fetchInventory = async () => {
       try {
-        const data = await InventoryService.getInventory(organizationId);
+        const data = await InventoryService.getInventory();
         setAllInventory(data);
       } catch (error) {
         console.error('Failed to fetch inventory', error);
@@ -41,7 +39,7 @@ export default function InventoryPage() {
   const handleAdjustment = async () => {
     if (newAdjustment.product && newAdjustment.batch && newAdjustment.type && newAdjustment.quantity) {
       try {
-        await InventoryService.adjustStock(organizationId, {
+        await InventoryService.adjustStock({
           productId: newAdjustment.product,
           batch: newAdjustment.batch,
           type: newAdjustment.type,
@@ -50,7 +48,7 @@ export default function InventoryPage() {
         });
         
         // Refresh inventory from server
-        const data = await InventoryService.getInventory(organizationId);
+        const data = await InventoryService.getInventory();
         setAllInventory(data);
         
         setSuccessMessage(`Stock adjustment of ${newAdjustment.quantity} units for ${newAdjustment.product} recorded!`);

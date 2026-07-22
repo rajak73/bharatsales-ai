@@ -1,14 +1,22 @@
-# Test Results
+# Test Results & QA Audit
 
-| Suite | Tests | Status |
-|-------|-------|--------|
-| UAT-11: Tenant Isolation | 3 | ✅ PASS |
-| Phase 2: Field Execution | 5 | ✅ PASS |
-| Phase 3: Order Lifecycle | 5 | ✅ PASS |
-| Phase 4: Finance & Performance | 4 | ✅ PASS |
-| Phase 5: AI & Enterprise | 6 | ✅ PASS |
-| **Total** | **23** | **✅ 23/23 PASS** |
+**Date:** July 2026
 
-All 23 E2E UAT tests are passing across Phases 1–5, validating tenant isolation, correct price calculation, inventory dispatch logic, and access controls.
+## Current Testing State
 
-Run `cd apps/api && npx jest src/uat.spec.ts` to reproduce the test results locally.
+1. **Automated Tests**:
+   - `apps/api`: Contains some unit tests (`.spec.ts`) but coverage is low, especially around permissions and tenant isolation. `uat.spec.ts` exists but needs to be expanded.
+   - `apps/web`: E2E tests and component tests are largely missing.
+   - `apps/field-pwa`: Missing tests for the offline synchronization engine.
+
+2. **Test Frameworks**:
+   - Jest is configured for the backend.
+   - Need to ensure a robust testing strategy (e.g., Playwright/Cypress for frontend E2E) is implemented.
+
+3. **Immediate QA Requirements**:
+   - Add unit tests for `packages/business-rules` (GST, pricing, credit).
+   - Write integration tests for the `auth` module to verify token issuance and role-based access control.
+   - Write tenant-isolation tests to prove that Tenant A cannot access Tenant B's data.
+
+4. **Compliance Status**:
+   - **FAIL**: The system currently does not meet the "Non-Negotiable Working Mode Rules" (BRD Sec 4) due to mocked data and missing server-side validations in various modules.

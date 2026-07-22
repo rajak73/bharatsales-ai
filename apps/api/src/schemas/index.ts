@@ -28,3 +28,4 @@ export * from './expense.schema';
 export * from './price-list.schema';
 export * from './tax-rate.schema';
 export * from './token.schema';
+export * from './claim.schema';

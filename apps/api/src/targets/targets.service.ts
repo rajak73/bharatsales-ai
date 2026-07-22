@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SalesTarget as Target, Order } from '@bharatsales/shared-types';
@@ -77,12 +77,37 @@ export class TargetsService {
     return calculatedTargets;
   }
 
-  async createTarget(data: Partial<Target>) {
-    const target = new this.targetModel(data);
+  async createTarget(organizationId: string, data: Partial<Target>) {
+    delete (data as any).organizationId;
+    delete (data as any)._id;
+    delete (data as any).createdAt;
+    delete (data as any).updatedAt;
+    const target = new this.targetModel({ ...data, organizationId });
     const saved = await target.save();
     return {
       ...saved.toObject(),
       id: saved._id.toString()
     };
+  }
+
+  async updateTarget(organizationId: string, id: string, data: Partial<Target>) {
+    delete (data as any).organizationId;
+    delete (data as any)._id;
+    const target = await this.targetModel.findOneAndUpdate(
+      { _id: id, organizationId },
+      { $set: data },
+      { new: true }
+    ).exec();
+    if (!target) throw new NotFoundException('Target not found');
+    return {
+      ...target.toObject(),
+      id: target._id.toString()
+    };
+  }
+
+  async deleteTarget(organizationId: string, id: string): Promise<{ deleted: boolean }> {
+    const target = await this.targetModel.findOneAndDelete({ _id: id, organizationId }).exec();
+    if (!target) throw new NotFoundException('Target not found');
+    return { deleted: true };
   }
 }

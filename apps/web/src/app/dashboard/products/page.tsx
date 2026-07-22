@@ -47,6 +47,10 @@ export default function ProductsPage() {
     return matchesSearch && matchesCategory && matchesBrand;
   });
 
+  // Compute unique categories and brands dynamically
+  const uniqueCategories = ['All Categories', ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))];
+  const uniqueBrands = ['All Brands', ...Array.from(new Set(products.map(p => p.brand).filter(Boolean)))];
+
   // Pagination
   const itemsPerPage = 10;
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -132,25 +136,18 @@ export default function ProductsPage() {
             value={categoryFilter}
             onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
           >
-            <option>All Categories</option>
-            <option>Detergent</option>
-            <option>Oral Care</option>
-            <option>Biscuits</option>
-            <option>Personal Care</option>
-            <option>Dairy</option>
-            <option>Beverages</option>
+            {uniqueCategories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
           </select>
           <select
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-40"
             value={brandFilter}
             onChange={(e) => { setBrandFilter(e.target.value); setCurrentPage(1); }}
           >
-            <option>All Brands</option>
-            <option>HUL</option>
-            <option>Colgate</option>
-            <option>Parle</option>
-            <option>Tata</option>
-            <option>Amul</option>
+            {uniqueBrands.map(brand => (
+              <option key={brand} value={brand}>{brand}</option>
+            ))}
           </select>
           {(searchTerm || categoryFilter !== 'All Categories' || brandFilter !== 'All Brands') && (
             <button

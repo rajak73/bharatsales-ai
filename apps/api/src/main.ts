@@ -12,7 +12,7 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001', process.env.FRONTEND_URL || ''],
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:6003', process.env.FRONTEND_URL || ''],
     credentials: true,
   });
 

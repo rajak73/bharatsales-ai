@@ -16,6 +16,10 @@ export class DistributorsService {
   }
 
   async create(organizationId: string, data: Omit<SharedDistributor, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>): Promise<Distributor> {
+    delete (data as any).organizationId;
+    delete (data as any)._id;
+    delete (data as any).createdAt;
+    delete (data as any).updatedAt;
     const newDistributor = new this.distributorModel({
       ...data,
       organizationId,
@@ -24,6 +28,10 @@ export class DistributorsService {
   }
 
   async update(organizationId: string, id: string, data: Partial<Distributor>): Promise<Distributor | null> {
+    delete (data as any).organizationId;
+    delete (data as any)._id;
+    delete (data as any).createdAt;
+    delete (data as any).updatedAt;
     return this.distributorModel.findOneAndUpdate(
       { _id: id, organizationId },
       { $set: data },

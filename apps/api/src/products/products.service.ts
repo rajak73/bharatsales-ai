@@ -17,6 +17,10 @@ export class ProductsService {
   }
 
   async create(organizationId: string, productData: Omit<SharedProduct, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>): Promise<Product> {
+    delete (productData as any).organizationId;
+    delete (productData as any)._id;
+    delete (productData as any).createdAt;
+    delete (productData as any).updatedAt;
     if (productData.pricing?.ptr > productData.pricing?.mrp) {
       throw new Error('PTR (Price to Retailer) cannot be greater than MRP');
     }
@@ -29,6 +33,10 @@ export class ProductsService {
   }
 
   async update(organizationId: string, id: string, updateData: Partial<SharedProduct>): Promise<Product> {
+    delete (updateData as any).organizationId;
+    delete (updateData as any)._id;
+    delete (updateData as any).createdAt;
+    delete (updateData as any).updatedAt;
     if (updateData.pricing && updateData.pricing.ptr > updateData.pricing.mrp) {
       throw new Error('PTR (Price to Retailer) cannot be greater than MRP');
     }

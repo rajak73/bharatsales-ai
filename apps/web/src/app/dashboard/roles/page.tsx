@@ -18,7 +18,7 @@ export default function RolesPage() {
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const data = await RolesService.getRoles('org-1');
+      const data = await RolesService.getRoles();
       setRoles(data || []);
     } catch (error) {
       console.error('Failed to fetch roles:', error);

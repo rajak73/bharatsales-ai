@@ -17,7 +17,7 @@ export default function IntegrationsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const data = await IntegrationsService.getIntegrations('org-1');
+      const data = await IntegrationsService.getIntegrations();
       setIntegrations(data || []);
     } catch (error) {
       console.error('Failed to fetch integrations:', error);

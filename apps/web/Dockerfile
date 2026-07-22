@@ -12,6 +12,8 @@ COPY --from=builder /app/out/json/ .
 RUN pnpm install --no-frozen-lockfile
 COPY --from=builder /app/out/full/ .
 COPY tsconfig.json .
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN pnpm turbo run build --filter=@bharatsales/web
 
 # Runner Stage

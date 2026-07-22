@@ -14,6 +14,8 @@ import { OutletVisitScreen } from './screens/OutletVisitScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { LogOut } from 'lucide-react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { SyncEngine } from './sync/syncEngine'
 
 function ProfileScreen() {
   const { pendingCount, forceSync } = useSyncEngine();
@@ -70,6 +72,12 @@ function ProfileScreen() {
 function AppContent() {
   const { isOnline, pendingCount } = useSyncEngine();
   const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated && isOnline) {
+      SyncEngine.pullSync().catch(console.error);
+    }
+  }, [isAuthenticated, isOnline]);
 
   if (!isAuthenticated) {
     return <LoginScreen />;

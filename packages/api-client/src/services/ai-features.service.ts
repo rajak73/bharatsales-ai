@@ -2,8 +2,8 @@ import { apiClient } from '../index';
 import type { AiInsights } from '@bharatsales/shared-types';
 
 export class AiFeaturesService {
-  static async getInsights(organizationId: string): Promise<AiInsights> {
-    const response = await apiClient.get<AiInsights>(`/ai-features/insights?orgId=${organizationId}`);
+  static async getInsights(): Promise<AiInsights> {
+    const response = await apiClient.get<AiInsights>(`/ai-features/insights`);
     return response.data;
   }
 

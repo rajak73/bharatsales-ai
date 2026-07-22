@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { LocationPing } from '../schemas';
 
 @Injectable()
@@ -30,5 +30,35 @@ export class TrackingService {
     this.logger.log(`Inserted ${docs.length} location pings for user ${userId}`);
 
     return { success: true, count: docs.length };
+  }
+
+  async getLatestPings(organizationId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let orgObjId;
+    try {
+      orgObjId = new Types.ObjectId(organizationId);
+    } catch {
+      orgObjId = organizationId;
+    }
+
+    return this.locationPingModel.aggregate([
+      { 
+        $match: { 
+          organizationId: orgObjId,
+          deviceTimestamp: { $gte: today }
+        } 
+      },
+      {
+        $sort: { deviceTimestamp: -1 }
+      },
+      {
+        $group: {
+          _id: '$user',
+          latestPing: { $first: '$$ROOT' }
+        }
+      }
+    ]).exec();
   }
 }

@@ -34,3 +34,5 @@ export * from './device';
 export * from './integration';
 export * from './tracking';
 export * from './hierarchy';
+export * from './claim';
+export * from './finance';

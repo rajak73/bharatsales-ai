@@ -92,6 +92,21 @@ export class AnalyticsService {
 
     const target = orgTarget?.targetValue || 2500000;
 
+    // Team Activity (Fetch users and their daily stats)
+    const activeUsers = await this.userModel.find({ organizationId, status: 'Active' }).limit(5);
+    const teamActivity = await Promise.all(activeUsers.map(async u => {
+      const uVisits = await this.visitModel.countDocuments({ organizationId, user: u._id, createdAt: { $gte: today.toISOString() } });
+      const uOrders = await this.orderModel.find({ organizationId, userId: u._id, createdAt: { $gte: today.toISOString() } });
+      const uOrderTotal = uOrders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
+      return {
+        name: u.name,
+        visits: uVisits,
+        orders: `₹${uOrderTotal.toLocaleString()}`,
+        status: 'Working',
+        location: (u as any).zone || 'Zone A'
+      };
+    }));
+
     return {
       kpis: [
         { label: "Today's Orders", value: `₹${todaysOrderTotal.toLocaleString()}`, change: '+0%', up: true, icon: '📋' },
@@ -105,7 +120,8 @@ export class AnalyticsService {
         achieved,
         target,
         percentage: Math.round((achieved / target) * 100)
-      }
+      },
+      teamActivity
     };
   }
 }

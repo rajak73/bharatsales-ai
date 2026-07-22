@@ -12,6 +12,10 @@ export class HierarchyService {
   }
 
   async createNode(organizationId: string, nodeData: Partial<HierarchyNode>) {
+    delete (nodeData as any).organizationId;
+    delete (nodeData as any)._id;
+    delete (nodeData as any).createdAt;
+    delete (nodeData as any).updatedAt;
     const newNode = new this.hierarchyModel({
       ...nodeData,
       organizationId,
@@ -21,6 +25,10 @@ export class HierarchyService {
   }
 
   async updateNode(organizationId: string, id: string, updateData: Partial<HierarchyNode>) {
+    delete (updateData as any).organizationId;
+    delete (updateData as any)._id;
+    delete (updateData as any).createdAt;
+    delete (updateData as any).updatedAt;
     const node = await this.hierarchyModel.findOneAndUpdate(
       { _id: id, organizationId },
       { $set: updateData },

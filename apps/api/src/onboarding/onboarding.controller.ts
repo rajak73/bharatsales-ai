@@ -1,27 +1,28 @@
 import { Controller, Get, Put, Body, UseGuards, Request, UseInterceptors, Post } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { AuditEntity } from '../audit/audit.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import { Resource, Action } from '@bharatsales/permissions';
 
 @Controller('onboarding')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @UseInterceptors(AuditInterceptor)
 export class OnboardingController {
   constructor(private readonly onboardingService: OnboardingService) {}
 
+@RequirePermissions(Resource.Settings, Action.Read)
   @Get()
-  @Roles('Super Admin', 'Company Admin')
-  async getOnboardingState(@Request() req: any) {
+    async getOnboardingState(@Request() req: any) {
     const orgId = req.user.orgId;
     return this.onboardingService.getState(orgId);
   }
 
+@RequirePermissions(Resource.Settings, Action.Update)
   @Put('step/:stepNumber')
-  @Roles('Super Admin', 'Company Admin')
-  @AuditEntity('OnboardingState')
+    @AuditEntity('OnboardingState')
   async saveStep(
     @Request() req: any,
     @Body() stepData: any,
@@ -30,9 +31,9 @@ export class OnboardingController {
     return this.onboardingService.saveStep(orgId, stepData);
   }
 
+@RequirePermissions(Resource.Settings, Action.Create)
   @Post('complete')
-  @Roles('Super Admin', 'Company Admin')
-  @AuditEntity('OnboardingState')
+    @AuditEntity('OnboardingState')
   async completeOnboarding(@Request() req: any) {
     const orgId = req.user.orgId;
     return this.onboardingService.completeOnboarding(orgId);

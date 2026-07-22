@@ -22,7 +22,7 @@ export class OutletsService {
     const [outlet, recentOrders, recentVisits] = await Promise.all([
       this.outletModel.findOne({ _id: outletId, organizationId }).exec(),
       this.orderModel.find({ outletId, organizationId }).sort({ orderDate: -1 }).limit(5).exec(),
-      this.visitModel.find({ outletId, organizationId }).sort({ checkInTime: -1 }).limit(5).exec(),
+      this.visitModel.find({ outlet: outletId, organizationId }).sort({ checkInTime: -1 }).limit(5).exec(),
     ]);
 
     if (!outlet) {
@@ -47,6 +47,10 @@ export class OutletsService {
   }
 
   async create(organizationId: string, outletData: Omit<SharedOutlet, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>): Promise<Outlet> {
+    delete (outletData as any).organizationId;
+    delete (outletData as any)._id;
+    delete (outletData as any).createdAt;
+    delete (outletData as any).updatedAt;
     const newOutlet = new this.outletModel({
       ...outletData,
       organizationId,
@@ -75,6 +79,10 @@ export class OutletsService {
   }
 
   async update(organizationId: string, id: string, data: any): Promise<Outlet> {
+    delete (data as any).organizationId;
+    delete (data as any)._id;
+    delete (data as any).createdAt;
+    delete (data as any).updatedAt;
     const outlet = await this.outletModel.findOne({ _id: id, organizationId });
     if (!outlet) {
       throw new NotFoundException('Outlet not found');

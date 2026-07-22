@@ -1,7 +1,7 @@
 import { apiClient } from '../index';
 
 export const AuthService = {
-  login: async (credentials: { firebaseToken: string; deviceInfo?: string }) => {
+  login: async (credentials: { email: string; password?: string; otp?: string; deviceInfo?: string }) => {
     const response = await apiClient.post('/auth/login', credentials);
     if (response.data.access_token) {
       if (typeof window !== 'undefined') {

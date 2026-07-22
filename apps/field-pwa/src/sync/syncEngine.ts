@@ -1,5 +1,5 @@
 import { db } from '../database/db';
-import { OrdersService, OutletsService, ProductsService, DistributorsService, SchemesService, CollectionsService, InvoicesService, BeatsService, TrackingService } from '@bharatsales/api-client';
+import { OrdersService, OutletsService, ProductsService, DistributorsService, SchemesService, CollectionsService, InvoicesService, BeatsService, TrackingService, VisitsService, AttendanceService } from '@bharatsales/api-client';
 
 /**
  * The core engine responsible for draining the offline sync queue
@@ -8,17 +8,17 @@ import { OrdersService, OutletsService, ProductsService, DistributorsService, Sc
 export class SyncEngine {
   private static isSyncing = false;
 
-  static async pullSync(organizationId: string) {
+  static async pullSync() {
     if (!navigator.onLine) return;
     
-    console.log('[SyncEngine] Starting pullSync for org:', organizationId);
+    console.log('[SyncEngine] Starting pullSync...');
     try {
       const [outlets, products, distributors, schemes, invoices, todayBeat] = await Promise.all([
         OutletsService.getOutlets(),
         ProductsService.getProducts(),
-        DistributorsService.getDistributors(organizationId),
-        SchemesService.getSchemes(organizationId),
-        InvoicesService.getInvoices(organizationId),
+        DistributorsService.getDistributors(),
+        SchemesService.getSchemes(),
+        InvoicesService.getInvoices(),
         BeatsService.getTodayBeat()
       ]);
 
@@ -89,6 +89,18 @@ export class SyncEngine {
               break;
             case 'CREATE_LOCATION_PING':
               await TrackingService.bulkCreatePings([item.payload]);
+              break;
+            case 'CREATE_VISIT':
+              await VisitsService.createVisit(item.payload);
+              break;
+            case 'UPDATE_VISIT':
+              await VisitsService.updateVisit(item.payload.id, item.payload);
+              break;
+            case 'CLOCK_IN':
+              await AttendanceService.clockIn(item.payload);
+              break;
+            case 'CLOCK_OUT':
+              await AttendanceService.clockOut(item.payload);
               break;
             default:
               console.warn(`[SyncEngine] Unknown action type: ${item.action}`);

@@ -27,7 +27,7 @@ export default function OutletsPage() {
       setLoading(true);
       const [outletsData, distData] = await Promise.all([
         OutletsService.getOutlets(),
-        DistributorsService.getDistributors('org-1')
+        DistributorsService.getDistributors()
       ]);
       setOutlets(outletsData || []);
       setDistributors(distData || []);

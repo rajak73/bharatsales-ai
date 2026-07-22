@@ -2,15 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import { OrdersService, InvoicesService } from '@bharatsales/api-client';
-import { Order } from '@bharatsales/shared-types';
-import { Loader2, ShoppingCart, Search, FileText, ChevronRight } from 'lucide-react';
+import { Order, OrderLineItem } from '@bharatsales/shared-types';
+import { Loader2, ShoppingCart, Search, FileText, ChevronRight, X, Check } from 'lucide-react';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [user, setUser] = useState<{ role: string } | null>(null);
+  
+  // Detail view state
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
+    // Decode user role from JWT
+    try {
+      const token = localStorage.getItem('bharatsales_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUser({ role: payload.role });
+      }
+    } catch (e) {
+      console.error(e);
+    }
     fetchOrders();
   }, []);
 
@@ -19,6 +33,12 @@ export default function OrdersPage() {
       setLoading(true);
       const data = await OrdersService.getOrders();
       setOrders(data || []);
+      
+      // Update selected order if one is selected
+      if (selectedOrder) {
+        const updated = data?.find((o: Order) => o.id === selectedOrder.id);
+        if (updated) setSelectedOrder(updated);
+      }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
     } finally {
@@ -26,8 +46,8 @@ export default function OrdersPage() {
     }
   };
 
-  const handleApprove = async (orderId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleApprove = async (orderId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       await OrdersService.approveOrder(orderId);
       await fetchOrders();
@@ -37,8 +57,8 @@ export default function OrdersPage() {
     }
   };
 
-  const handleDispatch = async (orderId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDispatch = async (orderId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       await OrdersService.dispatchOrder(orderId);
       await fetchOrders();
@@ -48,12 +68,11 @@ export default function OrdersPage() {
     }
   };
 
-  const handleGenerateInvoice = async (orderId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleGenerateInvoice = async (orderId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       await InvoicesService.generateInvoice(orderId);
       alert('Invoice generated successfully!');
-      // optionally you could fetch orders again if we track invoicing status on the order itself
     } catch (error) {
       console.error('Failed to generate invoice:', error);
       alert('Failed to generate invoice. It may have already been generated.');
@@ -121,92 +140,159 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr className="text-left text-gray-500">
-                <th className="px-6 py-4 font-medium">Order ID</th>
-                <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">Outlet</th>
-                <th className="px-6 py-4 font-medium">Items</th>
-                <th className="px-6 py-4 font-medium">Grand Total</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                 <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto" />
-                    </td>
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Order List */}
+        <div className={`bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden p-0 ${selectedOrder ? 'lg:col-span-1' : 'lg:col-span-3'}`}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr className="text-left text-gray-500">
+                  <th className="px-6 py-4 font-medium">Order ID</th>
+                  {!selectedOrder && <th className="px-6 py-4 font-medium">Date</th>}
+                  {!selectedOrder && <th className="px-6 py-4 font-medium">Outlet</th>}
+                  <th className="px-6 py-4 font-medium">Total</th>
+                  <th className="px-6 py-4 font-medium">Status</th>
                 </tr>
-              ) : filteredOrders.length > 0 ? (
-                filteredOrders.map((order) => (
-                  <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer">
-                    <td className="px-6 py-4 font-medium text-primary-600 flex items-center">
-                      <FileText className="w-4 h-4 mr-2 text-gray-400" />
-                      {order.orderNumber || 'ORD-UNKNOWN'}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 text-gray-900 font-medium">{order.outletId}</td>
-                    <td className="px-6 py-4 text-gray-600">{order.items?.length || 0}</td>
-                    <td className="px-6 py-4 font-medium text-gray-900">₹{order.totals?.grandTotal || 0}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end items-center space-x-2">
-                        {order.status === 'Submitted' && (
-                          <button 
-                            onClick={(e) => handleApprove(order.id, e)}
-                            className="px-3 py-1 bg-blue-50 text-blue-600 rounded-md text-xs font-medium hover:bg-blue-100"
-                          >
-                            Approve
-                          </button>
-                        )}
-                        {order.status === 'Approved' && (
-                          <button 
-                            onClick={(e) => handleDispatch(order.id, e)}
-                            className="px-3 py-1 bg-purple-50 text-purple-600 rounded-md text-xs font-medium hover:bg-purple-100"
-                          >
-                            Dispatch
-                          </button>
-                        )}
-                        {(order.status === 'Dispatched' || order.status === 'Delivered') && (
-                          <button 
-                            onClick={(e) => handleGenerateInvoice(order.id, e)}
-                            className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-md text-xs font-medium hover:bg-indigo-100"
-                          >
-                            Generate Invoice
-                          </button>
-                        )}
-                        <button className="text-gray-400 hover:text-primary-600">
-                          <ChevronRight className="w-5 h-5 ml-2" />
-                        </button>
+              </thead>
+              <tbody>
+                {loading ? (
+                   <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                          <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto" />
+                      </td>
+                  </tr>
+                ) : filteredOrders.length > 0 ? (
+                  filteredOrders.map((order) => (
+                    <tr 
+                      key={order.id} 
+                      onClick={() => setSelectedOrder(order.id === selectedOrder?.id ? null : order)}
+                      className={`border-t border-gray-100 hover:bg-gray-50 cursor-pointer transition-all ${selectedOrder?.id === order.id ? 'bg-primary-50 border-l-4 border-l-primary-500' : ''}`}
+                    >
+                      <td className="px-6 py-4 font-medium text-primary-600">
+                        {order.orderNumber || order.id?.slice(-6).toUpperCase()}
+                      </td>
+                      {!selectedOrder && <td className="px-6 py-4 text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</td>}
+                      {!selectedOrder && <td className="px-6 py-4 text-gray-900 font-medium">{order.outletId}</td>}
+                      <td className="px-6 py-4 font-medium text-gray-900">₹{order.totals?.grandTotal?.toLocaleString() || 0}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center">
+                      <div className="text-gray-400 flex flex-col items-center">
+                        <div className="bg-gray-50 p-3 rounded-full mb-3">
+                          <ShoppingCart className="h-8 w-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-sm font-medium text-gray-900 mb-1">No orders found</h3>
+                        <p className="text-sm text-gray-500">Wait for field reps to start syncing their offline orders.</p>
                       </div>
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
-                    <div className="text-gray-400 flex flex-col items-center">
-                      <div className="bg-gray-50 p-3 rounded-full mb-3">
-                        <ShoppingCart className="h-8 w-8 text-gray-400" />
-                      </div>
-                      <h3 className="text-sm font-medium text-gray-900 mb-1">No orders found</h3>
-                      <p className="text-sm text-gray-500">Wait for field reps to start syncing their offline orders.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        {/* Order Details Pane */}
+        {selectedOrder && (
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                    {selectedOrder.orderNumber || selectedOrder.id}
+                    <span className={`ml-3 inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedOrder.status)}`}>
+                      {selectedOrder.status}
+                    </span>
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">Outlet: {selectedOrder.outletId} | Placed: {new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                </div>
+                <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="overflow-x-auto mb-6">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="bg-gray-50">
+                    <tr className="text-left text-gray-500">
+                      <th className="px-4 py-2 font-medium">Product</th>
+                      <th className="px-4 py-2 font-medium text-right">Quantity</th>
+                      <th className="px-4 py-2 font-medium text-right">Price</th>
+                      <th className="px-4 py-2 font-medium text-right">Total</th>
+                      {user?.role === 'Distributor' && selectedOrder.status === 'Submitted' && (
+                        <th className="px-4 py-2 font-medium">Batch (FEFO)</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedOrder.items || []).map((item: OrderLineItem, index: number) => (
+                      <tr key={index} className="border-t border-gray-100">
+                        <td className="px-4 py-3 font-medium text-gray-900">{item.productId}</td>
+                        <td className="px-4 py-3 text-right">{item.quantity}</td>
+                        <td className="px-4 py-3 text-right">₹{item.unitPrice}</td>
+                        <td className="px-4 py-3 text-right font-medium">₹{item.total}</td>
+                        {user?.role === 'Distributor' && selectedOrder.status === 'Submitted' && (
+                          <td className="px-4 py-3">
+                            <select className="w-full rounded-md border-gray-200 text-xs py-1 px-2 border focus:border-primary-500 focus:ring-primary-500">
+                              <option>Auto (FEFO)</option>
+                            </select>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-between items-center border-t border-gray-100 pt-4 mt-4">
+                <div className="text-lg font-bold text-gray-900">
+                  Grand Total: ₹{selectedOrder.totals?.grandTotal?.toLocaleString() || 0}
+                </div>
+                <div className="flex space-x-3">
+                  {selectedOrder.status === 'Submitted' && (
+                    <button 
+                      onClick={() => handleApprove(selectedOrder.id!)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center"
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      {user?.role === 'Distributor' ? 'Confirm & Allocate' : 'Approve Order'}
+                    </button>
+                  )}
+                  {selectedOrder.status === 'Approved' && (
+                    <button 
+                      onClick={() => handleDispatch(selectedOrder.id!)}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
+                    >
+                      Mark Dispatched
+                    </button>
+                  )}
+                  {(selectedOrder.status === 'Dispatched' || selectedOrder.status === 'Delivered') && (
+                    <button 
+                      onClick={() => handleGenerateInvoice(selectedOrder.id!)}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+                    >
+                      Generate Invoice
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {user?.role === 'Distributor' && selectedOrder.status === 'Submitted' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-6">
+                  <h4 className="font-medium text-blue-800 mb-1 text-sm">FEFO Allocation active</h4>
+                  <p className="text-xs text-blue-700">Batches are automatically allocated using First-Expired-First-Out logic based on inventory ledgers.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

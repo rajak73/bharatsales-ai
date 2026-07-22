@@ -20,7 +20,7 @@ export default function SchemesPage() {
   const fetchSchemes = async () => {
     try {
       setLoading(true);
-      const data = await SchemesService.getSchemes('org-1');
+      const data = await SchemesService.getSchemes();
       setSchemes(data || []);
     } catch (error) {
       console.error('Failed to fetch schemes:', error);
@@ -38,7 +38,6 @@ export default function SchemesPage() {
   const handleCreateScheme = async () => {
     try {
       await SchemesService.createScheme({
-        organizationId: 'org-1',
         name: 'New Promotion',
         description: 'New promo desc',
         type: 'PERCENTAGE_DISCOUNT',

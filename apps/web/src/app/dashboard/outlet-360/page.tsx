@@ -24,7 +24,7 @@ export default function Outlet360Page() {
       setLoading(true);
       // Hardcoding outletId for demonstration (should come from route params ideally)
       const outletId = '669527ec3c306df9a1bfa11b'; // Using a valid ObjectID format or whatever seed data uses
-      const data = await Outlet360Service.getOutlet360('org-1', outletId);
+      const data = await Outlet360Service.getOutlet360(outletId);
       
       setOutlet(data.outlet);
       setOrderHistory(data.recentOrders || []);

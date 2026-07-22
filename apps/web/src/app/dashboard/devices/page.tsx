@@ -21,14 +21,13 @@ export default function DevicesPage() {
     try {
       setLoading(true);
       const [devicesData, backendSessions] = await Promise.all([
-        DevicesService.getDevices('org-1'),
+        DevicesService.getDevices(),
         AuthService.getActiveSessions()
       ]);
       setDevices(devicesData || []);
       
       const mappedSessions: Session[] = (backendSessions || []).map((s: any) => ({
         id: s._id,
-        organizationId: s.organizationId,
         user: s.userId,
         device: s.deviceInfo || 'Unknown Device',
         ip: s.ipAddress || 'Unknown IP',

@@ -2,10 +2,8 @@ import { apiClient } from '../index';
 import type { Scheme } from '@bharatsales/shared-types';
 
 export class SchemesService {
-  static async getSchemes(organizationId: string): Promise<Scheme[]> {
-    const response = await apiClient.get<Scheme[]>('/schemes', {
-      params: { organizationId },
-    });
+  static async getSchemes(): Promise<Scheme[]> {
+    const response = await apiClient.get<Scheme[]>('/schemes');
     return response.data;
   }
 

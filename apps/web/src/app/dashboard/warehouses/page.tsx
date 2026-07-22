@@ -19,7 +19,7 @@ export default function WarehousesPage() {
   const fetchWarehouses = async () => {
     try {
       setLoading(true);
-      const data = await WarehousesService.getWarehouses('org-1');
+      const data = await WarehousesService.getWarehouses();
       setWarehouses(data || []);
     } catch (error) {
       console.error('Failed to fetch warehouses:', error);

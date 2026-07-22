@@ -2,10 +2,8 @@ import { apiClient } from '../index';
 import type { SalesTarget } from '@bharatsales/shared-types';
 
 export class TargetsService {
-  static async getTargets(organizationId: string): Promise<SalesTarget[]> {
-    const response = await apiClient.get<SalesTarget[]>('/targets', {
-      params: { organizationId },
-    });
+  static async getTargets(): Promise<SalesTarget[]> {
+    const response = await apiClient.get<SalesTarget[]>('/targets');
     return response.data;
   }
 

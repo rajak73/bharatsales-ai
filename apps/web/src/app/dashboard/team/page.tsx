@@ -21,7 +21,7 @@ export default function TeamPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const data = await UsersService.getUsers('org-1');
+      const data = await UsersService.getUsers();
       setAllMembers(data || []);
     } catch (error) {
       console.error('Failed to fetch team members:', error);
@@ -46,8 +46,7 @@ export default function TeamPage() {
           mobile: newMember.mobile,
           email: newMember.email,
           status: 'Active',
-          organizationId: 'org-1'
-        });
+          });
         setSuccessMessage(`Team member "${newMember.name}" added successfully!`);
         setShowAddModal(false);
         setNewMember({ name: '', role: 'Sales Representative', territory: '', mobile: '', email: '' });

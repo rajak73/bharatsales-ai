@@ -24,8 +24,8 @@ export default function ImportsPage() {
     try {
       setLoading(true);
       const [history, types] = await Promise.all([
-        ImportsService.getImportHistory('org-1'),
-        ImportsService.getImportTypes('org-1')
+        ImportsService.getImportHistory(),
+        ImportsService.getImportTypes()
       ]);
       setImportHistory(history || []);
       setImportTypes(types || []);

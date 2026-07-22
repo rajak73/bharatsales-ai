@@ -2,10 +2,8 @@ import { apiClient } from '../index';
 import type { Inventory } from '@bharatsales/shared-types';
 
 export class InventoryService {
-  static async getInventory(organizationId: string): Promise<Inventory[]> {
-    const response = await apiClient.get<Inventory[]>('/inventory', {
-      params: { organizationId },
-    });
+  static async getInventory(): Promise<Inventory[]> {
+    const response = await apiClient.get<Inventory[]>('/inventory');
     return response.data;
   }
 
@@ -14,10 +12,8 @@ export class InventoryService {
     return response.data;
   }
 
-  static async adjustStock(organizationId: string, adjustment: any): Promise<Inventory> {
-    const response = await apiClient.post<Inventory>('/inventory/adjust', adjustment, {
-      params: { organizationId },
-    });
+  static async adjustStock(adjustment: any): Promise<Inventory> {
+    const response = await apiClient.post<Inventory>('/inventory/adjust', adjustment);
     return response.data;
   }
 }

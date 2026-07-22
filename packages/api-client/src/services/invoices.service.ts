@@ -2,10 +2,8 @@ import { apiClient } from '../index';
 import type { Invoice } from '@bharatsales/shared-types';
 
 export class InvoicesService {
-  static async getInvoices(organizationId: string): Promise<Invoice[]> {
-    const response = await apiClient.get<Invoice[]>('/finance/invoices', {
-      params: { organizationId },
-    });
+  static async getInvoices(): Promise<Invoice[]> {
+    const response = await apiClient.get<Invoice[]>('/finance/invoices');
     return response.data;
   }
 

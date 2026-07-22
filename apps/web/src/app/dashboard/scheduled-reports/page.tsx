@@ -20,8 +20,8 @@ export default function ScheduledReportsPage() {
     try {
       setLoading(true);
       const [reportsData, exportsData] = await Promise.all([
-        ScheduledReportsService.getScheduledReports('org-1'),
-        ScheduledReportsService.getRecentExports('org-1')
+        ScheduledReportsService.getScheduledReports(),
+        ScheduledReportsService.getRecentExports()
       ]);
       setScheduledReports(reportsData || []);
       setRecentExports(exportsData || []);

@@ -14,12 +14,10 @@ export default function DistributorsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // In a real app, this would come from Auth context
-  const organizationId = 'org-123';
-
   useEffect(() => {
     const fetchDistributors = async () => {
       try {
-        const data = await DistributorsService.getDistributors(organizationId);
+        const data = await DistributorsService.getDistributors();
         setAllDistributors(data);
       } catch (error) {
         console.error('Failed to fetch distributors', error);
@@ -44,7 +42,6 @@ export default function DistributorsPage() {
     if (newDistributor.name && newDistributor.owner && newDistributor.territory) {
       try {
         const added = await DistributorsService.createDistributor({
-          organizationId,
           name: newDistributor.name,
           ownerName: newDistributor.owner,
           code: `DIST-${Math.floor(Math.random() * 1000)}`,
@@ -60,7 +57,10 @@ export default function DistributorsPage() {
           },
           tax: {
             gstin: newDistributor.gstin
-          }
+          },
+          fillRate: 0,
+          pendingOrders: 0,
+          outstandingBalance: 0
         });
         setAllDistributors([...allDistributors, added]);
         setSuccessMessage(`Distributor "${newDistributor.name}" added successfully!`);
@@ -157,9 +157,9 @@ export default function DistributorsPage() {
       <div className="grid md:grid-cols-2 gap-6">
         {filteredDistributors.length > 0 ? (
           filteredDistributors.map((dist) => {
-            const fillRate = 85; // mock for now
-            const pendingOrders = 5; // mock for now
-            const outstanding = 120000; // mock for now
+            const fillRate = dist.fillRate ?? 0;
+            const pendingOrders = dist.pendingOrders ?? 0;
+            const outstanding = dist.outstandingBalance ?? 0;
 
             return (
               <div key={dist.id || dist.code} className="card hover:shadow-md transition-shadow">

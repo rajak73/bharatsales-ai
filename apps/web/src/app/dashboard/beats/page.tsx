@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BeatsService } from '@bharatsales/api-client';
-import type { Beat } from '@bharatsales/shared-types';
+import { BeatsService, UsersService } from '@bharatsales/api-client';
+import type { Beat, User } from '@bharatsales/shared-types';
 import { Loader2 } from 'lucide-react';
 
 export default function BeatsPage() {
@@ -12,21 +12,33 @@ export default function BeatsPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [newBeat, setNewBeat] = useState({ name: '', day: '', outlets: 0, rep: '', distributor: '' });
   const [allBeats, setAllBeats] = useState<Beat[]>([]);
+  const [salesReps, setSalesReps] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchBeats();
+    fetchUsers();
   }, []);
 
   const fetchBeats = async () => {
     try {
       setLoading(true);
-      const data = await BeatsService.getBeats('org-1');
+      const data = await BeatsService.getBeats();
       setAllBeats(data || []);
     } catch (error) {
       console.error('Failed to fetch beats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const users = await UsersService.getUsers();
+      // Only keep Field Reps
+      setSalesReps(users.filter(u => u.role === 'Sales Representative'));
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
     }
   };
 
@@ -47,8 +59,7 @@ export default function BeatsPage() {
           rep: newBeat.rep,
           outlets: Number(newBeat.outlets),
           status: 'Published',
-          organizationId: 'org-1'
-        });
+          });
         setSuccessMessage(`Beat "${newBeat.name}" created successfully!`);
         setShowCreateModal(false);
         setNewBeat({ name: '', day: '', outlets: 0, rep: '', distributor: '' });
@@ -215,11 +226,9 @@ export default function BeatsPage() {
                   onChange={(e) => setNewBeat({ ...newBeat, rep: e.target.value })}
                 >
                   <option value="">Select rep</option>
-                  <option>Amit Singh</option>
-                  <option>Priya Patel</option>
-                  <option>Rajesh Kumar</option>
-                  <option>Vikram Joshi</option>
-                  <option>Sneha Reddy</option>
+                  {salesReps.map(r => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  ))}
                 </select>
               </div>
               <div>

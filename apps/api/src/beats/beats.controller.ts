@@ -1,14 +1,15 @@
 import { Controller, Get, Post, Patch, Body, Param, Request, UseGuards, UseInterceptors } from '@nestjs/common';
 import { BeatsService } from './beats.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
-import { RolesGuard } from '../auth/roles.guard';
 import { Action, Resource } from '@bharatsales/permissions';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { AuditEntity } from '../audit/audit.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
 
 @Controller('beats')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@AuditEntity('Beats')
 @UseInterceptors(AuditInterceptor)
 export class BeatsController {
   constructor(private readonly beatsService: BeatsService) {}

@@ -13,6 +13,20 @@ class Branding {
   primaryColor?: string;
 }
 
+@Schema({ _id: false })
+class BillingHistory {
+  @Prop({ required: true })
+  id: string;
+  @Prop({ required: true })
+  date: string;
+  @Prop({ required: true })
+  plan: string;
+  @Prop({ required: true })
+  amount: string;
+  @Prop({ required: true })
+  status: string;
+}
+
 @Schema({ timestamps: true, collection: 'tenants' })
 export class Tenant implements Omit<ITenant, 'id' | 'createdAt' | 'updatedAt'> {
   @Prop({ required: true })
@@ -29,6 +43,21 @@ export class Tenant implements Omit<ITenant, 'id' | 'createdAt' | 'updatedAt'> {
 
   @Prop()
   currency?: string;
+
+  @Prop({ enum: ['Monthly', 'Annual'], default: 'Annual' })
+  billingCycle?: 'Monthly' | 'Annual';
+
+  @Prop()
+  nextBillingDate?: string;
+
+  @Prop({ default: 10 })
+  subscriptionUsersLimit?: number;
+
+  @Prop({ default: '5GB' })
+  subscriptionStorageUsed?: string;
+
+  @Prop({ type: [BillingHistory], default: [] })
+  billingHistory?: BillingHistory[];
 
   @Prop({ type: Branding })
   branding?: Branding;

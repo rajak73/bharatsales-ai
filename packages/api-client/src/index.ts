@@ -137,3 +137,6 @@ export * from './services/devices.service';
 export * from './services/integrations.service';
 export * from './services/performance.service';
 export * from './services/hierarchy.service';
+export * from './services/claims.service';
+export * from './services/finance.service';
+export * from './services/superadmin.service';

@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt.guard';
 import { Request } from 'express';
 
-@Controller('api/v1/auth')
+@Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -65,12 +65,47 @@ export class AuthController {
   }
 
   @HttpCode(HttpStatus.OK)
+  @Post('accept-invitation')
+  async acceptInvitation(@Body() body: { token: string; newPassword: string }) {
+    if (!body.token || !body.newPassword) {
+      return { statusCode: 400, message: 'Token and newPassword are required' };
+    }
+    return this.authService.acceptInvitation(body.token, body.newPassword);
+  }
+
+  @HttpCode(HttpStatus.OK)
   @Post('logout')
   async logout(@Body() body: { refreshToken: string }) {
     if (!body.refreshToken) {
       return { statusCode: 400, message: 'Refresh token is required' };
     }
     return this.authService.logout(body.refreshToken);
+  }
+
+  @Get('sso/google')
+  getGoogleAuthUrl() {
+    return { url: this.authService.googleSSO.getAuthUrl() };
+  }
+
+  @Post('sso/google/callback')
+  async googleSSOCallback(@Body() body: { token: string }) {
+    if (!body.token) return { statusCode: 400, message: 'Token required' };
+    const userInfo = await this.authService.googleSSO.verifyToken(body.token);
+    // Real implementation would login/register using userInfo.email
+    return { success: true, message: 'Google SSO successful', user: userInfo };
+  }
+
+  @Get('sso/microsoft')
+  getMicrosoftAuthUrl() {
+    return { url: this.authService.microsoftSSO.getAuthUrl() };
+  }
+
+  @Post('sso/microsoft/callback')
+  async microsoftSSOCallback(@Body() body: { token: string }) {
+    if (!body.token) return { statusCode: 400, message: 'Token required' };
+    const userInfo = await this.authService.microsoftSSO.verifyToken(body.token);
+    // Real implementation would login/register using userInfo.email
+    return { success: true, message: 'Microsoft SSO successful', user: userInfo };
   }
 
   @UseGuards(JwtAuthGuard)

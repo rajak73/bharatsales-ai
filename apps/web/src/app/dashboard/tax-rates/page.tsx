@@ -19,7 +19,7 @@ export default function TaxRatesPage() {
   const fetchTaxRates = async () => {
     try {
       setLoading(true);
-      const data = await TaxRatesService.getTaxRates('org-1');
+      const data = await TaxRatesService.getTaxRates();
       setTaxRates(data || []);
     } catch (error) {
       console.error('Failed to fetch tax rates:', error);

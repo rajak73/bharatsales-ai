@@ -2,10 +2,8 @@ import { apiClient } from '../index';
 import type { Dispatch } from '@bharatsales/shared-types';
 
 export class DispatchService {
-  static async getDispatches(organizationId: string): Promise<Dispatch[]> {
-    const response = await apiClient.get<Dispatch[]>('/dispatch', {
-      params: { organizationId },
-    });
+  static async getDispatches(): Promise<Dispatch[]> {
+    const response = await apiClient.get<Dispatch[]>('/dispatch');
     return response.data;
   }
 

@@ -1,32 +1,33 @@
 import { Controller, Post, Get, Body, Request, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ImportsService } from './imports.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { AuditEntity } from '../audit/audit.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import { Resource, Action } from '@bharatsales/permissions';
 
 @Controller('imports')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @UseInterceptors(AuditInterceptor)
 export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
 
+@RequirePermissions(Resource.Imports, Action.Read)
   @Get('history')
-  @Roles('Super Admin', 'Company Admin')
-  async getHistory(@Request() req: any) {
+    async getHistory(@Request() req: any) {
     return this.importsService.getImportHistory(req.user.orgId);
   }
 
+@RequirePermissions(Resource.Imports, Action.Read)
   @Get('types')
-  @Roles('Super Admin', 'Company Admin')
-  async getTypes(@Request() req: any) {
+    async getTypes(@Request() req: any) {
     return this.importsService.getImportTypes(req.user.orgId);
   }
 
+@RequirePermissions(Resource.Imports, Action.Create)
   @Post('upload')
-  @Roles('Super Admin', 'Company Admin')
-  @AuditEntity('Import')
+    @AuditEntity('Import')
   async uploadData(
     @Request() req: any,
     @Body() body: { type: string; fileBase64: string }

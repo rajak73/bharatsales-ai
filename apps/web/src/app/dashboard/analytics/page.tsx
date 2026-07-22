@@ -16,7 +16,7 @@ export default function AnalyticsPage() {
   const fetchData = async () => {
     try {
       setRefreshing(true);
-      const result = await AnalyticsService.getDashboardData('');
+      const result = await AnalyticsService.getDashboardData();
       setData(result);
       setError('');
     } catch (err: any) {

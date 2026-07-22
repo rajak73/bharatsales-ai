@@ -14,6 +14,7 @@ import { Outlet } from '@bharatsales/shared-types';
 export class OutletsController {
   constructor(private readonly outletsService: OutletsService) {}
 
+  @RequirePermissions(Resource.Outlets, Action.Read)
   @Get()
   async getOutlets(@Request() req: any) {
     // The orgId is injected into req.user by the JwtAuthGuard

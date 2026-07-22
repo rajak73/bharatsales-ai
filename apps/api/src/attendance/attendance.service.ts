@@ -2,11 +2,13 @@ import { Injectable, ConflictException, NotFoundException } from '@nestjs/common
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AttendanceSession } from '../schemas/attendance.schema';
+import { Visit } from '../schemas/visit.schema';
 
 @Injectable()
 export class AttendanceService {
   constructor(
-    @InjectModel('AttendanceSession') private attendanceModel: Model<AttendanceSession>
+    @InjectModel('AttendanceSession') private attendanceModel: Model<AttendanceSession>,
+    @InjectModel('Visit') private visitModel: Model<Visit>
   ) {}
 
   async startDay(userId: string, organizationId: string, data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string }) {
@@ -37,7 +39,15 @@ export class AttendanceService {
     session.endTime = new Date();
     session.endLocation = { lat: data.lat, lng: data.lng, accuracy: data.accuracy };
     session.status = 'Completed';
-    return session.save();
+    await session.save();
+
+    // Auto check-out any active visits
+    await this.visitModel.updateMany(
+      { user: userId, status: 'Active' },
+      { $set: { status: 'Completed', checkOutTime: new Date() } }
+    );
+
+    return session;
   }
 
   async getCurrentSession(userId: string) {

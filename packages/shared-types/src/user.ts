@@ -18,7 +18,7 @@ export interface User {
   name: string;
   role: UserRole;
   mobile?: string;
-  status: 'Active' | 'Inactive' | 'Suspended';
+  status: 'Active' | 'Inactive' | 'Suspended' | 'Invited';
   territoryIds?: string[]; // IDs of assigned territories
   createdAt: string;
   updatedAt: string;

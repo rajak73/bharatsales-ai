@@ -2,17 +2,25 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException 
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { User } from '@bharatsales/shared-types';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel('User') private readonly userModel: Model<any>) {}
+  constructor(
+    @InjectModel('User') private readonly userModel: Model<any>,
+    @InjectModel('Token') private readonly tokenModel: Model<any>
+  ) {}
 
   async findAllByOrgId(organizationId: string) {
     return this.userModel.find({ organizationId }).select('-password').exec();
   }
 
   async createUser(organizationId: string, actorRole: string, userData: Partial<User> & { password?: string }) {
+    delete (userData as any).organizationId;
+    delete (userData as any)._id;
+    delete (userData as any).createdAt;
+    delete (userData as any).updatedAt;
     if (userData.role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can create other Super Admins.');
     }
@@ -69,16 +77,36 @@ export class UsersService {
     });
 
     const saved = await newUser.save();
+    
+    // Generate INVITATION token
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 72); // 72 hours expiry
+    
+    const token = new this.tokenModel({
+      userId: saved._id.toString(),
+      token: inviteToken,
+      type: 'INVITATION',
+      expiresAt,
+      used: false
+    });
+    await token.save();
+
     const result = saved.toObject();
     delete result.password;
     
     return {
       message: 'Invitation sent successfully',
-      user: result
+      user: result,
+      inviteToken // Return token for E2E testing purposes
     };
   }
 
   async updateUser(organizationId: string, actorRole: string, id: string, updateData: Partial<User> & { password?: string }) {
+    delete (updateData as any).organizationId;
+    delete (updateData as any)._id;
+    delete (updateData as any).createdAt;
+    delete (updateData as any).updatedAt;
     if (updateData.role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can assign the Super Admin role.');
     }

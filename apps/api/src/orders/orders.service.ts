@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { Model, Connection } from 'mongoose';
 import { Order, Outlet, Scheme, Distributor, Product } from '@bharatsales/shared-types';
 import { InventoryService } from '../inventory/inventory.service';
 import { DispatchService } from '../dispatch/dispatch.service';
@@ -17,6 +17,7 @@ export class OrdersService {
     @InjectModel('Product') private productModel: Model<Product>,
     private inventoryService: InventoryService,
     private dispatchService: DispatchService,
+    @InjectConnection() private connection: Connection,
   ) {}
 
   async findAll(organizationId: string): Promise<Order[]> {
@@ -24,6 +25,10 @@ export class OrdersService {
   }
 
   async create(organizationId: string, userId: string, orderData: Partial<Order>): Promise<Order> {
+    delete (orderData as any).organizationId;
+    delete (orderData as any)._id;
+    delete (orderData as any).createdAt;
+    delete (orderData as any).updatedAt;
     if (!orderData.idempotencyKey) {
       throw new BadRequestException('idempotencyKey is required');
     }
@@ -165,9 +170,10 @@ export class OrdersService {
     orderId: string, 
     status: Order['status'], 
     actorId: string, 
-    reason?: string
+    reason?: string,
+    session?: any
   ): Promise<Order> {
-    const order = await this.orderModel.findOne({ _id: orderId, organizationId });
+    const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
     if (!order) {
       throw new BadRequestException(`Order ${orderId} not found`);
     }
@@ -181,46 +187,68 @@ export class OrdersService {
       reason
     });
 
-    return await order.save() as any;
+    return await order.save({ session }) as any;
   }
 
   async approveOrder(organizationId: string, orderId: string, actorId: string): Promise<Order> {
-    const order = await this.orderModel.findOne({ _id: orderId, organizationId });
-    if (!order) {
-      throw new BadRequestException(`Order ${orderId} not found`);
-    }
+    const session = await this.connection.startSession();
+    session.startTransaction();
+    try {
+      const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
+      if (!order) {
+        throw new BadRequestException(`Order ${orderId} not found`);
+      }
 
-    if (order.status !== 'Submitted') {
-      throw new BadRequestException(`Order cannot be approved from status ${order.status}`);
-    }
+      if (order.status !== 'Submitted') {
+        throw new BadRequestException(`Order cannot be approved from status ${order.status}`);
+      }
 
-    // Reserve stock for all items
-    for (const item of order.items || []) {
-      await this.inventoryService.reserveStock(organizationId, item.productId, item.quantity);
-    }
+      // Reserve stock for all items
+      for (const item of order.items || []) {
+        await this.inventoryService.reserveStock(organizationId, item.productId, item.quantity, undefined, session);
+      }
 
-    return this.updateStatus(organizationId, orderId, 'Approved', actorId, 'Approved by web dashboard');
+      const updated = await this.updateStatus(organizationId, orderId, 'Approved', actorId, 'Approved by web dashboard', session);
+      await session.commitTransaction();
+      return updated;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   async dispatchOrder(organizationId: string, orderId: string, actorId: string): Promise<Order> {
-    const order = await this.orderModel.findOne({ _id: orderId, organizationId });
-    if (!order) {
-      throw new BadRequestException(`Order ${orderId} not found`);
+    const session = await this.connection.startSession();
+    session.startTransaction();
+    try {
+      const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
+      if (!order) {
+        throw new BadRequestException(`Order ${orderId} not found`);
+      }
+
+      if (order.status !== 'Approved') {
+        throw new BadRequestException(`Order cannot be dispatched from status ${order.status}`);
+      }
+
+      // Deduct stock for all items
+      for (const item of order.items || []) {
+        await this.inventoryService.deductStock(organizationId, item.productId, item.quantity, undefined, session);
+      }
+
+      // Create Dispatch record (Dispatch service doesn't use session currently, but should ideally)
+      await this.dispatchService.createDispatchFromOrder(organizationId, orderId);
+
+      const updated = await this.updateStatus(organizationId, orderId, 'Dispatched', actorId, 'Dispatched via operations', session);
+      await session.commitTransaction();
+      return updated;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    if (order.status !== 'Approved') {
-      throw new BadRequestException(`Order cannot be dispatched from status ${order.status}`);
-    }
-
-    // Deduct stock for all items
-    for (const item of order.items || []) {
-      await this.inventoryService.deductStock(organizationId, item.productId, item.quantity);
-    }
-
-    // Create Dispatch record
-    await this.dispatchService.createDispatchFromOrder(organizationId, orderId);
-
-    return this.updateStatus(organizationId, orderId, 'Dispatched', actorId, 'Dispatched via operations');
   }
 
   async findById(organizationId: string, orderId: string): Promise<Order> {
@@ -232,42 +260,64 @@ export class OrdersService {
   }
 
   async rejectOrder(organizationId: string, orderId: string, actorId: string, reason?: string): Promise<Order> {
-    const order = await this.orderModel.findOne({ _id: orderId, organizationId });
-    if (!order) {
-      throw new BadRequestException(`Order ${orderId} not found`);
-    }
-
-    if (['Dispatched', 'Delivered', 'Cancelled', 'Rejected'].includes(order.status as string)) {
-      throw new BadRequestException(`Order cannot be rejected from status ${order.status}`);
-    }
-
-    // Release stock if it was approved
-    if (order.status === 'Approved') {
-      for (const item of order.items || []) {
-        await this.inventoryService.releaseReservedStock(organizationId, item.productId, item.quantity);
+    const session = await this.connection.startSession();
+    session.startTransaction();
+    try {
+      const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
+      if (!order) {
+        throw new BadRequestException(`Order ${orderId} not found`);
       }
-    }
 
-    return this.updateStatus(organizationId, orderId, 'Rejected', actorId, reason || 'Rejected by manager');
+      if (['Dispatched', 'Delivered', 'Cancelled', 'Rejected'].includes(order.status as string)) {
+        throw new BadRequestException(`Order cannot be rejected from status ${order.status}`);
+      }
+
+      // Release stock if it was approved
+      if (order.status === 'Approved') {
+        for (const item of order.items || []) {
+          await this.inventoryService.releaseReservedStock(organizationId, item.productId, item.quantity, undefined, session);
+        }
+      }
+
+      const updated = await this.updateStatus(organizationId, orderId, 'Rejected', actorId, reason || 'Rejected by manager', session);
+      await session.commitTransaction();
+      return updated;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   async cancelOrder(organizationId: string, orderId: string, actorId: string, reason?: string): Promise<Order> {
-    const order = await this.orderModel.findOne({ _id: orderId, organizationId });
-    if (!order) {
-      throw new BadRequestException(`Order ${orderId} not found`);
-    }
-
-    if (['Dispatched', 'Delivered', 'Cancelled', 'Rejected'].includes(order.status as string)) {
-      throw new BadRequestException(`Order cannot be cancelled from status ${order.status}`);
-    }
-
-    // Release stock if it was approved
-    if (order.status === 'Approved') {
-      for (const item of order.items || []) {
-        await this.inventoryService.releaseReservedStock(organizationId, item.productId, item.quantity);
+    const session = await this.connection.startSession();
+    session.startTransaction();
+    try {
+      const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
+      if (!order) {
+        throw new BadRequestException(`Order ${orderId} not found`);
       }
-    }
 
-    return this.updateStatus(organizationId, orderId, 'Cancelled', actorId, reason || 'Cancelled by user');
+      if (['Dispatched', 'Delivered', 'Cancelled', 'Rejected'].includes(order.status as string)) {
+        throw new BadRequestException(`Order cannot be cancelled from status ${order.status}`);
+      }
+
+      // Release stock if it was approved
+      if (order.status === 'Approved') {
+        for (const item of order.items || []) {
+          await this.inventoryService.releaseReservedStock(organizationId, item.productId, item.quantity, undefined, session);
+        }
+      }
+
+      const updated = await this.updateStatus(organizationId, orderId, 'Cancelled', actorId, reason || 'Cancelled by user', session);
+      await session.commitTransaction();
+      return updated;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }

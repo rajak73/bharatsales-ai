@@ -51,7 +51,7 @@ export class SyncService {
           }
           await this.orderModel.findOneAndUpdate(
             { _id: order._id || new (this.orderModel.db as any).base.Types.ObjectId() },
-            { ...order, organizationId, salesRepId: userId },
+            { ...(() => { delete order.organizationId; delete order._id; delete order.createdAt; delete order.updatedAt; return order; })(), organizationId, salesRepId: userId },
             { upsert: true, new: true, session }
           );
         }
@@ -61,7 +61,7 @@ export class SyncService {
         for (const visit of payload.visits) {
            await this.visitModel.findOneAndUpdate(
             { _id: visit._id || new (this.visitModel.db as any).base.Types.ObjectId() },
-            { ...visit, organizationId, user: userId },
+            { ...(() => { delete visit.organizationId; delete visit._id; delete visit.createdAt; delete visit.updatedAt; return visit; })(), organizationId, user: userId },
             { upsert: true, new: true, session }
           );
         }
@@ -71,7 +71,7 @@ export class SyncService {
         for (const collection of payload.collections) {
            await this.collectionModel.findOneAndUpdate(
             { _id: collection._id || new (this.collectionModel.db as any).base.Types.ObjectId() },
-            { ...collection, organizationId, collectedBy: userId },
+            { ...(() => { delete collection.organizationId; delete collection._id; delete collection.createdAt; delete collection.updatedAt; return collection; })(), organizationId, collectedBy: userId },
             { upsert: true, new: true, session }
           );
         }

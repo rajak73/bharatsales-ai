@@ -6,7 +6,7 @@ import {
   Truck, Percent, Tags, Gift, ArrowDownToLine,
   Bell, Link as LinkIcon, UserCog, Smartphone, CreditCard,
   Sparkles, CalendarClock, Settings, ShieldCheck, Repeat, Receipt, Network,
-  BarChart3
+  BarChart3, ShieldAlert, BookOpen, Server
 } from 'lucide-react';
 
 const ALL_ROLES = ['Super Admin', 'Company Admin', 'Area Manager', 'Sales Representative'];
@@ -34,6 +34,9 @@ const navItems = [
   { icon: Target, label: 'Targets', href: '/dashboard/targets', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
   { icon: Percent, label: 'Incentives', href: '/dashboard/incentives', roles: ALL_ROLES },
   { icon: Repeat, label: 'Returns', href: '/dashboard/returns', roles: ALL_ROLES },
+  { icon: ShieldAlert, label: 'Claims', href: '/dashboard/claims', roles: ALL_ROLES },
+  { icon: Receipt, label: 'Collections', href: '/dashboard/collections', roles: ALL_ROLES },
+  { icon: BookOpen, label: 'Ledger', href: '/dashboard/ledger', roles: ALL_ROLES },
   { icon: Receipt, label: 'Expenses', href: '/dashboard/expenses', roles: ALL_ROLES },
   { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
   { icon: ArrowDownToLine, label: 'Imports', href: '/dashboard/imports', roles: ADMIN_ROLES },
@@ -85,8 +88,8 @@ export function Sidebar({ open, user }: { open: boolean, user?: { role: string }
 
       <div className="p-3 border-t border-gray-100 bg-gray-50 space-y-1 flex-shrink-0">
         {userRole === 'Super Admin' && (
-          <Link href="/super-admin" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Super Admin' : undefined}>
-            <ShieldCheck className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
+          <Link href="/dashboard/superadmin" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Super Admin' : undefined}>
+            <Server className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
             {open && <span className="font-medium truncate">Super Admin</span>}
           </Link>
         )}

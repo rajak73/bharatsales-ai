@@ -25,8 +25,8 @@ export default function ReportsPage() {
     try {
       setLoading(true);
       const [reportsData, statsData] = await Promise.all([
-        ReportsService.getReports('org-1'),
-        ReportsService.getReportStats('org-1')
+        ReportsService.getReports(),
+        ReportsService.getReportStats()
       ]);
       setAllReports(reportsData || []);
       setStats(statsData);
@@ -45,9 +45,44 @@ export default function ReportsPage() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleRunReport = (reportName: string) => {
-    setSuccessMessage(`"${reportName}" has been generated successfully!`);
-    setTimeout(() => setSuccessMessage(''), 3000);
+  const handleRunReport = async (reportName: string) => {
+    try {
+      setSuccessMessage(`Generating "${reportName}"...`);
+      const { jobId } = await ReportsService.runReport({ reportName });
+      
+      // Poll for completion
+      const interval = setInterval(async () => {
+        try {
+          const status = await ReportsService.getJobStatus(jobId);
+          if (status.status === 'Completed') {
+            clearInterval(interval);
+            setSuccessMessage(`"${reportName}" has been generated successfully!`);
+            
+            // Get export URL and download
+            const exportData = await ReportsService.getExport(jobId);
+            const a = document.createElement('a');
+            a.href = exportData.downloadUrl;
+            a.download = `${reportName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            setTimeout(() => setSuccessMessage(''), 5000);
+          } else if (status.status === 'Failed') {
+            clearInterval(interval);
+            setSuccessMessage(`Failed to generate "${reportName}".`);
+            setTimeout(() => setSuccessMessage(''), 3000);
+          }
+        } catch (e) {
+          clearInterval(interval);
+          console.error(e);
+        }
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      setSuccessMessage(`Failed to request report generation.`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    }
   };
 
   const handleScheduleReport = () => {

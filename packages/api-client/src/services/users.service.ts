@@ -2,10 +2,8 @@ import { apiClient } from '../index';
 import type { User } from '@bharatsales/shared-types';
 
 export class UsersService {
-  static async getUsers(organizationId: string): Promise<User[]> {
-    const response = await apiClient.get<User[]>('/users', {
-      params: { organizationId },
-    });
+  static async getUsers(): Promise<User[]> {
+    const response = await apiClient.get<User[]>('/users');
     return response.data;
   }
 

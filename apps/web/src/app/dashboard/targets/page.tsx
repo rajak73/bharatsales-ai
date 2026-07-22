@@ -21,7 +21,7 @@ export default function TargetsPage() {
   const fetchTargets = async () => {
     try {
       setLoading(true);
-      const data = await TargetsService.getTargets('org-1');
+      const data = await TargetsService.getTargets();
       setTargets(data || []);
     } catch (error) {
       console.error('Failed to fetch targets:', error);
@@ -55,8 +55,7 @@ export default function TargetsPage() {
           targetValue: Number(newTarget.target),
           actualValue: 0,
           status: 'On Track',
-          organizationId: 'org-1'
-        });
+          });
         setSuccessMessage(`Target for ${newTarget.metric} set successfully!`);
         setShowSetTargetModal(false);
         setNewTarget({ metric: '', user: '', target: '', period: 'July 2026' });

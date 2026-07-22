@@ -17,7 +17,7 @@ export default function InvoicesPage() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const data = await InvoicesService.getInvoices('org-1');
+      const data = await InvoicesService.getInvoices();
       setInvoices(data || []);
     } catch (error) {
       console.error('Failed to fetch invoices:', error);

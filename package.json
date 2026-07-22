@@ -16,6 +16,7 @@
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0"
   },

@@ -40,6 +40,10 @@ export class BeatsService {
   }
 
   async createBeat(organizationId: string, data: Partial<Beat>) {
+    delete (data as any).organizationId;
+    delete (data as any)._id;
+    delete (data as any).createdAt;
+    delete (data as any).updatedAt;
     const newBeat = new this.beatModel({
       ...data,
       organizationId,
@@ -50,6 +54,10 @@ export class BeatsService {
   }
 
   async updateBeat(organizationId: string, beatId: string, data: Partial<Beat>) {
+    delete (data as any).organizationId;
+    delete (data as any)._id;
+    delete (data as any).createdAt;
+    delete (data as any).updatedAt;
     const updated = await this.beatModel.findOneAndUpdate(
       { _id: beatId, organizationId },
       { $set: data },

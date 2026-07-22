@@ -15,6 +15,10 @@ export class SettingsService {
   }
 
   async updateSettings(organizationId: string, updateData: any) {
+    delete (updateData as any).organizationId;
+    delete (updateData as any)._id;
+    delete (updateData as any).createdAt;
+    delete (updateData as any).updatedAt;
     const org = await this.tenantModel.findByIdAndUpdate(
       organizationId,
       { $set: updateData },

@@ -28,9 +28,9 @@ export default function CollectionsPage() {
     try {
       setLoading(true);
       const [colData, outData, invData] = await Promise.all([
-        CollectionsService.getCollections('org-1'),
+        CollectionsService.getCollections(),
         OutletsService.getOutlets(),
-        InvoicesService.getInvoices('org-1')
+        InvoicesService.getInvoices()
       ]);
       setCollections(colData || []);
       setOutlets(outData || []);
@@ -51,7 +51,6 @@ export default function CollectionsPage() {
     
     try {
       await CollectionsService.createCollection({
-        organizationId: 'org-1',
         outletId: newPayment.outletId,
         invoiceId: newPayment.invoiceId || undefined,
         amount: parseFloat(newPayment.amount),

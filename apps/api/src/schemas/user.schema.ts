@@ -24,8 +24,8 @@ export class User implements Omit<IUser, 'id' | 'createdAt' | 'updatedAt'> {
   @Prop()
   mobile?: string;
 
-  @Prop({ required: true, enum: ['Active', 'Inactive', 'Suspended'], default: 'Active' })
-  status: 'Active' | 'Inactive' | 'Suspended';
+  @Prop({ required: true, enum: ['Active', 'Inactive', 'Suspended', 'Invited'], default: 'Active' })
+  status: 'Active' | 'Inactive' | 'Suspended' | 'Invited';
 
   @Prop([String])
   territoryIds?: string[];

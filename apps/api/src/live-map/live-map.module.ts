@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { LiveMapController } from './live-map.controller';
 import { LiveMapService } from './live-map.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { UserSchema, OutletSchema, AttendanceSessionSchema, VisitSchema } from '../schemas';
+import { UserSchema, OutletSchema, AttendanceSessionSchema, VisitSchema, LocationPingSchema } from '../schemas';
 
 @Module({
   imports: [
@@ -10,7 +10,8 @@ import { UserSchema, OutletSchema, AttendanceSessionSchema, VisitSchema } from '
       { name: 'User', schema: UserSchema },
       { name: 'Outlet', schema: OutletSchema },
       { name: 'AttendanceSession', schema: AttendanceSessionSchema },
-      { name: 'Visit', schema: VisitSchema }
+      { name: 'Visit', schema: VisitSchema },
+      { name: 'LocationPing', schema: LocationPingSchema }
     ])
   ],
   controllers: [LiveMapController],

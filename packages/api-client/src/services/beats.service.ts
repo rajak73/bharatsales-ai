@@ -11,10 +11,8 @@ export class BeatsService {
       throw err;
     }
   }
-  static async getBeats(organizationId: string): Promise<Beat[]> {
-    const response = await apiClient.get<Beat[]>('/beats', {
-      params: { organizationId },
-    });
+  static async getBeats(): Promise<Beat[]> {
+    const response = await apiClient.get<Beat[]>('/beats');
     return response.data;
   }
 

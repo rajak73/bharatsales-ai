@@ -3,8 +3,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, Input, Button } from '@bharatsales/ui';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../lib/firebase';
 import { AuthService } from '@bharatsales/api-client';
 
 export default function LoginPage() {
@@ -20,17 +18,13 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // 1. Authenticate with Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const firebaseToken = await userCredential.user.getIdToken();
-      
-      // 2. Exchange Firebase token for Backend Session and JWTs
       await AuthService.login({
-        firebaseToken,
+        email,
+        password,
         deviceInfo: navigator.userAgent
       });
       
-      // 3. Redirect
+      // Redirect on success
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');

@@ -7,6 +7,7 @@ export class LiveMapService {
   constructor(
     @InjectModel('AttendanceSession') private readonly attendanceModel: Model<any>,
     @InjectModel('Visit') private readonly visitModel: Model<any>,
+    @InjectModel('LocationPing') private readonly locationPingModel: Model<any>,
   ) {}
 
   async getLiveReps(organizationId: string) {
@@ -20,13 +21,23 @@ export class LiveMapService {
           status: 'Active',
         }).populate('outlet', 'name').sort({ checkInTime: -1 });
 
+        // Find the latest location ping for this user
+        const latestPing = await this.locationPingModel.findOne({
+          user: session.user._id,
+          organizationId
+        }).sort({ deviceTimestamp: -1 });
+
         let status = 'Traveling';
         let location = session.startLocation;
         let outletName = 'In Transit';
 
+        if (latestPing) {
+          location = { lat: latestPing.lat, lng: latestPing.lng };
+        }
+
         if (activeVisit) {
           status = 'At Outlet';
-          location = activeVisit.checkInLocation || session.startLocation;
+          location = activeVisit.checkInLocation || location || session.startLocation;
           outletName = activeVisit.outlet?.name || 'Unknown Outlet';
         }
 
@@ -35,7 +46,7 @@ export class LiveMapService {
           name: session.user.name,
           status,
           outlet: outletName,
-          lastUpdate: new Date().toLocaleTimeString(), // just for UI demonstration
+          lastUpdate: latestPing ? latestPing.deviceTimestamp.toLocaleTimeString() : new Date().toLocaleTimeString(),
           location: {
             lat: location?.lat || 28.6139,
             lng: location?.lng || 77.2090

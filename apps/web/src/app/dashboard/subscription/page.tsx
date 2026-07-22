@@ -17,7 +17,7 @@ export default function SubscriptionPage() {
   const fetchSubscriptionData = async () => {
     try {
       setLoading(true);
-      const data = await SubscriptionService.getSubscriptionData('org-1');
+      const data = await SubscriptionService.getSubscriptionData();
       setSubscriptionData(data);
     } catch (error) {
       console.error('Failed to fetch subscription data:', error);
@@ -26,9 +26,22 @@ export default function SubscriptionPage() {
     }
   };
 
-  const handleUpgrade = (planName: string) => {
-    setSuccessMessage(`Upgrade to ${planName} initiated! Our team will contact you shortly.`);
-    setTimeout(() => setSuccessMessage(''), 3000);
+  const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
+
+  const handleUpgrade = async (planName: string) => {
+    if (planName === subscriptionData?.currentPlan.name) return;
+    try {
+      setUpgradeLoading(planName);
+      await SubscriptionService.upgradePlan(planName as any);
+      setSuccessMessage(`Successfully upgraded to ${planName}!`);
+      await fetchSubscriptionData();
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error('Failed to upgrade plan:', error);
+      alert('Failed to upgrade plan. Please try again.');
+    } finally {
+      setUpgradeLoading(null);
+    }
   };
 
   return (
@@ -70,7 +83,9 @@ export default function SubscriptionPage() {
             <h3 className="text-lg font-bold text-gray-900 mb-1">{plan.name}</h3>
             <div className="text-2xl font-bold text-primary-600 mb-4">{plan.price}<span className="text-sm text-gray-500">/mo</span></div>
             <ul className="space-y-2 text-sm text-gray-600 mb-4"><li>• {plan.users} users</li><li>• {plan.distributors} distributors</li><li>• {plan.storage} storage</li>{plan.features.map((f) => (<li key={f}>• {f}</li>))}</ul>
-            <button onClick={() => handleUpgrade(plan.name)} className={`w-full py-2 rounded-lg text-sm font-medium ${plan.current ? 'bg-gray-100 text-gray-500' : 'btn-primary'}`}>{plan.current ? 'Current Plan' : 'Upgrade'}</button>
+            <button onClick={() => handleUpgrade(plan.name)} disabled={upgradeLoading === plan.name} className={`w-full py-2 rounded-lg text-sm font-medium ${plan.current ? 'bg-gray-100 text-gray-500' : 'btn-primary'}`}>
+              {upgradeLoading === plan.name ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (plan.current ? 'Current Plan' : 'Upgrade')}
+            </button>
           </div>
         ))}
       </div>

@@ -29,6 +29,8 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:6002
     container_name: bharatsales-web
     ports:
       - "6003:3000"

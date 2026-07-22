@@ -21,6 +21,10 @@ export interface Distributor {
     pan?: string;
   };
 
+  fillRate?: number;
+  pendingOrders?: number;
+  outstandingBalance?: number;
+
   createdAt: string;
   updatedAt: string;
 }

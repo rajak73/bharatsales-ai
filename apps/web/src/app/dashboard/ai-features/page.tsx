@@ -16,7 +16,7 @@ export default function AIFeaturesPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const data = await AiFeaturesService.getInsights('org-1');
+      const data = await AiFeaturesService.getInsights();
       setInsights(data);
     } catch (error) {
       console.error('Failed to fetch AI insights:', error);

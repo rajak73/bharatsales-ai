@@ -2,10 +2,8 @@ import { apiClient } from '../index';
 import type { PaymentCollection } from '@bharatsales/shared-types';
 
 export class CollectionsService {
-  static async getCollections(organizationId: string): Promise<PaymentCollection[]> {
-    const response = await apiClient.get<PaymentCollection[]>('/finance/collections', {
-      params: { organizationId },
-    });
+  static async getCollections(): Promise<PaymentCollection[]> {
+    const response = await apiClient.get<PaymentCollection[]>('/finance/collections');
     return response.data;
   }
 

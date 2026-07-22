@@ -116,7 +116,10 @@ Run `pnpm run seed` in `apps/api` first, then use:
 
 | Role | Email | Password |
 |------|-------|----------|
-| Super Admin | admin@fmcgcorp.com | password123 |
+| Global Super Admin | superadmin@bharatsales.com | password123 |
+| Company Admin (Org 1) | admin@bharatfoods.com | password123 |
+| Sales Rep (Org 1) | rep@bharatfoods.com | password123 |
+| Company Admin (Org 2) | admin@rajpharma.com | password123 |
 
 ---
 
