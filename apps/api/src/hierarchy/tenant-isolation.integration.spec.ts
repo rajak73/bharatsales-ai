@@ -4,6 +4,8 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import mongoose from 'mongoose';
 import * as bcrypt from 'bcryptjs';
+import { getConnectionToken } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
 
 describe('Tenant Isolation & Hierarchy Security (e2e)', () => {
   let app: INestApplication;
@@ -14,6 +16,7 @@ describe('Tenant Isolation & Hierarchy Security (e2e)', () => {
   let orgA_Id: string;
   let orgB_Id: string;
   let outletA_Id: string;
+  let connection: Connection;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -22,23 +25,24 @@ describe('Tenant Isolation & Hierarchy Security (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales');
+    
+    connection = app.get<Connection>(getConnectionToken());
 
     // Clean up
-    await mongoose.connection.collection('users').deleteMany({ email: { $in: ['tenanta@test.com', 'tenantb@test.com'] } });
-    await mongoose.connection.collection('tenants').deleteMany({ name: /Tenant [AB]/ });
-    await mongoose.connection.collection('outlets').deleteMany({ name: 'Outlet A' });
+    await connection.collection('users').deleteMany({ email: { $in: ['tenanta@test.com', 'tenantb@test.com'] } });
+    await connection.collection('tenants').deleteMany({ name: /Tenant [AB]/ });
+    await connection.collection('outlets').deleteMany({ name: 'Outlet A' });
 
     // Create Tenant A & B
-    const tenantA = await mongoose.connection.collection('tenants').insertOne({ name: 'Tenant A', status: 'Active', createdAt: new Date(), updatedAt: new Date() });
-    const tenantB = await mongoose.connection.collection('tenants').insertOne({ name: 'Tenant B', status: 'Active', createdAt: new Date(), updatedAt: new Date() });
+    const tenantA = await connection.collection('tenants').insertOne({ name: 'Tenant A', status: 'Active', createdAt: new Date(), updatedAt: new Date() });
+    const tenantB = await connection.collection('tenants').insertOne({ name: 'Tenant B', status: 'Active', createdAt: new Date(), updatedAt: new Date() });
     
     orgA_Id = tenantA.insertedId.toString();
     orgB_Id = tenantB.insertedId.toString();
 
     // Create Users
     const pwd = await bcrypt.hash('password123', 10);
-    const userA = await mongoose.connection.collection('users').insertOne({
+    const userA = await connection.collection('users').insertOne({
       email: 'tenanta@test.com',
       password: pwd,
       organizationId: orgA_Id,
@@ -49,7 +53,7 @@ describe('Tenant Isolation & Hierarchy Security (e2e)', () => {
       updatedAt: new Date()
     });
     
-    const userB = await mongoose.connection.collection('users').insertOne({
+    const userB = await connection.collection('users').insertOne({
       email: 'tenantb@test.com',
       password: pwd,
       organizationId: orgB_Id,
@@ -61,7 +65,7 @@ describe('Tenant Isolation & Hierarchy Security (e2e)', () => {
     });
 
     // Create Outlet A in Tenant A
-    const outletA = await mongoose.connection.collection('outlets').insertOne({
+    const outletA = await connection.collection('outlets').insertOne({
       name: 'Outlet A',
       organizationId: orgA_Id,
       status: 'Active',
@@ -73,25 +77,24 @@ describe('Tenant Isolation & Hierarchy Security (e2e)', () => {
 
     // Login A
     const loginA = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
+      .post('/auth/login')
       .send({ email: 'tenanta@test.com', password: 'password123' })
       .expect(200);
     tokenA = loginA.body.access_token;
 
     // Login B
     const loginB = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
+      .post('/auth/login')
       .send({ email: 'tenantb@test.com', password: 'password123' })
       .expect(200);
     tokenB = loginB.body.access_token;
   });
 
   afterAll(async () => {
-    await mongoose.connection.collection('users').deleteMany({ email: { $in: ['tenanta@test.com', 'tenantb@test.com'] } });
-    await mongoose.connection.collection('tenants').deleteMany({ name: /Tenant [AB]/ });
-    await mongoose.connection.collection('outlets').deleteMany({ name: 'Outlet A' });
+    await connection.collection('users').deleteMany({ email: { $in: ['tenanta@test.com', 'tenantb@test.com'] } });
+    await connection.collection('tenants').deleteMany({ name: /Tenant [AB]/ });
+    await connection.collection('outlets').deleteMany({ name: 'Outlet A' });
     await app.close();
-    await mongoose.disconnect();
   });
 
   describe('Cross-Tenant Data Access (Negative Tests)', () => {

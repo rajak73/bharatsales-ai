@@ -29,12 +29,12 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
 
     // Fetch tenant IDs
     const tenants = await connection.collection('tenants').find({}).toArray();
-    tenant1Id = tenants.find(t => t.name === 'FMCG Corp')?._id.toString() || '';
-    tenant2Id = tenants.find(t => t.name === 'Pharma Inc')?._id.toString() || '';
+    tenant1Id = tenants.find(t => t.name === 'Bharat Foods Pvt Ltd')?._id.toString() || '';
+    tenant2Id = tenants.find(t => t.name === 'Raj Pharma Distributors')?._id.toString() || '';
 
     // Fetch Super Admins
-    const user1 = await connection.collection('users').findOne({ organizationId: tenant1Id, email: 'admin@fmcgcorp.com' });
-    const user2 = await connection.collection('users').findOne({ organizationId: tenant2Id, email: 'admin@pharmainc.com' });
+    const user1 = await connection.collection('users').findOne({ organizationId: tenant1Id, email: 'superadmin@bharatsales.com' });
+    const user2 = await connection.collection('users').findOne({ organizationId: tenant2Id, email: 'admin@rajpharma.com' });
 
     if (!user1 || !user2) throw new Error('Seeded users not found');
 

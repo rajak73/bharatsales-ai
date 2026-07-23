@@ -11,4 +11,9 @@ export class CollectionsService {
     const response = await apiClient.post<PaymentCollection>('/finance/collections', data);
     return response.data;
   }
+
+  static async updateCollectionStatus(id: string, status: string): Promise<PaymentCollection> {
+    const response = await apiClient.patch<PaymentCollection>(`/finance/collections/${id}/status`, { status });
+    return response.data;
+  }
 }

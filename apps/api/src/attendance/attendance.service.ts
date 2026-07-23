@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AttendanceSession } from '../schemas/attendance.schema';
@@ -11,12 +11,25 @@ export class AttendanceService {
     @InjectModel('Visit') private visitModel: Model<Visit>
   ) {}
 
-  async startDay(userId: string, organizationId: string, data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string }) {
+  async startDay(userId: string, organizationId: string, data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string; isMock?: boolean }) {
     // Check if there is already an active session for today
     const existing = await this.attendanceModel.findOne({ user: userId, status: 'Active' });
     if (existing) {
       // Return the existing one (idempotent behavior requested in BRD)
       return existing;
+    }
+
+    if (data.isMock) {
+      throw new BadRequestException('Mock locations are not allowed for attendance.');
+    }
+
+    if (data.deviceTimestamp) {
+      const deviceTime = new Date(data.deviceTimestamp).getTime();
+      const serverTime = Date.now();
+      const diffMinutes = Math.abs(serverTime - deviceTime) / (1000 * 60);
+      if (diffMinutes > 5) {
+        throw new BadRequestException('Device time deviation is too large. Please sync your clock.');
+      }
     }
 
     const session = new this.attendanceModel({

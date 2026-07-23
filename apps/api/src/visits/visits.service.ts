@@ -27,7 +27,7 @@ export class VisitsService {
     return R * c;
   }
 
-  async checkIn(userId: string, organizationId: string, data: { outletId: string; lat: number; lng: number; accuracy: number }) {
+  async checkIn(userId: string, organizationId: string, data: { outletId: string; lat: number; lng: number; accuracy: number; isMock?: boolean; deviceTimestamp?: string }) {
     // Check if user already has an active visit
     const existingVisit = await this.visitModel.findOne({ user: userId, status: 'Active' });
     if (existingVisit) {
@@ -37,7 +37,7 @@ export class VisitsService {
       throw new BadRequestException('You already have an active visit at another outlet.');
     }
 
-    const outlet = await this.outletModel.findById(data.outletId);
+    const outlet = await this.outletModel.findById(data.outletId).lean();
     if (!outlet) {
       throw new NotFoundException('Outlet not found');
     }
@@ -48,14 +48,34 @@ export class VisitsService {
     // Default geofence radius in BRD is 5 meters, but in reality 50 meters is more practical for GPS accuracy. Let's use 50m.
     const GEOFENCE_RADIUS = 50; 
 
-    if (outlet.location && outlet.location.latitude && outlet.location.longitude) {
+    if (data.isMock) {
+      throw new BadRequestException('Mock locations are not allowed for check-in.');
+    }
+
+    if (data.deviceTimestamp) {
+      const deviceTime = new Date(data.deviceTimestamp).getTime();
+      const serverTime = Date.now();
+      const diffMinutes = Math.abs(serverTime - deviceTime) / (1000 * 60);
+      if (diffMinutes > 5) {
+        throw new BadRequestException('Device time deviation is too large. Please sync your clock.');
+      }
+    }
+
+    const outletLat = outlet.location?.latitude || (outlet.location as any)?.coordinates?.lat;
+    const outletLng = outlet.location?.longitude || (outlet.location as any)?.coordinates?.lng;
+
+    if (outletLat !== undefined && outletLng !== undefined) {
       distanceFromOutlet = this.calculateDistance(
         data.lat,
         data.lng,
-        outlet.location.latitude,
-        outlet.location.longitude
+        outletLat,
+        outletLng
       );
       isWithinGeofence = distanceFromOutlet <= GEOFENCE_RADIUS;
+    }
+
+    if (!isWithinGeofence) {
+      throw new BadRequestException(`Check-in blocked. You are ${Math.round(distanceFromOutlet)}m away from the outlet. Must be within ${GEOFENCE_RADIUS}m.`);
     }
 
     const visit = new this.visitModel({

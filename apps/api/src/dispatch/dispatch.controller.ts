@@ -31,10 +31,10 @@ export class DispatchController {
 
 @RequirePermissions(Resource.Dispatch, Action.Update)
   @Patch(':id/status')
-  async updateStatus(@Request() req: any, @Param('id') id: string, @Body() data: { status: string }) {
+  async updateStatus(@Request() req: any, @Param('id') id: string, @Body() data: { status: string, deliveredItems?: { productId: string, deliveredQty: number }[] }) {
     const orgId = req.user.orgId || req.user.orgId;
-    if (data.status === 'Delivered') {
-      return this.dispatchService.markDelivered(orgId, id, req.user.id);
+    if (data.status === 'Delivered' || data.status === 'Partial_Delivery') {
+      return this.dispatchService.markDelivered(orgId, id, req.user.id, data.deliveredItems);
     }
     // Handle other statuses if needed, but the current service method is specifically `markDelivered`.
     throw new Error('Only Delivered status update is supported via this endpoint currently.');

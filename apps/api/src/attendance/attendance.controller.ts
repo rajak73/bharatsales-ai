@@ -17,7 +17,7 @@ export class AttendanceController {
 
 @RequirePermissions(Resource.Attendance, Action.Create)
   @Post('start')
-  startDay(@Request() req: any, @Body() data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string }) {
+  startDay(@Request() req: any, @Body() data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string; isMock?: boolean }) {
     return this.attendanceService.startDay(req.user.sub, req.user.orgId, data);
   }
 

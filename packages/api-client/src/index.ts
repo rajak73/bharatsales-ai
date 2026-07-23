@@ -100,13 +100,12 @@ apiClient.interceptors.response.use(
 
 export * from './services/health.service';
 export * from './services/auth.service';
-export * from './services/analytics.service';
+export * from './services/hierarchy.service';
 export * from './services/outlets.service';
-export * from './services/products.service';
 export * from './services/orders.service';
+export * from './services/products.service';
 export * from './services/attendance.service';
 export * from './services/visits.service';
-export * from './services/distributors.service';
 export * from './services/inventory.service';
 export * from './services/returns.service';
 export * from './services/dispatch.service';
@@ -140,3 +139,4 @@ export * from './services/hierarchy.service';
 export * from './services/claims.service';
 export * from './services/finance.service';
 export * from './services/superadmin.service';
+export * from './services/onboarding.service';

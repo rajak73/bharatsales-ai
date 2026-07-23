@@ -39,6 +39,7 @@ const navItems = [
   { icon: BookOpen, label: 'Ledger', href: '/dashboard/ledger', roles: ALL_ROLES },
   { icon: Receipt, label: 'Expenses', href: '/dashboard/expenses', roles: ALL_ROLES },
   { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
+  { icon: LayoutDashboard, label: 'Exports', href: '/dashboard/exports', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
   { icon: ArrowDownToLine, label: 'Imports', href: '/dashboard/imports', roles: ADMIN_ROLES },
   { icon: Bell, label: 'Notifications', href: '/dashboard/notifications', roles: ALL_ROLES },
   { icon: LinkIcon, label: 'Integrations', href: '/dashboard/integrations', roles: ADMIN_ROLES },

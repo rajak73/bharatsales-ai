@@ -12,7 +12,9 @@ describe('VisitsService - Geofencing', () => {
   };
 
   const mockOutletModel = {
-    findById: jest.fn(),
+    findById: jest.fn().mockImplementation((id) => ({
+      lean: jest.fn().mockResolvedValue(null)
+    })),
   };
 
   beforeEach(async () => {
@@ -64,9 +66,11 @@ describe('VisitsService - Geofencing', () => {
   describe('checkIn Geofencing', () => {
     it('sets isWithinGeofence=true when distance is under 50m', async () => {
       mockVisitModel.findOne.mockResolvedValue(null);
-      mockOutletModel.findById.mockResolvedValue({
-        _id: 'outlet1',
-        location: { latitude: 12.9716, longitude: 77.5946 }
+      mockOutletModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: 'outlet1',
+          location: { coordinates: { lat: 12.9716, lng: 77.5946 } }
+        })
       });
       
       const saveMock = jest.fn().mockResolvedValue({ id: 'visit1' });
@@ -94,9 +98,11 @@ describe('VisitsService - Geofencing', () => {
 
     it('sets isWithinGeofence=false when distance is over 50m', async () => {
       mockVisitModel.findOne.mockResolvedValue(null);
-      mockOutletModel.findById.mockResolvedValue({
-        _id: 'outlet1',
-        location: { latitude: 12.9716, longitude: 77.5946 }
+      mockOutletModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: 'outlet1',
+          location: { coordinates: { lat: 12.9716, lng: 77.5946 } }
+        })
       });
       
       const saveMock = jest.fn().mockResolvedValue({ id: 'visit1' });
@@ -108,17 +114,12 @@ describe('VisitsService - Geofencing', () => {
       }
       (service as any).visitModel = MockVisit;
 
-      await service.checkIn('user1', 'org1', {
+      await expect(service.checkIn('user1', 'org1', {
         outletId: 'outlet1',
         lat: 12.9730, // 155m away
         lng: 77.5946,
         accuracy: 10
-      });
-
-      expect(saveMock).toHaveBeenCalled();
-      const instance = saveMock.mock.instances[0] as MockVisit;
-      expect(instance.data.isWithinGeofence).toBe(false);
-      expect(instance.data.distanceFromOutlet).toBeGreaterThan(50);
+      })).rejects.toThrow('Check-in blocked');
     });
   });
 });

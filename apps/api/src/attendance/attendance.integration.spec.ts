@@ -4,6 +4,8 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import mongoose from 'mongoose';
 import * as bcrypt from 'bcryptjs';
+import { getConnectionToken } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
 
 describe('Attendance State Machine (e2e)', () => {
   let app: INestApplication;
@@ -13,6 +15,7 @@ describe('Attendance State Machine (e2e)', () => {
   let orgId: string;
   let userId: string;
   let outletId: string;
+  let connection: Connection;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -21,19 +24,20 @@ describe('Attendance State Machine (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales');
+    
+    connection = app.get<Connection>(getConnectionToken());
 
-    await mongoose.connection.collection('users').deleteMany({ email: 'attendancetest@test.com' });
-    await mongoose.connection.collection('tenants').deleteMany({ name: 'Attendance Test Tenant' });
-    await mongoose.connection.collection('outlets').deleteMany({ name: 'Attendance Test Outlet' });
-    await mongoose.connection.collection('attendancesessions').deleteMany({});
-    await mongoose.connection.collection('visits').deleteMany({});
+    await connection.collection('users').deleteMany({ email: 'attendancetest@test.com' });
+    await connection.collection('tenants').deleteMany({ name: 'Attendance Test Tenant' });
+    await connection.collection('outlets').deleteMany({ name: 'Attendance Test Outlet' });
+    await connection.collection('attendancesessions').deleteMany({});
+    await connection.collection('visits').deleteMany({});
 
-    const tenant = await mongoose.connection.collection('tenants').insertOne({ name: 'Attendance Test Tenant', status: 'Active', createdAt: new Date(), updatedAt: new Date() });
+    const tenant = await connection.collection('tenants').insertOne({ name: 'Attendance Test Tenant', status: 'Active', createdAt: new Date(), updatedAt: new Date() });
     orgId = tenant.insertedId.toString();
 
     const pwd = await bcrypt.hash('password123', 10);
-    const user = await mongoose.connection.collection('users').insertOne({
+    const user = await connection.collection('users').insertOne({
       email: 'attendancetest@test.com',
       password: pwd,
       organizationId: orgId,
@@ -45,7 +49,7 @@ describe('Attendance State Machine (e2e)', () => {
     });
     userId = user.insertedId.toString();
 
-    const outlet = await mongoose.connection.collection('outlets').insertOne({
+    const outlet = await connection.collection('outlets').insertOne({
       name: 'Attendance Test Outlet',
       organizationId: orgId,
       status: 'Active',
@@ -57,20 +61,19 @@ describe('Attendance State Machine (e2e)', () => {
     outletId = outlet.insertedId.toString();
 
     const login = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
+      .post('/auth/login')
       .send({ email: 'attendancetest@test.com', password: 'password123' })
       .expect(200);
     token = login.body.access_token;
   });
 
   afterAll(async () => {
-    await mongoose.connection.collection('users').deleteMany({ email: 'attendancetest@test.com' });
-    await mongoose.connection.collection('tenants').deleteMany({ name: 'Attendance Test Tenant' });
-    await mongoose.connection.collection('outlets').deleteMany({ name: 'Attendance Test Outlet' });
-    await mongoose.connection.collection('attendancesessions').deleteMany({});
-    await mongoose.connection.collection('visits').deleteMany({});
+    await connection.collection('users').deleteMany({ email: 'attendancetest@test.com' });
+    await connection.collection('tenants').deleteMany({ name: 'Attendance Test Tenant' });
+    await connection.collection('outlets').deleteMany({ name: 'Attendance Test Outlet' });
+    await connection.collection('attendancesessions').deleteMany({});
+    await connection.collection('visits').deleteMany({});
     await app.close();
-    await mongoose.disconnect();
   });
 
   it('Start Day creates a new active session', async () => {
@@ -116,10 +119,10 @@ describe('Attendance State Machine (e2e)', () => {
     expect(res.body.status).toBe('Completed');
 
     // Verify visit is closed
-    const activeVisit = await mongoose.connection.collection('visits').findOne({ user: userId, status: 'Active' });
+    const activeVisit = await connection.collection('visits').findOne({ user: userId, status: 'Active' });
     expect(activeVisit).toBeNull();
 
-    const completedVisit = await mongoose.connection.collection('visits').findOne({ user: userId });
+    const completedVisit = await connection.collection('visits').findOne({ user: userId });
     expect(completedVisit?.status).toBe('Completed');
     expect(completedVisit?.checkOutTime).toBeDefined();
   });

@@ -70,6 +70,27 @@ export default function CollectionsPage() {
     }
   };
 
+  const handleVerify = async (id: string) => {
+    try {
+      await CollectionsService.updateCollectionStatus(id, 'Verified');
+      setCollections(collections.map(c => c.id === id ? { ...c, status: 'Verified' } : c));
+    } catch (error) {
+      console.error('Failed to verify collection', error);
+      alert('Failed to verify collection.');
+    }
+  };
+
+  const handleReverse = async (id: string) => {
+    if (!confirm('Are you sure you want to reverse this collection? This will recreate the outstanding balance.')) return;
+    try {
+      await CollectionsService.updateCollectionStatus(id, 'Reversed');
+      setCollections(collections.map(c => c.id === id ? { ...c, status: 'Reversed' } : c));
+    } catch (error) {
+      console.error('Failed to reverse collection', error);
+      alert('Failed to reverse collection.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -99,6 +120,7 @@ export default function CollectionsPage() {
                 <th className="px-6 py-4 font-medium">Ref Number</th>
                 <th className="px-6 py-4 font-medium text-right">Amount</th>
                 <th className="px-6 py-4 font-medium text-center">Status</th>
+                <th className="px-6 py-4 font-medium text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -116,9 +138,22 @@ export default function CollectionsPage() {
                     <td className="px-6 py-4 text-gray-500">{col.referenceNumber || '-'}</td>
                     <td className="px-6 py-4 font-bold text-gray-900 text-right">₹{col.amount.toLocaleString()}</td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
+                        col.status === 'Verified' || col.status === 'Cleared' ? 'bg-green-100 text-green-800' :
+                        col.status === 'Reversed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
                         {col.status}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex justify-center space-x-2">
+                        {(col.status === 'Pending_Verification' || col.status === 'Draft' || col.status === 'Submitted') && (
+                          <button onClick={() => handleVerify(col.id)} className="text-green-600 hover:text-green-800 text-xs font-medium">Verify</button>
+                        )}
+                        {(col.status === 'Verified' || col.status === 'Cleared') && (
+                          <button onClick={() => handleReverse(col.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Reverse</button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -247,16 +247,87 @@ async function bootstrap() {
   });
 
   // 6. Products, Price Lists, GST, Inventory Batches
-  const productId = (await db.collection('products').insertOne({
+  const products = [];
+  for (let i = 1; i <= 20; i++) {
+    const isInterState = i % 2 === 0;
+    const prodRes = await db.collection('products').insertOne({
+      organizationId: org1Id,
+      name: `Premium Product ${i}`,
+      sku: `SKU-PROD-${String(i).padStart(2, '0')}`,
+      category: i % 2 === 0 ? 'Food' : 'Personal Care',
+      pricing: { 
+        mrp: 50 + (i * 10), 
+        ptr: 40 + (i * 8), 
+        basePrice: 40 + (i * 8), 
+        gstPercentage: i % 3 === 0 ? 12 : 18 
+      },
+      hsnCode: `HSN${1000 + i}`,
+      status: 'Active',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    products.push(prodRes.insertedId.toString());
+
+    await db.collection('inventory_batches').insertOne({
+      organizationId: org1Id,
+      productId: prodRes.insertedId.toString(),
+      warehouseId: 'WH-01',
+      batchNumber: `BATCH2026-${i}`,
+      quantity: 1000 + (i * 50),
+      mfgDate: new Date('2026-01-01'),
+      expDate: new Date('2027-01-01'),
+      status: 'Available',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  }
+  const productId = products[0];
+
+  // 6b. Schemes
+  await db.collection('schemes').insertOne({
     organizationId: org1Id,
-    name: 'Premium Soap',
-    sku: 'SKU-SOAP-01',
-    category: 'Personal Care',
-    pricing: { mrp: 50, ptr: 40, basePrice: 40, gstPercentage: 18 },
+    name: 'Summer Bonanza 2026',
+    description: 'Buy 10 get 1 free',
+    type: 'Quantity',
+    minQuantity: 10,
+    freeQuantity: 1,
+    applicableProducts: [productId],
+    startDate: new Date('2026-01-01'),
+    endDate: new Date('2026-12-31'),
     status: 'Active',
     createdAt: new Date(),
     updatedAt: new Date()
-  })).insertedId.toString();
+  });
+
+  // 6c. Targets
+  await db.collection('targets').insertOne({
+    organizationId: org1Id,
+    userId: (await db.collection('users').findOne({ email: 'rep@bharatfoods.com' }))?._id?.toString(),
+    metric: 'Sales Value',
+    targetAmount: 500000,
+    achievedAmount: 150000,
+    period: 'Monthly',
+    startDate: new Date('2026-07-01'),
+    endDate: new Date('2026-07-31'),
+    status: 'Active',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+
+  // 6d. Orders in multiple statuses
+  await db.collection('orders').insertOne({
+    orderNumber: `ORD-${Date.now()}`,
+    organizationId: org1Id,
+    outletId: outletId,
+    repId: (await db.collection('users').findOne({ email: 'rep@bharatfoods.com' }))?._id?.toString(),
+    items: [{ productId: productId, quantity: 50, unitPrice: 48, discount: 0 }],
+    subtotal: 2400,
+    taxTotal: 432,
+    total: 2832,
+    status: 'Delivered',
+    createdAt: new Date(Date.now() - 86400000),
+    updatedAt: new Date(Date.now() - 86400000)
+  });
 
   await db.collection('inventory_batches').insertOne({
     organizationId: org1Id,

@@ -16,6 +16,8 @@ export class Inventory implements Omit<IInventory, 'id' | 'createdAt' | 'updated
   @Prop({ required: true, default: 0 }) stock: number;
   @Prop({ default: 0 }) reservedStock: number;
   @Prop() expiry?: string;
+  @Prop({ default: 'Active' }) status?: string;
+  @Prop({ default: false }) blocked?: boolean;
 }
 
 export const InventorySchema = SchemaFactory.createForClass(Inventory);

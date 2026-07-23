@@ -13,6 +13,7 @@ export interface OrderLineItem {
   igstAmount: number;
   subTotal: number;
   total: number;
+  allocations?: { inventoryId: string; batch: string; quantity: number }[];
 }
 
 export interface Order {
@@ -23,7 +24,7 @@ export interface Order {
   outletId: string;
   createdByUserId: string; // The Sales Rep who booked it
   assignedDistributorId?: string;
-  status: 'Draft' | 'Submitted' | 'Approved' | 'Dispatched' | 'Delivered' | 'Cancelled' | 'Rejected';
+  status: 'Draft' | 'Submitted' | 'Hold_Credit' | 'Hold_Stock' | 'Pending_Approval' | 'Approved' | 'Dispatched' | 'Partial_Delivery' | 'Delivered' | 'Cancelled' | 'Rejected';
   items: OrderLineItem[];
   totals: {
     subTotal: number;

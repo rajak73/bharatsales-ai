@@ -45,6 +45,7 @@ import { CollectionsModule } from './collections/collections.module';
 import { SyncModule } from './sync/sync.module';
 import { ClaimsModule } from './claims/claims.module';
 import { SuperadminModule } from './superadmin/superadmin.module';
+import { ExportsModule } from './exports/exports.module';
 
 @Module({
   imports: [
@@ -123,6 +124,7 @@ import { SuperadminModule } from './superadmin/superadmin.module';
     SyncModule,
     ClaimsModule,
     SuperadminModule,
+    ExportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

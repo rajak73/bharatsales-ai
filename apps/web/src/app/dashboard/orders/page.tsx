@@ -233,19 +233,40 @@ export default function OrdersPage() {
                   </thead>
                   <tbody>
                     {(selectedOrder.items || []).map((item: OrderLineItem, index: number) => (
-                      <tr key={index} className="border-t border-gray-100">
-                        <td className="px-4 py-3 font-medium text-gray-900">{item.productId}</td>
-                        <td className="px-4 py-3 text-right">{item.quantity}</td>
-                        <td className="px-4 py-3 text-right">₹{item.unitPrice}</td>
-                        <td className="px-4 py-3 text-right font-medium">₹{item.total}</td>
-                        {user?.role === 'Distributor' && selectedOrder.status === 'Submitted' && (
-                          <td className="px-4 py-3">
-                            <select className="w-full rounded-md border-gray-200 text-xs py-1 px-2 border focus:border-primary-500 focus:ring-primary-500">
-                              <option>Auto (FEFO)</option>
-                            </select>
-                          </td>
+                      <React.Fragment key={index}>
+                        <tr className="border-t border-gray-100">
+                          <td className="px-4 py-3 font-medium text-gray-900">{item.productId}</td>
+                          <td className="px-4 py-3 text-right">{item.quantity}</td>
+                          <td className="px-4 py-3 text-right">₹{item.unitPrice}</td>
+                          <td className="px-4 py-3 text-right font-medium">₹{item.total}</td>
+                          {user?.role === 'Distributor' && selectedOrder.status === 'Submitted' && (
+                            <td className="px-4 py-3">
+                              <select className="w-full rounded-md border-gray-200 text-xs py-1 px-2 border focus:border-primary-500 focus:ring-primary-500">
+                                <option>Auto (FEFO)</option>
+                              </select>
+                            </td>
+                          )}
+                        </tr>
+                        {item.allocations && item.allocations.length > 0 && (
+                          <tr className="bg-gray-50/50">
+                            <td colSpan={user?.role === 'Distributor' && selectedOrder.status === 'Submitted' ? 5 : 4} className="px-4 py-2">
+                              <div className="flex flex-col ml-4 border-l-2 border-primary-200 pl-3">
+                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Batch Allocation (FEFO)</span>
+                                <div className="space-y-1">
+                                  {item.allocations.map((alloc, idx) => (
+                                    <div key={idx} className="flex items-center text-xs text-gray-600">
+                                      <span className="font-medium bg-white px-2 py-0.5 rounded border border-gray-200 mr-2">
+                                        Batch: {alloc.batch}
+                                      </span>
+                                      <span>Allocated: <strong>{alloc.quantity}</strong> units</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </tr>
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

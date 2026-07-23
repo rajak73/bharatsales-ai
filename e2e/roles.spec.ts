@@ -3,6 +3,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Role-Based Login & Routing Flow', () => {
 
   test('Super Admin login and routing', async ({ page }) => {
+    // Listen for console errors
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`Browser Error: ${msg.text()}`);
+    });
     await page.goto('/login');
     await page.fill('input[type="email"]', 'superadmin@bharatsales.com');
     await page.fill('input[type="password"]', 'password123');

@@ -20,6 +20,15 @@ class OrderLineItem {
   @Prop({ required: true, min: 0 }) igstAmount: number;
   @Prop({ required: true, min: 0 }) subTotal: number;
   @Prop({ required: true, min: 0 }) total: number;
+  @Prop({
+    type: [{
+      inventoryId: { type: String, required: true },
+      batch: { type: String, required: true },
+      quantity: { type: Number, required: true, min: 1 }
+    }],
+    default: []
+  })
+  allocations?: { inventoryId: string; batch: string; quantity: number }[];
 }
 
 @Schema({ _id: false })
@@ -40,7 +49,7 @@ export class Order implements Omit<IOrder, 'id' | 'createdAt' | 'updatedAt'> {
   @Prop({ required: true, index: true }) outletId: string;
   @Prop({ required: true, index: true }) createdByUserId: string;
   @Prop() assignedDistributorId?: string;
-  @Prop({ required: true, enum: ['Draft', 'Submitted', 'Approved', 'Dispatched', 'Delivered', 'Cancelled', 'Rejected'] }) status: 'Draft' | 'Submitted' | 'Approved' | 'Dispatched' | 'Delivered' | 'Cancelled' | 'Rejected';
+  @Prop({ required: true, enum: ['Draft', 'Submitted', 'Hold_Credit', 'Hold_Stock', 'Pending_Approval', 'Approved', 'Dispatched', 'Partial_Delivery', 'Delivered', 'Cancelled', 'Rejected'], default: 'Draft' }) status: 'Draft' | 'Submitted' | 'Hold_Credit' | 'Hold_Stock' | 'Pending_Approval' | 'Approved' | 'Dispatched' | 'Partial_Delivery' | 'Delivered' | 'Cancelled' | 'Rejected';
   @Prop({ type: [OrderLineItem], required: true }) items: OrderLineItem[];
   @Prop({ type: OrderTotals, required: true }) totals: OrderTotals;
   @Prop() notes?: string;

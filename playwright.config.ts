@@ -30,5 +30,11 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
     },
+    {
+      command: 'cd apps/field-pwa && pnpm run dev',
+      url: 'http://localhost:6001',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+    }
   ],
 });

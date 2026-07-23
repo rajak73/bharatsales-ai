@@ -20,6 +20,7 @@ export * from './expense';
 export * from './role';
 export * from './settings';
 export * from './tax-rate';
+export * from './export';
 export * from './subscription';
 export * from './price-list';
 export * from './incentive';

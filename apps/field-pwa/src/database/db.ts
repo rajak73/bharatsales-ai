@@ -3,7 +3,7 @@ import type { Outlet, Product, Order, Scheme, Distributor, Invoice, PaymentColle
 
 export interface SyncQueueItem {
   id?: number;
-  action: 'CREATE_ORDER' | 'UPDATE_OUTLET' | 'CREATE_PAYMENT' | 'CREATE_LOCATION_PING';
+  action: 'CREATE_ORDER' | 'UPDATE_OUTLET' | 'CREATE_PAYMENT' | 'CREATE_LOCATION_PING' | 'CREATE_VISIT' | 'UPDATE_VISIT' | 'CLOCK_IN' | 'CLOCK_OUT';
   payload: any;
   status: 'PENDING' | 'SYNCING' | 'FAILED' | 'COMPLETED';
   createdAt: number;

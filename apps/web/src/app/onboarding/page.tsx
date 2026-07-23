@@ -1,15 +1,38 @@
 'use client';
 
 import { useState } from 'react';
+import { OnboardingService } from '@bharatsales/api-client';
+import { useRouter } from 'next/navigation';
 
 export default function OnboardingPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({ companyName: '', tradeName: '', gstin: '', industry: 'FMCG', timezone: 'Asia/Kolkata', fiscalYearStart: '04-01', geofenceRadius: '5', gpsAccuracy: '10', workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], shiftStart: '09:00', shiftEnd: '18:00', orderApprovalThreshold: '50000', discountAuthority: '10' });
 
   const steps = [{ id: 1, name: 'Company', icon: '🏢' }, { id: 2, name: 'Fiscal & Tax', icon: '📋' }, { id: 3, name: 'Policies', icon: '⚙️' }, { id: 4, name: 'Hierarchy', icon: '🌳' }, { id: 5, name: 'Users', icon: '👥' }, { id: 6, name: 'Products', icon: '📦' }, { id: 7, name: 'Channels', icon: '🏭' }, { id: 8, name: 'Go Live', icon: '🚀' }];
 
-  const handleGoLive = () => { setSuccessMessage('Organization activated successfully! Redirecting to dashboard...'); setTimeout(() => setSuccessMessage(''), 3000); };
+  const handleGoLive = async () => { 
+    try {
+      await OnboardingService.completeOnboarding();
+      setSuccessMessage('Organization activated successfully! Redirecting to dashboard...'); 
+      setTimeout(() => router.push('/dashboard'), 3000); 
+    } catch (error) {
+      console.error('Failed to complete onboarding', error);
+      alert('Failed to activate organization.');
+    }
+  };
+  
+  const handleNextStep = async () => {
+    try {
+      await OnboardingService.saveStep(currentStep, formData);
+      setCurrentStep(Math.min(8, currentStep + 1));
+    } catch (error) {
+      console.error('Failed to save step', error);
+      alert('Failed to save step progress.');
+    }
+  };
+
   const handleWorkingDayToggle = (day: string) => { setFormData({ ...formData, workingDays: formData.workingDays.includes(day) ? formData.workingDays.filter(d => d !== day) : [...formData.workingDays, day] }); };
 
   return (
@@ -24,7 +47,7 @@ export default function OnboardingPage() {
         {currentStep === 6 && (<div className="space-y-6"><div><h2 className="text-2xl font-bold text-gray-900">Product Import</h2><p className="text-gray-500">Import your product catalog</p></div><div className="card space-y-4"><div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center"><div className="text-4xl mb-4">📦</div><p className="text-sm text-gray-600 mb-2">Upload your product catalog</p><div className="flex justify-center space-x-3"><button className="btn-secondary text-sm py-2">Download Template</button><button className="btn-primary text-sm py-2">Upload File</button></div></div></div></div>)}
         {currentStep === 7 && (<div className="space-y-6"><div><h2 className="text-2xl font-bold text-gray-900">Channel Setup</h2><p className="text-gray-500">Add distributors, warehouses, and outlets</p></div><div className="grid md:grid-cols-3 gap-4">{[{ icon: '🏭', title: 'Distributors', desc: 'Add distribution partners', action: 'Add Distributor' }, { icon: '🏬', title: 'Warehouses', desc: 'Set up warehouse locations', action: 'Add Warehouse' }, { icon: '🏪', title: 'Outlets', desc: 'Import retail outlets', action: 'Import Outlets' }].map((item) => (<div key={item.title} className="card text-center"><div className="text-3xl mb-2">{item.icon}</div><h3 className="font-semibold text-gray-900 mb-1">{item.title}</h3><p className="text-xs text-gray-500 mb-3">{item.desc}</p><button className="btn-primary text-xs py-2 w-full">{item.action}</button></div>))}</div></div>)}
         {currentStep === 8 && (<div className="space-y-6"><div><h2 className="text-2xl font-bold text-gray-900">Go Live</h2><p className="text-gray-500">Review and activate your organization</p></div><div className="card space-y-4"><h3 className="font-semibold text-gray-900">Validation Summary</h3><div className="space-y-3">{[{ label: 'Company Profile', status: 'Complete', ok: true }, { label: 'Fiscal & Tax Setup', status: 'Complete', ok: true }, { label: 'Policies Configured', status: 'Complete', ok: true }, { label: 'Hierarchy Created', status: '3 zones', ok: true }, { label: 'Users Invited', status: '3 users', ok: true }, { label: 'Products Imported', status: 'Pending', ok: false }].map((item) => (<div key={item.label} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><span className="text-sm text-gray-700">{item.label}</span><span className={`text-xs font-medium ${item.ok ? 'text-green-600' : 'text-yellow-600'}`}>{item.ok ? '✓' : '⚠️'} {item.status}</span></div>))}</div><button onClick={handleGoLive} className="w-full btn-primary text-center py-3">🚀 Activate & Go Live</button></div></div>)}
-        <div className="flex justify-between mt-8"><button onClick={() => setCurrentStep(Math.max(1, currentStep - 1))} disabled={currentStep === 1} className="btn-secondary disabled:opacity-50">← Previous</button><button onClick={() => setCurrentStep(Math.min(8, currentStep + 1))} disabled={currentStep === 8} className="btn-primary disabled:opacity-50">Next →</button></div>
+        <div className="flex justify-between mt-8"><button onClick={() => setCurrentStep(Math.max(1, currentStep - 1))} disabled={currentStep === 1} className="btn-secondary disabled:opacity-50">← Previous</button><button onClick={handleNextStep} disabled={currentStep === 8} className="btn-primary disabled:opacity-50">Next →</button></div>
       </div></div>
     </div>
   );

@@ -11,8 +11,8 @@ export class Token {
   @Prop({ required: true })
   token: string;
 
-  @Prop({ required: true, enum: ['OTP', 'PASSWORD_RESET'] })
-  type: 'OTP' | 'PASSWORD_RESET';
+  @Prop({ required: true, enum: ['OTP', 'PASSWORD_RESET', 'INVITATION'] })
+  type: 'OTP' | 'PASSWORD_RESET' | 'INVITATION';
 
   @Prop({ required: true })
   expiresAt: Date;

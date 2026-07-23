@@ -8,3 +8,12 @@ coverage
 .env.local
 .DS_Store
 .turbo
+
+# Local databases and runtime data
+data/
+
+# Generated build/test files
+*.tsbuildinfo
+playwright-report/
+test-results/
+apps/web/test-results/

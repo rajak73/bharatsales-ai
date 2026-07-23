@@ -12,6 +12,7 @@ export class ReturnOrder implements Omit<IReturnOrder, 'id' | 'createdAt' | 'upd
   @Prop({ required: true }) reason: string;
   @Prop({ required: true }) value: string;
   @Prop({ required: true, enum: ['Pending Approval', 'Approved', 'Rejected', 'Processed'], default: 'Pending Approval' }) status: 'Pending Approval' | 'Approved' | 'Rejected' | 'Processed';
+  @Prop({ type: [{ product: { type: String, required: true }, qty: { type: Number, required: true } }], default: [] }) items?: { product: string; qty: number }[];
 }
 
 export const ReturnSchema = SchemaFactory.createForClass(ReturnOrder);

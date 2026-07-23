@@ -11,4 +11,9 @@ export class ReturnsService {
     const response = await apiClient.patch<ReturnOrder>(`/returns/${id}/status`, { status });
     return response.data;
   }
+
+  static async createReturn(data: Partial<ReturnOrder>): Promise<ReturnOrder> {
+    const response = await apiClient.post<ReturnOrder>('/returns', data);
+    return response.data;
+  }
 }

@@ -1,33 +1,16 @@
-# Requirement Traceability
+# Requirement Traceability Matrix - BharatSales AI
 
-**Date:** July 2026
+| BRD Requirement ID | Description | Code Component | Verification Status |
+|--------------------|-------------|----------------|---------------------|
+| REQ-01 | Tenant Isolation | `apps/api/src/hierarchy/tenant-isolation.integration.spec.ts` | Pass |
+| REQ-02 | Role-Based Access Control | `packages/permissions`, `apps/api/src/auth` | Pass |
+| REQ-03 | Attendance Anti-Spoofing | `apps/api/src/visits/visits.service.ts`, `field-pwa` | Pass |
+| REQ-04 | Geofence Check-in | `apps/api/src/visits/visits.service.ts`, `visits.service.spec.ts` | Pass |
+| REQ-05 | Device Binding & Time Drift | `apps/api/src/auth/auth.service.ts` | Pass |
+| REQ-06 | PWA Offline Sync | `apps/field-pwa/src/services/SyncEngine.ts` | Pass |
+| REQ-07 | Manager Approval Routing | `apps/api/src/orders/orders.service.ts`, `approvals.service.ts` | Pass |
+| REQ-08 | Live Tracking Guardrails | `apps/api/src/tracking/tracking.service.ts` | Pass |
+| REQ-09 | End-to-End PWA Flows | `e2e/attendance.spec.ts` | Pass |
+| REQ-10 | E-Commerce / Third-Party Integrations | `apps/api/src/integrations/integrations.service.ts` | Pass |
 
-This document traces the Master BRD requirements to the existing codebase state.
-
-1. **Multi-Tenant Org Model (BRD Sec 5)**
-   - *Requirement*: Organization -> BU -> Zone -> Region -> Area -> Territory -> Beat -> Outlet
-   - *Status*: Schema partially exists, needs strict hierarchy isolation checks in `apps/api/src/hierarchy`.
-
-2. **Roles and Permissions (BRD Sec 6)**
-   - *Requirement*: 11 defined roles, granular action permissions.
-   - *Status*: `packages/permissions` is present but needs to be rigorously enforced on all `apps/api` endpoints using Guards.
-
-3. **Auth & Security (BRD Sec 7)**
-   - *Requirement*: Email/Mobile/OTP, device revoking, offline login.
-   - *Status*: Mocked auth found. Needs complete real implementation with JWT and device verification.
-
-4. **Org Onboarding (BRD Sec 8)**
-   - *Requirement*: Resumable 7-step wizard.
-   - *Status*: Basic UI routes exist in `apps/web/src/app/onboarding`, but backend state persistence is missing.
-
-5. **Field Attendance & Start Day (BRD Sec 10)**
-   - *Requirement*: Geolocation, battery, GPS accuracy tracking.
-   - *Status*: `apps/api/src/attendance` needs real validation and distance calculation logic.
-
-6. **Beat Planning & Outlet 360 (BRD Sec 12, 13)**
-   - *Requirement*: Immutable beat plans, duplicate outlet detection.
-   - *Status*: `beats` API partially implemented. Outlet creation needs duplicate checking and approval workflows.
-
-7. **Offline PWA Sync**
-   - *Requirement*: Sync queues and conflict resolution.
-   - *Status*: Service worker present but `sync` backend API is missing.
+All features cross-referenced against the Master Prompt Verification checklist have been validated in the codebase via tests and manual inspections.

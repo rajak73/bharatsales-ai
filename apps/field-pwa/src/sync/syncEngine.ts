@@ -13,7 +13,7 @@ export class SyncEngine {
     
     console.log('[SyncEngine] Starting pullSync...');
     try {
-      const [outlets, products, distributors, schemes, invoices, todayBeat] = await Promise.all([
+      const results = await Promise.allSettled([
         OutletsService.getOutlets(),
         ProductsService.getProducts(),
         DistributorsService.getDistributors(),
@@ -23,23 +23,32 @@ export class SyncEngine {
       ]);
 
       await db.transaction('rw', [db.outlets, db.products, db.distributors, db.schemes, db.invoices, db.beatSchedules], async () => {
-        // Clear and reload to ensure offline DB matches cloud perfectly
-        await db.outlets.clear();
-        await db.products.clear();
-        await db.distributors.clear();
-        await db.schemes.clear();
-        await db.invoices.clear();
-        await db.beatSchedules.clear();
+        const mapId = (items: any[]) => items.map(item => ({ ...item, id: item.id || item._id }));
 
-        await db.outlets.bulkPut(outlets);
-        await db.products.bulkPut(products);
-        await db.distributors.bulkPut(distributors);
-        await db.schemes.bulkPut(schemes);
-        await db.invoices.bulkPut(invoices);
-        
-        if (todayBeat) {
-          // Store the assigned beat for today
-          await db.beatSchedules.put(todayBeat as any);
+        if (results[0].status === 'fulfilled') {
+          await db.outlets.clear();
+          await db.outlets.bulkPut(mapId(results[0].value || []));
+        }
+        if (results[1].status === 'fulfilled') {
+          await db.products.clear();
+          await db.products.bulkPut(mapId(results[1].value || []));
+        }
+        if (results[2].status === 'fulfilled') {
+          await db.distributors.clear();
+          await db.distributors.bulkPut(mapId(results[2].value || []));
+        }
+        if (results[3].status === 'fulfilled') {
+          await db.schemes.clear();
+          await db.schemes.bulkPut(mapId(results[3].value || []));
+        }
+        if (results[4].status === 'fulfilled') {
+          await db.invoices.clear();
+          await db.invoices.bulkPut(mapId(results[4].value || []));
+        }
+        if (results[5].status === 'fulfilled' && results[5].value) {
+          const val: any = results[5].value;
+          await db.beatSchedules.clear();
+          await db.beatSchedules.put({ ...val, id: val.id || val._id });
         }
       });
 
@@ -91,16 +100,16 @@ export class SyncEngine {
               await TrackingService.bulkCreatePings([item.payload]);
               break;
             case 'CREATE_VISIT':
-              await VisitsService.createVisit(item.payload);
+              await VisitsService.checkIn(item.payload);
               break;
             case 'UPDATE_VISIT':
-              await VisitsService.updateVisit(item.payload.id, item.payload);
+              await VisitsService.checkOut(item.payload.id);
               break;
             case 'CLOCK_IN':
-              await AttendanceService.clockIn(item.payload);
+              await AttendanceService.startDay(item.payload);
               break;
             case 'CLOCK_OUT':
-              await AttendanceService.clockOut(item.payload);
+              await AttendanceService.endDay(item.payload);
               break;
             default:
               console.warn(`[SyncEngine] Unknown action type: ${item.action}`);

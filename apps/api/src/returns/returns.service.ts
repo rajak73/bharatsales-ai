@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ReturnOrder } from '../schemas/return.schema';
 import { ReturnOrder as SharedReturnOrder, Outlet, Invoice } from '@bharatsales/shared-types';
+import { InventoryService } from '../inventory/inventory.service';
 
 @Injectable()
 export class ReturnsService {
@@ -11,7 +12,8 @@ export class ReturnsService {
   constructor(
     @InjectModel(ReturnOrder.name) private returnModel: Model<ReturnOrder>,
     @InjectModel('Outlet') private outletModel: Model<Outlet>,
-    @InjectModel('Invoice') private invoiceModel: Model<Invoice>
+    @InjectModel('Invoice') private invoiceModel: Model<Invoice>,
+    private inventoryService: InventoryService
   ) {}
 
   async getReturns(organizationId: string): Promise<ReturnOrder[]> {
@@ -39,18 +41,54 @@ export class ReturnsService {
     const newReturn = new this.returnModel({
       ...data,
       organizationId,
-      status: 'Approved' // For now, auto-approve
+      status: 'Pending Approval'
     });
 
     await newReturn.save();
+    return newReturn;
+  }
 
-    // BR-023: Adjust outlet balance
+  async approveReturn(organizationId: string, id: string, userId: string, session?: any): Promise<ReturnOrder> {
+    const returnOrder = await this.returnModel.findOne({ _id: id, organizationId }).session(session).exec();
+    if (!returnOrder) throw new NotFoundException('Return order not found');
+    if (returnOrder.status !== 'Pending Approval') throw new BadRequestException(`Cannot approve from status ${returnOrder.status}`);
+
+    returnOrder.status = 'Approved';
+    await returnOrder.save({ session });
+
+    const refundAmount = Number(returnOrder.value) || 0;
     if (refundAmount > 0) {
-      outlet.commercial.outstandingBalance = Math.max(0, outlet.commercial.outstandingBalance - refundAmount);
-      await outlet.save();
+      const outlet = await this.outletModel.findById(returnOrder.outlet).session(session);
+      if (outlet) {
+        outlet.commercial.outstandingBalance = Math.max(0, (outlet.commercial.outstandingBalance || 0) - refundAmount);
+        await outlet.save({ session });
+      }
     }
 
-    return newReturn;
+    // Restore items to inventory (BR-023)
+    if (returnOrder.items && returnOrder.items.length > 0) {
+      for (const item of returnOrder.items) {
+        // Assume batch 'RETURNED' for quarantined/returned items
+        await this.inventoryService.adjustStock(organizationId, {
+          productId: item.product,
+          batch: 'RETURNED',
+          type: 'Transfer In',
+          quantity: item.qty,
+          reason: `Return Order ${id}`
+        }, session);
+      }
+    }
+
+    return returnOrder;
+  }
+
+  async rejectReturn(organizationId: string, id: string, userId: string, session?: any): Promise<ReturnOrder> {
+    const returnOrder = await this.returnModel.findOne({ _id: id, organizationId }).session(session).exec();
+    if (!returnOrder) throw new NotFoundException('Return order not found');
+    if (returnOrder.status !== 'Pending Approval') throw new BadRequestException(`Cannot reject from status ${returnOrder.status}`);
+
+    returnOrder.status = 'Rejected';
+    return await returnOrder.save({ session });
   }
 
   async update(organizationId: string, id: string, data: Partial<SharedReturnOrder>): Promise<ReturnOrder> {

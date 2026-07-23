@@ -3,6 +3,7 @@ import { SyncController } from './sync.controller';
 
 import { JwtService } from '@nestjs/jwt';
 import { SyncService } from './sync.service';
+import { AuditService } from '../audit/audit.service';
 
 describe('SyncController', () => {
   let controller: SyncController;
@@ -13,6 +14,7 @@ describe('SyncController', () => {
       providers: [
         { provide: SyncService, useValue: {} },
         { provide: JwtService, useValue: {} },
+        { provide: AuditService, useValue: {} },
       ],
     }).compile();
 

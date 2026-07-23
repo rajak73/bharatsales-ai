@@ -37,9 +37,21 @@ export class ReturnsController {
     return this.returnsService.update(req.user.orgId, id, data);
   }
 
-@RequirePermissions(Resource.Returns, Action.Delete)
+  @RequirePermissions(Resource.Returns, Action.Delete)
   @Delete(':id')
   async deleteReturn(@Request() req: any, @Param('id') id: string) {
     return this.returnsService.remove(req.user.orgId, id);
+  }
+
+  @RequirePermissions(Resource.Returns, Action.Update)
+  @Post(':id/approve')
+  async approveReturn(@Request() req: any, @Param('id') id: string) {
+    return this.returnsService.approveReturn(req.user.orgId, id, req.user.sub);
+  }
+
+  @RequirePermissions(Resource.Returns, Action.Update)
+  @Post(':id/reject')
+  async rejectReturn(@Request() req: any, @Param('id') id: string) {
+    return this.returnsService.rejectReturn(req.user.orgId, id, req.user.sub);
   }
 }

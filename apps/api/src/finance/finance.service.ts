@@ -25,7 +25,7 @@ export class FinanceService {
     return this.collectionModel.find({ organizationId }).sort({ createdAt: -1 }).exec();
   }
 
-  async generateInvoiceFromOrder(organizationId: string, orderId: string, session?: any): Promise<Invoice> {
+  async generateInvoiceFromOrder(organizationId: string, orderId: string, session?: any, deliveredItems?: { productId: string, deliveredQty: number }[]): Promise<Invoice> {
     const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
     if (!order) {
       throw new NotFoundException('Order not found');
@@ -36,6 +36,23 @@ export class FinanceService {
       throw new BadRequestException('Invoice already generated for this order');
     }
 
+    let invoiceTotal = order.totals.grandTotal;
+
+    if (deliveredItems && deliveredItems.length > 0) {
+      invoiceTotal = 0;
+      for (const item of order.items) {
+        const delivered = deliveredItems.find(d => d.productId === item.productId);
+        if (delivered) {
+          const discountPerUnit = (item.discount || 0) / item.quantity;
+          const adjustedSubTotal = (item.unitPrice * delivered.deliveredQty) - (discountPerUnit * delivered.deliveredQty);
+          const adjustedCgst = adjustedSubTotal * (item.gstPercentage / 2) / 100;
+          const adjustedSgst = adjustedCgst;
+          const adjustedTotal = adjustedSubTotal + adjustedCgst + adjustedSgst;
+          invoiceTotal += adjustedTotal;
+        }
+      }
+    }
+
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 15); // Net 15
 
@@ -44,7 +61,7 @@ export class FinanceService {
       invoiceNumber: `INV-${Date.now()}`,
       orderId: order._id,
       outletId: order.outletId,
-      totalAmount: order.totals.grandTotal,
+      totalAmount: invoiceTotal,
       paidAmount: 0,
       status: 'Unpaid',
       dueDate: dueDate.toISOString(),
@@ -55,7 +72,7 @@ export class FinanceService {
     // Update Outlet's outstanding balance
     await this.outletModel.updateOne(
       { _id: order.outletId, organizationId },
-      { $inc: { 'commercial.outstandingBalance': order.totals.grandTotal } },
+      { $inc: { 'commercial.outstandingBalance': invoiceTotal } },
       { session }
     );
 
@@ -105,16 +122,23 @@ export class FinanceService {
       await collection.save({ session });
 
       if (data.invoiceId) {
-        const invoice = await this.invoiceModel.findById(data.invoiceId).session(session);
-        if (invoice) {
-          invoice.paidAmount += data.amount || 0;
-          if (invoice.paidAmount >= invoice.totalAmount) {
-            invoice.status = 'Paid';
-          } else if (invoice.paidAmount > 0) {
-            invoice.status = 'Partial';
-          }
-          await invoice.save({ session });
+        const invoice = await this.invoiceModel.findOne({ _id: data.invoiceId, organizationId, outletId: data.outletId }).session(session);
+        if (!invoice) {
+          throw new BadRequestException('Invoice not found or does not belong to the specified outlet');
         }
+
+        const remainingAmount = invoice.totalAmount - (invoice.paidAmount || 0);
+        if ((data.amount || 0) > remainingAmount) {
+          throw new BadRequestException(`Collection amount (${data.amount}) exceeds the remaining invoice balance (${remainingAmount})`);
+        }
+
+        invoice.paidAmount = (invoice.paidAmount || 0) + (data.amount || 0);
+        if (invoice.paidAmount >= invoice.totalAmount) {
+          invoice.status = 'Paid';
+        } else if (invoice.paidAmount > 0) {
+          invoice.status = 'Partial';
+        }
+        await invoice.save({ session });
       }
 
       if (status === 'Cleared') {

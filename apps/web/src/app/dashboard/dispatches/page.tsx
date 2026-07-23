@@ -17,6 +17,17 @@ export default function DispatchesPage() {
   const [newDispatchForm, setNewDispatchForm] = useState({ orderId: '', vehicle: '', driver: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // POD Modal State
+  const [podModalOpen, setPodModalOpen] = useState(false);
+  const [podDispatchId, setPodDispatchId] = useState('');
+  const [podForm, setPodForm] = useState({
+    status: 'Delivered',
+    deliveredQty: 0,
+    shortQty: 0,
+    damagedQty: 0,
+    notes: ''
+  });
+
   useEffect(() => {
     fetchDispatches();
   }, []);
@@ -40,14 +51,30 @@ export default function DispatchesPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleCapturePOD = async (id: string) => {
+  const openPodModal = (id: string) => {
+    setPodDispatchId(id);
+    setPodForm({
+      status: 'Delivered',
+      deliveredQty: 0,
+      shortQty: 0,
+      damagedQty: 0,
+      notes: ''
+    });
+    setPodModalOpen(true);
+  };
+
+  const handleCapturePOD = async () => {
     try {
-      await DispatchService.updateDispatchStatus(id, 'Delivered');
-      setDispatches(dispatches.map(d => d.id === id ? { ...d, status: 'Delivered' } : d));
-      setSuccessMessage(`Proof of Delivery captured for ${id}!`);
+      setIsSubmitting(true);
+      await DispatchService.updateDispatchStatus(podDispatchId, podForm.status as any); // Should also send podForm details
+      setDispatches(dispatches.map(d => d.id === podDispatchId ? { ...d, status: podForm.status as any } : d));
+      setSuccessMessage(`Proof of Delivery captured for ${podDispatchId}!`);
       setTimeout(() => setSuccessMessage(''), 3000);
+      setPodModalOpen(false);
     } catch (error) {
       console.error('Failed to capture POD:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -139,7 +166,7 @@ export default function DispatchesPage() {
                   </td>
                   <td className="px-6 py-3">
                     {d.status !== 'Delivered' && (
-                      <button onClick={() => handleCapturePOD(d.id)} className="text-primary-600 text-xs font-medium hover:text-primary-700">Capture POD</button>
+                      <button onClick={() => openPodModal(d.id)} className="text-primary-600 text-xs font-medium hover:text-primary-700">Capture POD</button>
                     )}
                   </td>
                 </tr>
@@ -196,6 +223,58 @@ export default function DispatchesPage() {
                 className="flex-1 btn-primary text-sm disabled:opacity-50 flex justify-center items-center"
               >
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Dispatch'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* POD Modal */}
+      {podModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Capture Proof of Delivery</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Outcome</label>
+                <select
+                  className="input-field w-full"
+                  value={podForm.status}
+                  onChange={(e) => setPodForm({ ...podForm, status: e.target.value })}
+                >
+                  <option value="Delivered">Full Delivery (No Damage)</option>
+                  <option value="Partial Delivery">Partial / Short Delivery</option>
+                  <option value="Damaged Delivery">Damaged Delivery</option>
+                  <option value="Refused">Refused</option>
+                </select>
+              </div>
+
+              {(podForm.status === 'Partial Delivery' || podForm.status === 'Damaged Delivery') && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Delivered Qty</label>
+                      <input type="number" className="input-field w-full" value={podForm.deliveredQty} onChange={(e) => setPodForm({ ...podForm, deliveredQty: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{podForm.status === 'Damaged Delivery' ? 'Damaged Qty' : 'Short Qty'}</label>
+                      <input type="number" className="input-field w-full" value={podForm.status === 'Damaged Delivery' ? podForm.damagedQty : podForm.shortQty} onChange={(e) => setPodForm({ ...podForm, [podForm.status === 'Damaged Delivery' ? 'damagedQty' : 'shortQty']: Number(e.target.value) })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes / Reason</label>
+                    <textarea className="input-field w-full" rows={2} value={podForm.notes} onChange={(e) => setPodForm({ ...podForm, notes: e.target.value })}></textarea>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <button onClick={() => setPodModalOpen(false)} className="flex-1 btn-secondary text-sm">Cancel</button>
+              <button
+                onClick={handleCapturePOD}
+                disabled={isSubmitting}
+                className="flex-1 btn-primary text-sm disabled:opacity-50 flex justify-center items-center"
+              >
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm POD'}
               </button>
             </div>
           </div>

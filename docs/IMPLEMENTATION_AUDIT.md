@@ -1,39 +1,34 @@
-# Implementation Audit
+# Phase A: Implementation Audit (Reverified)
 
-**Date:** July 2026
-**Status:** Audit Completed
-
-Based on a thorough code inspection of the BharatSales AI repository against the Master BRD:
+## Objective
+Conducted in response to the `BharatSales_AI_Today_Completion_Master_Prompt.md` mandate. This audit assesses the entire chain: UI -> API -> Auth -> Logic -> DB -> Tests.
 
 ## Classification
 
-### `apps/api` (Backend)
-- `auth`: **PARTIALLY_WORKING** (Needs real JWT flow and SSO adapters)
-- `attendance`: **PARTIALLY_WORKING** (Needs geolocation and geofence validation)
-- `approvals`: **BROKEN / UI_ONLY** (Returns hardcoded data)
-- `analytics`: **PARTIALLY_WORKING** (Dashboard metrics require real DB queries)
-- `beats`: **PARTIALLY_WORKING** (Missing AI scheduling and proper versioning)
-- `orders`: **PARTIALLY_WORKING** (Missing correct rejection/cancellation workflows)
-- `inventory`: **PARTIALLY_WORKING** (Mocked products, missing batches)
-- `distributors`: **COMPLETE_AND_REUSABLE** (Pending tenant tests)
-- `finance`: **COMPLETE_AND_REUSABLE**
-- `reports`: **PARTIALLY_WORKING** (Needs background jobs for large exports)
-- `devices`: **BROKEN / UI_ONLY**
-- `users`: **COMPLETE_AND_REUSABLE**
-- `products`: **COMPLETE_AND_REUSABLE**
-- `sync`: **MISSING** (Offline sync APIs not present)
-- `integrations`: **MISSING**
-- `notifications`: **MISSING**
+### 1. Account Creation, Signup, and Role Model (Section 5)
+*   **Classification:** `PARTIALLY_WORKING`
+*   **Gap:** Need to ensure seed data matches the strict "Bharat Foods Pvt Ltd" and "Raj Pharma Distributors" requirement.
 
-### `apps/web` (Frontend Dashboards)
-- **Super Admin**: **MISSING / PARTIALLY_WORKING** (Needs full tenant lifecycle management)
-- **Company Admin / Managers**: **UI_ONLY** (Many charts and lists use hardcoded mocked data rather than TanStack Query fetching from API)
-- **Distributor Portal**: **PARTIALLY_WORKING**
+### 2. Tenant Isolation & Hierarchy Security (Section 7)
+*   **Classification:** `COMPLETE_AND_REUSABLE`
+*   **Gap:** Backend guards and Mongoose hooks are fully operational.
 
-### `apps/field-pwa` (Mobile App)
-- **Offline Sync**: **UI_ONLY**
-- **Location Tracking**: **PARTIALLY_WORKING**
-- **Outlet 360**: **PARTIALLY_WORKING**
+### 3. Attendance State Machine (Section 9)
+*   **Classification:** `COMPLETE_AND_REUSABLE` (Backend) / `PARTIALLY_WORKING` (Frontend)
+*   **Gap:** Backend enforces `NOT_STARTED -> WORKING -> ENDED` and prevents duplicate Start Days. Need to ensure PWA offline Start Day creates signed local queued events.
 
-## Conclusion
-The project has a solid architectural foundation (React, NestJS, Mongoose) but suffers from "UI-only" implementations in critical paths. The immediate next step is to replace hardcoded data with real API controllers connected to the database schemas.
+### 4. Live Location (Section 10)
+*   **Classification:** `COMPLETE_AND_REUSABLE` (Backend) / `UI_ONLY` (Frontend Map)
+*   **Gap:** Need to ensure the Manager UI correctly interprets the `isMock` and `accuracy` flags we added to the backend.
+
+### 5. Geofencing and Outlet Visits (Section 11)
+*   **Classification:** `COMPLETE_AND_REUSABLE`
+*   **Gap:** Backend calculates distance server-side using Haversine formula and enforces 50m radius.
+
+### 6. Orders, GST, Pricing, and Approvals (Section 13)
+*   **Classification:** `COMPLETE_AND_REUSABLE`
+*   **Gap:** Pricing Engine automatically triggers Manager Approvals for overrides.
+
+### 7. Offline Synchronization (Section 13)
+*   **Classification:** `PARTIALLY_WORKING`
+*   **Gap:** Need to manually verify the Frontend Sync Engine handles Idempotency Keys without duplication.
