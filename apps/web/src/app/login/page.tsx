@@ -49,7 +49,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030914] flex items-center justify-center p-4 sm:p-8 font-sans relative overflow-hidden">
+    <div suppressHydrationWarning className="min-h-screen bg-[#030914] flex items-center justify-center p-4 sm:p-8 font-sans relative overflow-hidden">
       
       {/* Animated Mesh/Orb Background */}
       <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-indigo-900/40 blur-[120px] mix-blend-screen animate-pulse pointer-events-none" style={{ animationDuration: '8s' }}></div>

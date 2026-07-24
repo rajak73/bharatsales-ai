@@ -1,7 +1,7 @@
 import axios from 'axios';
 declare var process: any;
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || 'http://localhost:6002';
+const baseURL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || 'https://bharatsales-ai.onrender.com';
 
 export const apiClient = axios.create({
   baseURL,
