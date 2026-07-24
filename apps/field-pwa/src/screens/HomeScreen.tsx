@@ -15,7 +15,9 @@ export function HomeScreen() {
             const payload = JSON.parse(atob(token.split('.')[1]));
             userId = payload.sub;
           }
-        } catch (e) {}
+        } catch {
+          // ignore parsing error
+        }
 
         const myTarget = targets.find(t => t.entityType === 'User' && t.entityId === userId && t.period === 'Daily');
         if (myTarget) {

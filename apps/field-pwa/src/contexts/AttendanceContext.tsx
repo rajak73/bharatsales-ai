@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { AttendanceService } from '@bharatsales/api-client';
@@ -36,6 +37,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refreshSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   // Live Tracking Interval

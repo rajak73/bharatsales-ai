@@ -31,7 +31,7 @@ export function AttendanceScreen() {
           } else {
             await startDay(loc);
           }
-        } catch (err) {
+        } catch {
           setError('Failed to record attendance. Please try again.');
         } finally {
           setIsLocating(false);

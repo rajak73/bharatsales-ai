@@ -13,6 +13,8 @@ declare global {
   }
 }
 
+const EMPTY_PRODUCTS: any[] = [];
+
 export function VoiceOrderButton() {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -22,7 +24,7 @@ export function VoiceOrderButton() {
   
   const recognitionRef = useRef<any>(null);
   const { addToCartWithQuantity } = useCart();
-  const products = useLiveQuery(() => db.products.toArray(), []) ?? [];
+  const products = useLiveQuery(() => db.products.toArray(), []) ?? EMPTY_PRODUCTS;
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -59,6 +61,7 @@ export function VoiceOrderButton() {
         setIsListening(false);
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
 
   const toggleListening = () => {

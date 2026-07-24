@@ -80,7 +80,7 @@ export function OutletVisitScreen() {
     try {
       await VisitsService.checkOut(activeVisitId);
       navigate(-1);
-    } catch (err) {
+    } catch {
       setError('Failed to check out');
     }
   };

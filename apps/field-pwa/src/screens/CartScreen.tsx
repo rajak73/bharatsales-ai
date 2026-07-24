@@ -6,15 +6,19 @@ import { Trash2, Plus, Minus, CheckCircle2, ChevronLeft, Search, ArrowRight, Ima
 import type { Scheme } from '@bharatsales/shared-types';
 import { useNavigate } from 'react-router-dom';
 
+const EMPTY_OUTLETS: any[] = [];
+const EMPTY_DISTRIBUTORS: any[] = [];
+const EMPTY_SCHEMES: any[] = [];
+
 export function CartScreen() {
   const { cart, updateQuantity, clearCart } = useCart();
   const [selectedOutletId, setSelectedOutletId] = useState<string>('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const navigate = useNavigate();
   
-  const outlets = useLiveQuery(() => db.outlets.toArray(), []) ?? [];
-  const distributors = useLiveQuery(() => db.distributors.toArray(), []) ?? [];
-  const schemes = useLiveQuery(() => db.schemes.where('isActive').equals('true').toArray(), []) ?? [];
+  const outlets = useLiveQuery(() => db.outlets.toArray(), []) ?? EMPTY_OUTLETS;
+  const distributors = useLiveQuery(() => db.distributors.toArray(), []) ?? EMPTY_DISTRIBUTORS;
+  const schemes = useLiveQuery(() => db.schemes.where('isActive').equals('true').toArray(), []) ?? EMPTY_SCHEMES;
 
   // Default to first outlet if none selected (for testing UI, should normally let user pick)
   const currentOutletId = selectedOutletId || (outlets.length > 0 ? outlets[0].id : '');

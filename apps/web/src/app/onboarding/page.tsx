@@ -28,7 +28,8 @@ export default function OnboardingPage() {
       await OnboardingService.saveStep(currentStep, formData);
       setCurrentStep(Math.min(8, currentStep + 1));
     } catch (error) {
-      console.error('Failed to save step', error.response?.data || error.message);
+      const err = error as any;
+      console.error('Failed to save step', err.response?.data || err.message);
       alert('Failed to save step progress.');
     }
   };
