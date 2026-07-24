@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Onboarding Flow UI', () => {
+  test.beforeEach(async ({ page }) => { page.on('console', msg => console.log(msg.text())); });
   test('Company Admin can complete the onboarding wizard', async ({ page }) => {
     // 1. Login
     await page.goto('http://localhost:6003/login');

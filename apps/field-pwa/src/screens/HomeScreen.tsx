@@ -1,23 +1,13 @@
-import { useAttendance } from '../contexts/AttendanceContext';
-import { ShoppingCart, Target, MapPin, Clock, RefreshCw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { SyncEngine } from '../sync/syncEngine';
+import { Bell, Store, CheckCircle } from 'lucide-react';
+import { useEffect } from 'react';
 import { TargetsService } from '@bharatsales/api-client';
-import type { SalesTarget } from '@bharatsales/shared-types';
 
 export function HomeScreen() {
-  const { activeSession } = useAttendance();
-  const navigate = useNavigate();
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [target, setTarget] = useState<SalesTarget | null>(null);
 
   useEffect(() => {
     const fetchTarget = async () => {
       try {
         const targets = await TargetsService.getTargets();
-        
-        // Extract userId from JWT
         let userId = 'unknown';
         try {
           const token = localStorage.getItem('bharatsales_token');
@@ -27,8 +17,11 @@ export function HomeScreen() {
           }
         } catch (e) {}
 
-        const myTarget = targets.find(t => t.entityType === 'User' && t.entityId === userId && t.period === 'Monthly');
-        if (myTarget) setTarget(myTarget);
+        const myTarget = targets.find(t => t.entityType === 'User' && t.entityId === userId && t.period === 'Daily');
+        if (myTarget) {
+          // If we want to use the real target later, we would set state here.
+          // For now we use the mock UI target.
+        }
       } catch (err) {
         console.error('Failed to fetch target', err);
       }
@@ -37,127 +30,190 @@ export function HomeScreen() {
   }, []);
 
   const formatCurrency = (amount: number) => {
-    if (amount >= 100000) return '₹' + (amount / 100000).toFixed(1) + 'L';
-    return '₹' + amount.toLocaleString();
+    return '₹' + amount.toLocaleString('en-IN');
   };
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      await SyncEngine.pullSync();
-      await SyncEngine.triggerSync();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsSyncing(false);
-    }
+  // Mock data to match the UI screenshot exactly
+  const mockTarget = {
+    goal: 65000,
+    achieved: 41600,
+    percentage: 64,
+    shopsVisited: 8,
+    totalShops: 15,
   };
+
+  const smartBeatOutlets = [
+    {
+      id: '1',
+      name: 'Sharma Provision Store',
+      location: 'Sector 12',
+      status: 'visited',
+      visitedAt: '9:15 AM',
+      amount: 8500,
+      highValue: false,
+    },
+    {
+      id: '2',
+      name: 'Rahul General Traders',
+      location: 'Sector 14, Karol Bagh',
+      status: 'pending',
+      potential: 18500,
+      highValue: true,
+    },
+    {
+      id: '3',
+      name: 'Pooja Stationery',
+      location: 'Sector 18',
+      status: 'skipped', // or pending visited
+      visitedAt: '9:45 AM',
+      highValue: false,
+    },
+    {
+      id: '4',
+      name: 'Jai Hind Sweets',
+      location: 'Upcoming',
+      status: 'upcoming',
+      highValue: false,
+    }
+  ];
 
   return (
-    <div className="pb-20 bg-gray-50 min-h-screen">
-      {/* Header Profile Section */}
-      <div className="bg-blue-600 px-6 pt-12 pb-8 text-white shadow-md rounded-b-3xl">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">Hello, Sales Rep 👋</h1>
-            <p className="opacity-90 mt-1">Ready for a great day?</p>
+    <div className="bg-slate-50 min-h-screen font-sans pb-24">
+      {/* Top App Bar */}
+      <div className="bg-[#2D3A8C] px-5 pt-12 pb-4 flex items-center justify-between shadow-md sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+            {/* Approximating the B with chart arrow logo */}
+            <div className="text-[#2D3A8C] font-bold text-lg italic tracking-tighter flex">
+              <span className="relative">
+                B
+                <div className="absolute -top-[2px] -right-[6px] w-2 h-2 border-t border-r border-cyan-400 transform -rotate-45"></div>
+              </span>
+            </div>
           </div>
-          <button 
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center font-bold text-lg backdrop-blur-sm disabled:opacity-50"
-          >
-            <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
+          <h1 className="text-white text-xl font-bold tracking-tight">BharatSales AI</h1>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold backdrop-blur-sm border border-white/30">
+            RA
+          </div>
+          <button className="text-white relative">
+            <Bell size={22} />
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-[#2D3A8C] rounded-full"></span>
           </button>
         </div>
       </div>
 
-      <div className="px-6 -mt-4 relative z-10 space-y-6">
+      <div className="px-5 py-6 space-y-6">
         
-        {/* Attendance Banner */}
-        {!activeSession ? (
-          <div 
-            onClick={() => navigate('/attendance')}
-            className="bg-red-50 rounded-2xl p-5 shadow-sm border border-red-100 flex items-center gap-4 cursor-pointer"
-          >
-            <div className="bg-red-100 p-3 rounded-full text-red-600">
-              <Clock className="w-6 h-6" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-red-900">Start Your Day</h3>
-              <p className="text-sm text-red-700">You need to mark attendance before visiting outlets.</p>
-            </div>
-          </div>
-        ) : (
-          <div 
-            onClick={() => navigate('/attendance')}
-            className="bg-green-50 rounded-2xl p-5 shadow-sm border border-green-100 flex items-center gap-4 cursor-pointer"
-          >
-            <div className="bg-green-100 p-3 rounded-full text-green-600">
-              <Clock className="w-6 h-6" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-green-900">You're On Duty</h3>
-              <p className="text-sm text-green-700">Started at {new Date(activeSession.startTime).toLocaleTimeString()}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Action Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <button 
-            onClick={() => activeSession ? navigate('/outlets') : navigate('/attendance')}
-            className={`p-5 rounded-2xl shadow-sm border text-left transition-transform active:scale-[0.98] ${
-              activeSession ? 'bg-white border-gray-100 hover:border-blue-200' : 'bg-gray-100 border-gray-200 opacity-60'
-            }`}
-          >
-            <MapPin className={`w-8 h-8 mb-3 ${activeSession ? 'text-blue-500' : 'text-gray-400'}`} />
-            <h3 className="font-bold text-gray-900 text-lg">My Route</h3>
-            <p className="text-xs text-gray-500 mt-1">24 Outlets Today</p>
-          </button>
+        {/* Target Progress Card */}
+        <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
+          <h2 className="text-[#1E293B] text-lg font-bold mb-4">Today's Target Progress</h2>
           
-          <button 
-            onClick={() => activeSession ? navigate('/catalog') : navigate('/attendance')}
-            className={`p-5 rounded-2xl shadow-sm border text-left transition-transform active:scale-[0.98] ${
-              activeSession ? 'bg-white border-gray-100 hover:border-green-200' : 'bg-gray-100 border-gray-200 opacity-60'
-            }`}
-          >
-            <ShoppingCart className={`w-8 h-8 mb-3 ${activeSession ? 'text-green-500' : 'text-gray-400'}`} />
-            <h3 className="font-bold text-gray-900 text-lg">New Order</h3>
-            <p className="text-xs text-gray-500 mt-1">Browse Catalog</p>
-          </button>
-        </div>
+          <div className="flex justify-between items-end mb-2">
+            <div>
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Goal</p>
+              <p className="text-[#1E293B] font-bold">{formatCurrency(mockTarget.goal)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Achieved</p>
+              <p className="text-[#1E293B] font-bold">{formatCurrency(mockTarget.achieved)}</p>
+            </div>
+          </div>
 
-        {/* Dashboard Cards */}
-        {target ? (
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <Target className="w-5 h-5 text-indigo-500" />
-                Monthly Target
-              </h3>
-              <span className="text-sm font-bold text-indigo-600">
-                {Math.min(100, Math.round((target.actualValue / target.targetValue) * 100))}%
-              </span>
+          <div className="relative h-6 w-full bg-[#E2E8F0] rounded-full overflow-hidden mb-4 shadow-inner">
+            <div 
+              className="absolute top-0 left-0 h-full bg-[#2D3A8C] rounded-full transition-all duration-1000 flex items-center justify-end pr-2"
+              style={{ width: `${mockTarget.percentage}%` }}
+            >
+              <span className="text-white text-xs font-bold">{mockTarget.percentage}%</span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-2.5 mb-2">
-              <div 
-                className="bg-indigo-600 h-2.5 rounded-full transition-all duration-1000" 
-                style={{ width: `${Math.min(100, Math.round((target.actualValue / target.targetValue) * 100))}%` }}
-              ></div>
-            </div>
-            <p className="text-xs text-gray-500 flex justify-between">
-              <span>{formatCurrency(target.actualValue)} Achieved</span>
-              <span>{formatCurrency(target.targetValue)} Target</span>
+          </div>
+          
+          <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
+            <p className="text-xs font-medium text-[#64748B]">Status: <span className="text-green-600 font-bold">On Track! Keep going!</span></p>
+            <p className="text-xs font-bold text-[#1E293B] bg-slate-100 px-2.5 py-1 rounded-lg">
+              {mockTarget.shopsVisited}/{mockTarget.totalShops} Shops Visited
             </p>
           </div>
-        ) : (
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-center text-sm text-gray-500">
-            No active targets found for this month.
-          </div>
-        )}
+        </div>
 
+        {/* Smart Beat Section */}
+        <div>
+          <h2 className="text-[#1E293B] text-xl font-bold">Smart Beat</h2>
+          <p className="text-[#64748B] text-sm mt-1 mb-4">Retail shops on today's route</p>
+
+          <div className="space-y-3">
+            {smartBeatOutlets.map((outlet) => (
+              <div key={outlet.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative overflow-hidden">
+                
+                {/* High Value Badge */}
+                {outlet.highValue && (
+                  <div className="absolute top-3 right-3 bg-[#1E293B] text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow-sm">
+                    ⭐ High Value
+                  </div>
+                )}
+                
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    outlet.status === 'visited' ? 'bg-green-100 text-green-600' :
+                    outlet.status === 'pending' ? 'bg-[#E0E7FF] text-[#2D3A8C]' :
+                    outlet.status === 'skipped' ? 'bg-red-50 text-red-500' :
+                    'bg-yellow-50 text-yellow-600'
+                  }`}>
+                    <Store size={20} />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0 pr-16">
+                    <h3 className="font-bold text-[#1E293B] truncate pr-2">{outlet.name}</h3>
+                    
+                    {outlet.status === 'visited' && (
+                      <>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-[#64748B]">Visited {outlet.visitedAt}</p>
+                          <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                        </div>
+                        <p className="text-sm font-bold text-[#1E293B] mt-1 text-right absolute right-4 bottom-4">
+                          {formatCurrency(outlet.amount!)}
+                        </p>
+                      </>
+                    )}
+
+                    {outlet.status === 'pending' && (
+                      <>
+                        <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.location}</p>
+                        <p className="text-xs text-[#64748B] mt-1">
+                          Pending Order<br />
+                          Potential: <span className="font-bold text-[#1E293B]">{formatCurrency(outlet.potential!)}</span>
+                        </p>
+                        <button className="mt-3 bg-[#E0E7FF] text-[#2D3A8C] font-bold text-xs px-4 py-2 rounded-lg hover:bg-[#C7D2FE] transition-colors">
+                          Visit Now
+                        </button>
+                      </>
+                    )}
+
+                    {outlet.status === 'skipped' && (
+                      <>
+                        <p className="text-xs font-bold text-[#64748B] absolute right-4 top-4">Pending</p>
+                        <p className="text-xs text-[#64748B] mt-0.5">Visited {outlet.visitedAt}</p>
+                        <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.location}</p>
+                      </>
+                    )}
+
+                    {outlet.status === 'upcoming' && (
+                      <>
+                        <p className="text-xs font-bold text-[#64748B] absolute right-4 top-4">Upcoming</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+

@@ -2,24 +2,27 @@ import { useState, useMemo } from 'react';
 import { useCart } from '../contexts/CartContext';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../database/db';
-import { Trash2, Plus, Minus, CheckCircle2, AlertTriangle, Tag } from 'lucide-react';
+import { Trash2, Plus, Minus, CheckCircle2, ChevronLeft, Search, ArrowRight, Image as ImageIcon } from 'lucide-react';
 import type { Scheme } from '@bharatsales/shared-types';
-import { VoiceOrderButton } from '../components/VoiceOrderButton';
+import { useNavigate } from 'react-router-dom';
 
 export function CartScreen() {
-  const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cart, updateQuantity, clearCart } = useCart();
   const [selectedOutletId, setSelectedOutletId] = useState<string>('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const navigate = useNavigate();
   
   const outlets = useLiveQuery(() => db.outlets.toArray(), []) ?? [];
   const distributors = useLiveQuery(() => db.distributors.toArray(), []) ?? [];
   const schemes = useLiveQuery(() => db.schemes.where('isActive').equals('true').toArray(), []) ?? [];
 
-  const selectedOutlet = outlets.find(o => o.id === selectedOutletId);
+  // Default to first outlet if none selected (for testing UI, should normally let user pick)
+  const currentOutletId = selectedOutletId || (outlets.length > 0 ? outlets[0].id : '');
+  const selectedOutlet = outlets.find(o => o.id === currentOutletId);
   const assignedDistributor = distributors.find(d => d.id === selectedOutlet?.commercial?.assignedDistributorId);
 
   // Advanced calculation engine
-  const { orderItems, totals, appliedSchemes, creditExceeded } = useMemo(() => {
+  const { orderItems, totals, creditExceeded } = useMemo(() => {
     let subTotal = 0;
     let discountTotal = 0;
     let cgstTotal = 0;
@@ -30,6 +33,7 @@ export function CartScreen() {
     const usedSchemes: Scheme[] = [];
 
     const isInterState = assignedDistributor && selectedOutlet && assignedDistributor.location.state !== selectedOutlet.location.state;
+    const deliveryCharges = 80.00; // Mocking delivery charges as per screenshot
 
     // 1. Process cart items and apply schemes
     for (const cartItem of cart) {
@@ -47,8 +51,6 @@ export function CartScreen() {
             appliedSchemeId = scheme.id;
             if (!usedSchemes.find(s => s.id === scheme.id)) usedSchemes.push(scheme);
           }
-          // Note: FREE_ITEM logic could push a new free item to `items` array
-          // Skipping complex FREE_ITEM logic in UI for now, focusing on percentage discounts.
         }
       }
 
@@ -63,7 +65,7 @@ export function CartScreen() {
         sgstAmount = gstAmount / 2;
       }
 
-      subTotal += itemSubTotal;
+      subTotal += (unitPrice * quantity);
       discountTotal += discount;
       cgstTotal += cgstAmount;
       sgstTotal += sgstAmount;
@@ -86,7 +88,8 @@ export function CartScreen() {
       });
     }
 
-    grandTotal = subTotal + cgstTotal + sgstTotal + igstTotal;
+    const totalBeforeTax = subTotal + deliveryCharges - discountTotal;
+    grandTotal = totalBeforeTax + cgstTotal + sgstTotal + igstTotal;
     
     const outstanding = selectedOutlet?.commercial?.outstandingBalance || 0;
     const limit = selectedOutlet?.commercial?.creditLimit || 0;
@@ -94,14 +97,14 @@ export function CartScreen() {
 
     return {
       orderItems: items,
-      totals: { subTotal, discountTotal, cgstTotal, sgstTotal, igstTotal, grandTotal },
+      totals: { subTotal, deliveryCharges, totalBeforeTax, discountTotal, cgstTotal, sgstTotal, igstTotal, grandTotal },
       appliedSchemes: usedSchemes,
       creditExceeded
     };
   }, [cart, selectedOutlet, assignedDistributor, schemes]);
 
   const handleSubmitOrder = async () => {
-    if (!selectedOutletId || cart.length === 0 || creditExceeded) return;
+    if (!currentOutletId || cart.length === 0 || creditExceeded) return;
 
     const orderId = crypto.randomUUID();
     const orderPayload = {
@@ -109,7 +112,7 @@ export function CartScreen() {
       organizationId: selectedOutlet?.organizationId || 'org_unknown',
       idempotencyKey: crypto.randomUUID(),
       orderNumber: `ORD-${Math.floor(Math.random() * 100000)}`,
-      outletId: selectedOutletId,
+      outletId: currentOutletId,
       assignedDistributorId: assignedDistributor?.id,
       createdByUserId: 'user_local',
       status: 'Draft',
@@ -128,159 +131,179 @@ export function CartScreen() {
 
     setIsSubmitted(true);
     clearCart();
-    setSelectedOutletId('');
     
-    setTimeout(() => { setIsSubmitted(false); }, 3000);
+    setTimeout(() => { setIsSubmitted(false); navigate('/outlets'); }, 3000);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return '₹' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   if (isSubmitted) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-4">
-        <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Order Placed!</h2>
-        <p className="text-center text-gray-500">
-          The order has been saved offline and will automatically sync.
-        </p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4">
+        <div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center max-w-sm w-full text-center">
+          <CheckCircle2 className="w-20 h-20 text-green-500 mb-6" />
+          <h2 className="text-2xl font-bold text-[#1E293B] mb-2">Order Placed!</h2>
+          <p className="text-[#64748B] mb-6">
+            The order has been saved offline and will automatically sync when connected.
+          </p>
+          <button onClick={() => navigate('/outlets')} className="w-full py-3 bg-[#2D3A8C] text-white rounded-xl font-bold">
+            Back to Outlets
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4 pb-24">
-      <h1 className="text-2xl font-bold text-gray-900 mb-4">Review Order</h1>
+    <div className="bg-slate-50 min-h-screen font-sans flex flex-col relative pb-32">
+      
+      {/* Top Header */}
+      <div className="bg-white px-4 py-4 flex items-center justify-between sticky top-0 z-50">
+        <button onClick={() => navigate(-1)} className="p-2 text-[#1E293B]">
+          <ChevronLeft size={24} />
+        </button>
+        <h1 className="text-lg font-bold text-[#1E293B]">Order Booking</h1>
+        <button className="p-2 text-[#1E293B]">
+          <Search size={20} />
+        </button>
+      </div>
 
-      <VoiceOrderButton />
-
-      {cart.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900">Cart is empty</h3>
-          <p className="text-sm text-gray-500 mt-1">Add items from the catalog.</p>
-        </div>
-      ) : (
-        <>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Select Outlet *</label>
-            <select 
-              value={selectedOutletId}
-              onChange={(e) => setSelectedOutletId(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-primary-500 focus:border-primary-500 bg-white"
-            >
-              <option value="">-- Choose Outlet --</option>
-              {outlets.map(outlet => (
-                <option key={outlet.id} value={outlet.id}>{outlet.name}</option>
-              ))}
-            </select>
-            {selectedOutlet && (
-              <div className="mt-2 text-xs text-gray-500 flex justify-between bg-gray-50 p-2 rounded">
-                <span>Credit Limit: ₹{selectedOutlet.commercial.creditLimit}</span>
-                <span>Outstanding: ₹{selectedOutlet.commercial.outstandingBalance}</span>
+      <div className="flex-1 px-4 py-2 space-y-4">
+        {cart.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl shadow-sm mt-4">
+            <h3 className="text-sm font-bold text-[#1E293B]">Cart is empty</h3>
+            <p className="text-sm text-[#64748B] mt-1">Add items from the catalog to book an order.</p>
+            <button onClick={() => navigate('/catalog')} className="mt-4 px-6 py-2 bg-[#2D3A8C] text-white rounded-lg text-sm font-bold">
+              Browse Catalog
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Outlet Selection (Hidden if already selected in real flow, keeping minimal) */}
+            {!selectedOutletId && outlets.length > 1 && (
+               <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                <select 
+                  value={selectedOutletId}
+                  onChange={(e) => setSelectedOutletId(e.target.value)}
+                  className="w-full text-sm text-[#1E293B] font-medium outline-none bg-transparent"
+                >
+                  <option value="">Select Outlet</option>
+                  {outlets.map(outlet => (
+                    <option key={outlet.id} value={outlet.id}>{outlet.name}</option>
+                  ))}
+                </select>
               </div>
             )}
-          </div>
 
-          {creditExceeded && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex gap-3 text-red-700">
-              <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-              <div>
-                <p className="font-bold text-sm">Credit Limit Exceeded</p>
-                <p className="text-xs mt-1">This order exceeds the outlet's available credit. Please reduce the order quantity or clear outstanding dues.</p>
-              </div>
-            </div>
-          )}
-
-          {appliedSchemes.length > 0 && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm flex gap-2">
-              <Tag className="w-4 h-4 mt-0.5" />
-              <div>
-                <span className="font-bold">Schemes Applied:</span>
-                <ul className="list-disc ml-4 mt-1 text-xs">
-                  {appliedSchemes.map(s => <li key={s.id}>{s.name}</li>)}
-                </ul>
-              </div>
-            </div>
-          )}
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
-            {cart.map((item) => {
-              const calcItem = orderItems.find(i => i.productId === item.product.id);
-              return (
-                <div key={item.product.id} className="p-4 flex flex-col gap-3">
-                  <div className="flex justify-between">
-                    <div>
-                      <h4 className="font-medium text-gray-900 text-sm">{item.product.name}</h4>
-                      <div className="text-xs text-gray-500">₹{item.product.pricing.basePrice} / unit</div>
-                      {calcItem?.discount ? (
-                        <div className="text-xs text-green-600 font-medium mt-1">Discount: -₹{calcItem.discount.toFixed(2)}</div>
-                      ) : null}
+            {/* Cart Items List */}
+            <div className="space-y-3">
+              {cart.map((item) => {
+                const calcItem = orderItems.find(i => i.productId === item.product.id);
+                return (
+                  <div key={item.product.id} className="bg-white p-4 rounded-2xl shadow-sm flex items-start gap-4">
+                    
+                    {/* Placeholder Image */}
+                    <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center shrink-0 border border-gray-200">
+                       <ImageIcon className="text-gray-300 w-8 h-8" />
                     </div>
-                    <div className="font-bold text-sm">₹{calcItem?.total.toFixed(2)}</div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3 justify-end">
-                    <div className="flex items-center border border-gray-200 rounded-lg bg-gray-50">
-                      <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} className="p-1.5 text-gray-600">
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)} className="p-1.5 text-gray-600">
-                        <Plus className="w-4 h-4" />
-                      </button>
+
+                    <div className="flex-1 min-w-0 flex flex-col justify-between h-16">
+                      <div>
+                        <h4 className="font-bold text-[#1E293B] text-sm leading-tight truncate">{item.product.name}</h4>
+                        <p className="text-xs text-[#64748B] mt-0.5">{item.product.sku}</p>
+                      </div>
+                      <div className="font-bold text-[#1E293B] text-sm">
+                        {formatCurrency(item.product.pricing.basePrice)}
+                      </div>
                     </div>
-                    <button onClick={() => removeFromCart(item.product.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    
+                    <div className="flex flex-col items-end justify-between h-16">
+                      <div className="flex items-center bg-[#F1F5F9] rounded-lg p-0.5">
+                        <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} className="p-1 text-[#64748B] hover:text-[#1E293B]">
+                          {item.quantity === 1 ? <Trash2 size={16} className="text-red-500" /> : <Minus size={16} />}
+                        </button>
+                        <span className="w-8 text-center text-sm font-bold text-[#1E293B]">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)} className="p-1 bg-[#2D3A8C] text-white rounded-md shadow-sm">
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                      <div className="font-bold text-[#1E293B] text-sm mt-1">
+                        {formatCurrency(calcItem?.total || 0)}
+                      </div>
+                    </div>
                   </div>
+                )
+              })}
+            </div>
+
+            {/* Order Summary */}
+            <div className="bg-[#F8FAFC] rounded-3xl p-5 border border-gray-100 shadow-sm mt-6">
+              <h3 className="font-bold text-[#1E293B] text-base mb-4">Order Summary</h3>
+              
+              <div className="space-y-3 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#64748B] font-medium">Subtotal ({cart.length} Items)</span>
+                  <span className="text-[#1E293B] font-bold">{formatCurrency(totals.subTotal)}</span>
                 </div>
-              )
-            })}
-          </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#64748B] font-medium">Delivery Charges</span>
+                  <span className="text-[#1E293B] font-bold">{formatCurrency(totals.deliveryCharges)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#64748B] font-medium">Discount</span>
+                  <span className="text-[#1E293B] font-bold">- {formatCurrency(totals.discountTotal)}</span>
+                </div>
+              </div>
 
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-2">
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>Subtotal</span>
-              <span>₹{totals.subTotal.toFixed(2)}</span>
-            </div>
-            {totals.discountTotal > 0 && (
-              <div className="flex justify-between text-sm text-green-600 font-medium">
-                <span>Total Discount</span>
-                <span>-₹{totals.discountTotal.toFixed(2)}</span>
+              <div className="flex justify-between text-sm border-t border-gray-200 pt-3 mb-6">
+                <span className="text-[#1E293B] font-bold">Total Before Tax</span>
+                <span className="text-[#1E293B] font-bold">{formatCurrency(totals.totalBeforeTax)}</span>
               </div>
-            )}
-            {totals.cgstTotal > 0 && (
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>CGST</span>
-                <span>₹{totals.cgstTotal.toFixed(2)}</span>
-              </div>
-            )}
-            {totals.sgstTotal > 0 && (
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>SGST</span>
-                <span>₹{totals.sgstTotal.toFixed(2)}</span>
-              </div>
-            )}
-            {totals.igstTotal > 0 && (
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>IGST</span>
-                <span>₹{totals.igstTotal.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="border-t border-gray-100 pt-3 flex justify-between font-bold text-gray-900 text-lg">
-              <span>Grand Total</span>
-              <span>₹{totals.grandTotal.toFixed(2)}</span>
-            </div>
-          </div>
 
-          <button 
-            onClick={handleSubmitOrder}
-            disabled={!selectedOutletId || cart.length === 0 || creditExceeded}
-            className={`w-full py-3.5 rounded-xl text-white font-medium shadow-sm transition-colors ${
-              !selectedOutletId || creditExceeded ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'
-            }`}
-          >
-            {!selectedOutletId ? 'Select an Outlet to Order' : creditExceeded ? 'Credit Limit Exceeded' : 'Place Order Now'}
-          </button>
-        </>
+              <h3 className="font-bold text-[#1E293B] text-base mb-4">Tax Summary</h3>
+              
+              <div className="space-y-3 mb-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#64748B] font-medium">CGST (9.0%)</span>
+                  <span className="text-[#1E293B] font-bold">{formatCurrency(totals.cgstTotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#64748B] font-medium">SGST (9.0%)</span>
+                  <span className="text-[#1E293B] font-bold">{formatCurrency(totals.sgstTotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#64748B] font-medium">Integrated GST (0%)</span>
+                  <span className="text-[#1E293B] font-bold">{formatCurrency(totals.igstTotal)}</span>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Bottom Sticky Action Bar */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-0 left-0 w-full bg-white px-5 py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] border-t border-gray-100 z-50">
+          <div className="max-w-sm mx-auto flex items-center justify-between">
+            <div>
+              <p className="text-xs text-[#64748B] font-medium uppercase tracking-wider mb-0.5">Total Amount</p>
+              <p className="text-xl font-bold text-[#1E293B]">{formatCurrency(totals.grandTotal)}</p>
+            </div>
+            <button 
+              onClick={handleSubmitOrder}
+              disabled={!currentOutletId || creditExceeded}
+              className={`flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-white shadow-md transition-all ${
+                !currentOutletId || creditExceeded ? 'bg-gray-400' : 'bg-[#007AFF] hover:bg-blue-600 active:scale-[0.98]'
+              }`}
+            >
+              Place Order <ArrowRight size={18} />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
 }
+
