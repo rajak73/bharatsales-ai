@@ -23,6 +23,7 @@ function ProfileScreen() {
   
   const handleAddFakeAction = async () => {
     await db.syncQueue.add({
+      id: Date.now(),
       action: 'UPDATE_OUTLET',
       status: 'PENDING',
       createdAt: Date.now(),

@@ -36,7 +36,7 @@ export function CartScreen() {
     const items = [];
     const usedSchemes: Scheme[] = [];
 
-    const isInterState = assignedDistributor && selectedOutlet && assignedDistributor.location.state !== selectedOutlet.location.state;
+    const isInterState = assignedDistributor && selectedOutlet && assignedDistributor.location?.state !== selectedOutlet.location?.state;
     const deliveryCharges = 80.00; // Mocking delivery charges as per screenshot
 
     // 1. Process cart items and apply schemes
