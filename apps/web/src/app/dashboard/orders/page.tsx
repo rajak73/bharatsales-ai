@@ -4,7 +4,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { OrdersService, InvoicesService } from '@bharatsales/api-client';
 import { Order, OrderLineItem } from '@bharatsales/shared-types';
-import { Loader2, ShoppingCart, Search, FileText, ChevronRight, X, Check } from 'lucide-react';
+import { Loader2 as _Loader2, ShoppingCart as _ShoppingCart, Search as _Search, FileText as _FileText, ChevronRight as _ChevronRight, X as _X, Check as _Check } from 'lucide-react';
+const Loader2 = _Loader2 as any;
+const ShoppingCart = _ShoppingCart as any;
+const Search = _Search as any;
+const FileText = _FileText as any;
+const ChevronRight = _ChevronRight as any;
+const X = _X as any;
+const Check = _Check as any;
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
