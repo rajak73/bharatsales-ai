@@ -46,6 +46,7 @@ import { SyncModule } from './sync/sync.module';
 import { ClaimsModule } from './claims/claims.module';
 import { SuperadminModule } from './superadmin/superadmin.module';
 import { ExportsModule } from './exports/exports.module';
+import { DevicesModule } from './devices/devices.module';
 import { BullModule } from '@nestjs/bull';
 
 @Module({
@@ -136,6 +137,7 @@ import { BullModule } from '@nestjs/bull';
     ClaimsModule,
     SuperadminModule,
     ExportsModule,
+    DevicesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
