@@ -5,6 +5,7 @@ import { getConnectionToken } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import { AppModule } from '../app.module';
 import mongoose from 'mongoose';
+import { execSync } from 'child_process';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
@@ -19,8 +20,9 @@ describe('AuthController (e2e)', () => {
     app = moduleFixture.createNestApplication();
     await app.init();
     connection = app.get<Connection>(getConnectionToken());
-    await connection.collection('tokens').deleteMany({});
-    await connection.collection('sessions').deleteMany({});
+    
+    // Completely reset database to seed state
+    execSync('npx ts-node src/seed.ts', { stdio: 'ignore' });
   });
 
   afterAll(async () => {

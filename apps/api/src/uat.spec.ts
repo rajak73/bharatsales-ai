@@ -5,6 +5,7 @@ import { AppModule } from '../src/app.module';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
+import { execSync } from 'child_process';
 
 describe('UAT-01 & UAT-11 Validation (e2e)', () => {
   let app: INestApplication;
@@ -26,6 +27,9 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
 
     connection = app.get<Connection>(getConnectionToken());
     jwtService = app.get<JwtService>(JwtService);
+
+    // Completely reset database to seed state
+    execSync('npx ts-node src/seed.ts', { stdio: 'ignore' });
 
     // Fetch tenant IDs
     const tenants = await connection.collection('tenants').find({}).toArray();
