@@ -71,7 +71,7 @@ export default function DashboardPage() {
   const maxOrders = dashboardData ? Math.max(...dashboardData.salesData.map((d: any) => d.orders)) : 10;
 
   return (
-    <div className="text-white font-sans w-full max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[#0B1120] text-white p-6 -m-6 sm:-m-8 lg:-m-8 rounded-tl-3xl font-sans">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">

@@ -91,48 +91,48 @@ export default function ProductsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Products</h1>
-          <p className="text-gray-400">Product master, pricing & inventory • {filteredProducts.length} products found</p>
+          <h1 className="text-2xl font-bold text-gray-900">Products</h1>
+          <p className="text-gray-500">Product master, pricing & inventory • {filteredProducts.length} products found</p>
         </div>
         <div className="flex space-x-3">
-          <button className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white transition-all">📥 Import</button>
-          <button className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white transition-all">📤 Export</button>
-          <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-cyan-600/20 border border-cyan-500/30 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)] rounded-lg text-sm font-medium hover:bg-cyan-600/30 transition-all">+ Add Product</button>
+          <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">📥 Import</button>
+          <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">📤 Export</button>
+          <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">+ Add Product</button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white/5 p-4 rounded-xl border border-white/10 shadow-sm text-center backdrop-blur-md">
-          <div className="text-2xl font-bold text-white">{products.length}</div>
-          <div className="text-sm text-gray-400">Total SKUs</div>
+        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
+          <div className="text-2xl font-bold text-gray-900">{products.length}</div>
+          <div className="text-sm text-gray-500">Total SKUs</div>
         </div>
-        <div className="bg-white/5 p-4 rounded-xl border border-white/10 shadow-sm text-center backdrop-blur-md">
-          <div className="text-2xl font-bold text-green-400">{products.filter(p => p.status === 'Active').length}</div>
-          <div className="text-sm text-gray-400">Active</div>
+        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
+          <div className="text-2xl font-bold text-green-600">{products.filter(p => p.status === 'Active').length}</div>
+          <div className="text-sm text-gray-500">Active</div>
         </div>
-        <div className="bg-white/5 p-4 rounded-xl border border-white/10 shadow-sm text-center backdrop-blur-md">
-          <div className="text-2xl font-bold text-yellow-400">{products.filter(p => (p.stock?.available || 0) > 0 && (p.stock?.available || 0) < 50).length}</div>
-          <div className="text-sm text-gray-400">Low Stock</div>
+        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
+          <div className="text-2xl font-bold text-yellow-600">{products.filter(p => (p.stock?.available || 0) > 0 && (p.stock?.available || 0) < 50).length}</div>
+          <div className="text-sm text-gray-500">Low Stock</div>
         </div>
-        <div className="bg-white/5 p-4 rounded-xl border border-white/10 shadow-sm text-center backdrop-blur-md">
-          <div className="text-2xl font-bold text-red-400">{products.filter(p => (p.stock?.available || 0) === 0).length}</div>
-          <div className="text-sm text-gray-400">Out of Stock</div>
+        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
+          <div className="text-2xl font-bold text-red-600">{products.filter(p => (p.stock?.available || 0) === 0).length}</div>
+          <div className="text-sm text-gray-500">Out of Stock</div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white/5 p-4 rounded-xl border border-white/10 shadow-sm backdrop-blur-md">
+      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
         <div className="flex flex-wrap gap-4">
           <input
             type="text"
             placeholder="Search products..."
-            className="px-3 py-2 border border-white/10 bg-black/20 text-white placeholder-gray-500 rounded-lg text-sm w-64 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-64"
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
           />
           <select
-            className="px-3 py-2 border border-white/10 bg-[#0B1120] text-gray-300 rounded-lg text-sm w-40 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-40"
             value={categoryFilter}
             onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
           >
@@ -141,7 +141,7 @@ export default function ProductsPage() {
             ))}
           </select>
           <select
-            className="px-3 py-2 border border-white/10 bg-[#0B1120] text-gray-300 rounded-lg text-sm w-40 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-40"
             value={brandFilter}
             onChange={(e) => { setBrandFilter(e.target.value); setCurrentPage(1); }}
           >
@@ -161,11 +161,11 @@ export default function ProductsPage() {
       </div>
 
       {/* Products Table */}
-      <div className="bg-white/5 rounded-xl border border-white/10 shadow-sm overflow-hidden p-0 backdrop-blur-md">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-white/5 border-b border-white/10">
-              <tr className="text-left text-gray-400">
+            <thead className="bg-gray-50">
+              <tr className="text-left text-gray-500">
                 <th className="px-6 py-4 font-medium">SKU</th>
                 <th className="px-6 py-4 font-medium">Product</th>
                 <th className="px-6 py-4 font-medium">Brand</th>
@@ -187,16 +187,16 @@ export default function ProductsPage() {
                 </tr>
               ) : paginatedProducts.length > 0 ? (
                 paginatedProducts.map((p) => (
-                  <tr key={p.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 font-medium text-cyan-400">{p.sku}</td>
-                    <td className="px-6 py-4 text-white font-medium">{p.name}</td>
-                    <td className="px-6 py-4 text-gray-400">{p.brand}</td>
-                    <td className="px-6 py-4 text-gray-400">{p.category}</td>
-                    <td className="px-6 py-4 text-gray-400">₹{p.pricing?.mrp || 0}</td>
-                    <td className="px-6 py-4 font-medium text-white">₹{p.pricing?.ptr || 0}</td>
-                    <td className="px-6 py-4 font-medium text-white">₹{p.pricing?.pts || 0}</td>
-                    <td className="px-6 py-4 text-gray-400">{p.pricing?.gstPercentage || 0}%</td>
-                    <td className="px-6 py-4 text-gray-400">{p.stock?.available || 0} {p.stock?.uom || ''}</td>
+                  <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="px-6 py-4 font-medium text-primary-600">{p.sku}</td>
+                    <td className="px-6 py-4 text-gray-900 font-medium">{p.name}</td>
+                    <td className="px-6 py-4 text-gray-600">{p.brand}</td>
+                    <td className="px-6 py-4 text-gray-600">{p.category}</td>
+                    <td className="px-6 py-4 text-gray-600">₹{p.pricing?.mrp || 0}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">₹{p.pricing?.ptr || 0}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">₹{p.pricing?.pts || 0}</td>
+                    <td className="px-6 py-4 text-gray-600">{p.pricing?.gstPercentage || 0}%</td>
+                    <td className="px-6 py-4 text-gray-600">{p.stock?.available || 0} {p.stock?.uom || ''}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
                         p.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'

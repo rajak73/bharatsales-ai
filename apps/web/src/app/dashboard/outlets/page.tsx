@@ -72,17 +72,17 @@ export default function OutletsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Outlets</h1>
-          <p className="text-gray-400 text-sm mt-1">Manage your retail store network across all territories.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Outlets</h1>
+          <p className="text-gray-500 text-sm mt-1">Manage your retail store network across all territories.</p>
         </div>
-        <button className="px-4 py-2 bg-cyan-600/20 border border-cyan-500/30 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)] rounded-lg text-sm font-medium hover:bg-cyan-600/30 transition-all flex items-center">
+        <Button>
           <Plus className="w-4 h-4 mr-2" />
           Add Outlet
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-xl backdrop-blur-md shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-white/10">
+      <Card>
+        <div className="p-4 border-b border-gray-100">
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
             <input
@@ -90,7 +90,7 @@ export default function OutletsPage() {
               placeholder="Search outlets by name or owner..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 w-full rounded-lg border-white/10 bg-black/20 text-white placeholder-gray-500 focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm h-10 border outline-none"
+              className="pl-10 w-full rounded-lg border-gray-200 focus:border-primary-500 focus:ring-primary-500 sm:text-sm h-10 border"
             />
           </div>
         </div>
@@ -101,60 +101,60 @@ export default function OutletsPage() {
           </div>
         ) : filteredOutlets.length === 0 ? (
           <div className="text-center py-12">
-            <Store className="mx-auto h-12 w-12 text-gray-600" />
-            <h3 className="mt-2 text-sm font-semibold text-white">No outlets found</h3>
-            <p className="mt-1 text-sm text-gray-400">Get started by creating a new outlet.</p>
-            <div className="mt-6 flex justify-center">
-              <button className="px-4 py-2 bg-cyan-600/20 border border-cyan-500/30 text-cyan-400 rounded-lg text-sm font-medium hover:bg-cyan-600/30 transition-all flex items-center">
+            <Store className="mx-auto h-12 w-12 text-gray-300" />
+            <h3 className="mt-2 text-sm font-semibold text-gray-900">No outlets found</h3>
+            <p className="mt-1 text-sm text-gray-500">Get started by creating a new outlet.</p>
+            <div className="mt-6">
+              <Button>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Outlet
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10">
-              <thead className="bg-white/5 border-b border-white/10">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Store</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Location</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="bg-white divide-y divide-gray-200">
                 {filteredOutlets.map((outlet) => (
-                  <tr key={outlet.id} className="hover:bg-white/5 transition-colors">
+                  <tr key={outlet.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="h-10 w-10 flex-shrink-0 bg-cyan-500/10 border border-cyan-500/20 rounded-lg flex items-center justify-center">
-                          <Store className="h-5 w-5 text-cyan-400" />
+                        <div className="h-10 w-10 flex-shrink-0 bg-primary-100 rounded-lg flex items-center justify-center">
+                          <Store className="h-5 w-5 text-primary-600" />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-white">{outlet.name}</div>
-                          <div className="text-sm text-gray-400">ID: {(outlet.id || (outlet as any)._id || '------').slice(-6).toUpperCase()}</div>
+                          <div className="text-sm font-medium text-gray-900">{outlet.name}</div>
+                          <div className="text-sm text-gray-500">ID: {(outlet.id || (outlet as any)._id || '------').slice(-6).toUpperCase()}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-300 flex items-center">
-                        <MapPin className="w-4 h-4 mr-1 text-cyan-400" />
+                      <div className="text-sm text-gray-900 flex items-center">
+                        <MapPin className="w-4 h-4 mr-1 text-gray-400" />
                         {outlet.location?.latitude?.toFixed(4) ?? '0.0000'}, {outlet.location?.longitude?.toFixed(4) ?? '0.0000'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-300 flex items-center">
+                      <div className="text-sm text-gray-900 flex items-center">
                         {outlet.mobile ? (
                           <><Phone className="w-4 h-4 mr-1 text-gray-400" />{outlet.mobile}</>
                         ) : (
-                          <span className="text-gray-500 italic">No mobile</span>
+                          <span className="text-gray-400 italic">No mobile</span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-400 flex flex-col gap-1">
+                      <div className="text-sm text-gray-500 flex flex-col gap-1">
                         <span>{outlet.ownerName || 'Unknown Owner'}</span>
                         {outlet.commercial?.assignedDistributorId && (
-                          <span className="text-xs bg-white/10 text-gray-300 px-2 py-0.5 rounded-full inline-block w-fit">
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block w-fit">
                             Distributor: {distributors.find(d => (d.id || (d as any)._id) === outlet.commercial?.assignedDistributorId)?.name || outlet.commercial?.assignedDistributorId}
                           </span>
                         )}
@@ -174,11 +174,11 @@ export default function OutletsPage() {
                           setSelectedDistributorId(outlet.commercial?.assignedDistributorId || '');
                           setAssignModalOpen(true);
                         }}
-                        className="text-cyan-400 hover:text-cyan-300 mr-4 text-xs font-medium"
+                        className="text-primary-600 hover:text-primary-900 mr-4 text-xs font-medium"
                       >
                         Assign Distributor
                       </button>
-                      <button className="text-gray-500 hover:text-white">
+                      <button className="text-gray-400 hover:text-gray-600">
                         <MoreVertical className="w-5 h-5 inline-block" />
                       </button>
                     </td>
@@ -188,7 +188,7 @@ export default function OutletsPage() {
             </table>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Assign Distributor Modal */}
       {assignModalOpen && selectedOutlet && (
