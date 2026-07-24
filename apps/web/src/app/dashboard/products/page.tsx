@@ -112,11 +112,11 @@ export default function ProductsPage() {
           <div className="text-sm text-gray-500">Active</div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
-          <div className="text-2xl font-bold text-yellow-600">{products.filter(p => p.stock.available > 0 && p.stock.available < 50).length}</div>
+          <div className="text-2xl font-bold text-yellow-600">{products.filter(p => (p.stock?.available || 0) > 0 && (p.stock?.available || 0) < 50).length}</div>
           <div className="text-sm text-gray-500">Low Stock</div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
-          <div className="text-2xl font-bold text-red-600">{products.filter(p => p.stock.available === 0).length}</div>
+          <div className="text-2xl font-bold text-red-600">{products.filter(p => (p.stock?.available || 0) === 0).length}</div>
           <div className="text-sm text-gray-500">Out of Stock</div>
         </div>
       </div>
@@ -192,11 +192,11 @@ export default function ProductsPage() {
                     <td className="px-6 py-4 text-gray-900 font-medium">{p.name}</td>
                     <td className="px-6 py-4 text-gray-600">{p.brand}</td>
                     <td className="px-6 py-4 text-gray-600">{p.category}</td>
-                    <td className="px-6 py-4 text-gray-600">₹{p.pricing.mrp}</td>
-                    <td className="px-6 py-4 font-medium text-gray-900">₹{p.pricing.ptr}</td>
-                    <td className="px-6 py-4 font-medium text-gray-900">₹{p.pricing.pts}</td>
-                    <td className="px-6 py-4 text-gray-600">{p.pricing.gstPercentage}%</td>
-                    <td className="px-6 py-4 text-gray-600">{p.stock.available} {p.stock.uom}</td>
+                    <td className="px-6 py-4 text-gray-600">₹{p.pricing?.mrp || 0}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">₹{p.pricing?.ptr || 0}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">₹{p.pricing?.pts || 0}</td>
+                    <td className="px-6 py-4 text-gray-600">{p.pricing?.gstPercentage || 0}%</td>
+                    <td className="px-6 py-4 text-gray-600">{p.stock?.available || 0} {p.stock?.uom || ''}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
                         p.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'

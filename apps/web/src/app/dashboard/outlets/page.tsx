@@ -133,7 +133,7 @@ export default function OutletsPage() {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{outlet.name}</div>
-                          <div className="text-sm text-gray-500">ID: {outlet.id.slice(-6).toUpperCase()}</div>
+                          <div className="text-sm text-gray-500">ID: {(outlet.id || (outlet as any)._id || '------').slice(-6).toUpperCase()}</div>
                         </div>
                       </div>
                     </td>
@@ -155,7 +155,7 @@ export default function OutletsPage() {
                         <span>{outlet.ownerName || 'Unknown Owner'}</span>
                         {outlet.commercial?.assignedDistributorId && (
                           <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block w-fit">
-                            Distributor: {distributors.find(d => d.id === outlet.commercial?.assignedDistributorId)?.name || outlet.commercial?.assignedDistributorId}
+                            Distributor: {distributors.find(d => (d.id || (d as any)._id) === outlet.commercial?.assignedDistributorId)?.name || outlet.commercial?.assignedDistributorId}
                           </span>
                         )}
                       </div>

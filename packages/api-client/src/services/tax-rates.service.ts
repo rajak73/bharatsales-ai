@@ -3,7 +3,7 @@ import type { TaxRate } from '@bharatsales/shared-types';
 
 export class TaxRatesService {
   static async getTaxRates(): Promise<TaxRate[]> {
-    const response = await apiClient.get<TaxRate[]>('/tax-rates');
+    const response = await apiClient.get<TaxRate[]>('/api/v1/tax-rates');
     return response.data;
   }
 }
