@@ -2,7 +2,7 @@
 FROM node:22-alpine AS builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-
+RUN npm i -g pnpm@9.15.9
 
 WORKDIR /app
 COPY . .
