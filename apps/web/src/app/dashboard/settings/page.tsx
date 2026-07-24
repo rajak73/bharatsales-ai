@@ -33,7 +33,13 @@ export default function SettingsPage() {
     try {
       setLoading(true);
       const data = await SettingsService.getSettings();
-      if (data) setSettings(data);
+      if (data) {
+        setSettings(prev => ({
+          ...prev,
+          ...data,
+          workingDays: data.workingDays || prev.workingDays || [],
+        }));
+      }
     } catch (error) {
       console.error('Failed to fetch settings:', error);
     } finally {
