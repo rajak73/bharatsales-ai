@@ -13,7 +13,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      injectRegister: false,
+      injectRegister: 'auto',
       manifest: {
         name: 'BharatSales AI - Field',
         short_name: 'Field PWA',
