@@ -127,7 +127,7 @@ export class FinanceService {
 
       // Support manual allocations mapping
       if (data.allocations && data.allocations.length > 0) {
-        const totalManual = data.allocations.reduce((sum, a) => sum + a.amount, 0);
+        const totalManual = data.allocations.reduce((sum: number, a: any) => sum + a.amount, 0);
         if (totalManual > unallocatedAmount) {
           throw new BadRequestException(`Manual allocations total (${totalManual}) exceeds collection amount (${unallocatedAmount})`);
         }
