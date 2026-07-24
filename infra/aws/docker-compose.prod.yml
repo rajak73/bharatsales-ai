@@ -12,6 +12,16 @@ services:
       - mongo-data-prod:/data/db
     restart: always
 
+  # Redis is required for BullMQ asynchronous exports in production
+  redis:
+    image: redis:7.0-alpine
+    container_name: bharatsales-redis-prod
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data-prod:/data
+    restart: always
+
   api:
     build:
       context: ../../
@@ -25,8 +35,14 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PORT=6002
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - TALLY_SERVER_URL=${TALLY_SERVER_URL}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
+      - WHATSAPP_API_URL=${WHATSAPP_API_URL}
     depends_on:
       - mongo
+      - redis
     restart: always
 
   web:
@@ -45,3 +61,4 @@ services:
 
 volumes:
   mongo-data-prod:
+  redis-data-prod:

@@ -10,7 +10,7 @@ import { Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
 
-@Controller('api/v1/exports')
+@Controller('exports')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @AuditEntity('Exports')
 @UseInterceptors(AuditInterceptor)
@@ -18,7 +18,7 @@ export class ExportsController {
   constructor(private readonly exportsService: ExportsService) {}
 
   @RequirePermissions(Resource.Orders, Action.Read) // Assume Orders permission as proxy for generic export access
-  @Post()
+  @Post('request')
   requestExport(@Request() req: any, @Body() data: { entityType: string, filters: any }) {
     return this.exportsService.requestExport(req.user.orgId, req.user.sub, data.entityType, data.filters);
   }

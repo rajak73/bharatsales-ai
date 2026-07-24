@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { Model, Connection } from 'mongoose';
 import { PaymentCollection, Outlet } from '@bharatsales/shared-types';
 
 @Injectable()
 export class CollectionsService {
   constructor(
     @InjectModel('Collection') private readonly collectionModel: Model<PaymentCollection>,
-    @InjectModel('Outlet') private readonly outletModel: Model<Outlet>
+    @InjectModel('Outlet') private readonly outletModel: Model<Outlet>,
+    @InjectConnection() private readonly connection: Connection
   ) {}
 
   async findAll(organizationId: string): Promise<PaymentCollection[]> {
@@ -34,55 +35,84 @@ export class CollectionsService {
       collectionDate: data.collectionDate || new Date().toISOString()
     });
 
-    const saved = await newCollection.save();
+    const session = await this.connection.startSession();
+    session.startTransaction();
 
-    // If cleared immediately (like cash), reduce outstanding balance
-    if (saved.status === 'Cleared' && saved.amount > 0) {
-      const outlet = await this.outletModel.findById(saved.outletId);
-      if (outlet) {
-        outlet.commercial.outstandingBalance = Math.max(0, (outlet.commercial.outstandingBalance || 0) - saved.amount);
-        await outlet.save();
+    try {
+      const saved = await newCollection.save({ session });
+
+      // If cleared immediately (like cash), reduce outstanding balance
+      if (saved.status === 'Cleared' && saved.amount > 0) {
+        await this.outletModel.updateOne(
+          { _id: saved.outletId },
+          { $inc: { 'commercial.outstandingBalance': -saved.amount } },
+          { session }
+        );
       }
-    }
 
-    return saved;
+      await session.commitTransaction();
+      return saved;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   async updateStatus(organizationId: string, id: string, status: PaymentCollection['status'], actorId?: string): Promise<PaymentCollection> {
-    const collection = await this.collectionModel.findOne({ _id: id, organizationId }).exec();
-    if (!collection) {
-      throw new NotFoundException(`Collection with ID ${id} not found`);
-    }
+    const session = await this.connection.startSession();
+    session.startTransaction();
 
-    if (collection.status === status) return collection;
-
-    // Handle state transitions for Outlet outstanding balance
-    const wasSettled = collection.status === 'Cleared';
-    const isNowSettled = status === 'Cleared';
-    const isNowReversed = status === 'Bounced' || status === 'Reversed';
-
-    collection.status = status;
-    const updated = await collection.save();
-
-    const outlet = await this.outletModel.findById(collection.outletId);
-    if (outlet) {
-      let balanceChange = 0;
-      
-      if (!wasSettled && isNowSettled) {
-        // Pending -> Cleared (Decrease Balance)
-        balanceChange = -collection.amount;
-      } else if (wasSettled && isNowReversed) {
-        // Cleared -> Reversed/Bounced (Increase Balance)
-        balanceChange = collection.amount;
+    try {
+      const collection = await this.collectionModel.findOne({ _id: id, organizationId }).session(session).exec();
+      if (!collection) {
+        throw new NotFoundException(`Collection with ID ${id} not found`);
       }
 
-      if (balanceChange !== 0) {
-        outlet.commercial.outstandingBalance = Math.max(0, (outlet.commercial.outstandingBalance || 0) + balanceChange);
-        await outlet.save();
+      if (collection.status === status) {
+        await session.abortTransaction();
+        session.endSession();
+        return collection;
       }
-    }
 
-    return updated;
+      // Handle state transitions for Outlet outstanding balance
+      const wasSettled = collection.status === 'Cleared';
+      const isNowSettled = status === 'Cleared';
+      const isNowReversed = status === 'Bounced' || status === 'Reversed';
+
+      collection.status = status;
+      const updated = await collection.save({ session });
+
+      const outlet = await this.outletModel.findById(collection.outletId).session(session);
+      if (outlet) {
+        let balanceChange = 0;
+        
+        if (!wasSettled && isNowSettled) {
+          // Pending -> Cleared (Decrease Balance)
+          balanceChange = -collection.amount;
+        } else if (wasSettled && isNowReversed) {
+          // Cleared -> Reversed/Bounced (Increase Balance)
+          balanceChange = collection.amount;
+        }
+
+        if (balanceChange !== 0) {
+          await this.outletModel.updateOne(
+            { _id: collection.outletId },
+            { $inc: { 'commercial.outstandingBalance': balanceChange } },
+            { session }
+          );
+        }
+      }
+
+      await session.commitTransaction();
+      return updated;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   async update(organizationId: string, id: string, data: any): Promise<PaymentCollection> {
@@ -98,19 +128,31 @@ export class CollectionsService {
   }
 
   async remove(organizationId: string, id: string): Promise<{ deleted: boolean }> {
-    const collection = await this.collectionModel.findOne({ _id: id, organizationId }).exec();
-    if (!collection) throw new NotFoundException('Collection not found');
-    
-    // If we delete a cleared collection, we should reverse its impact
-    if (collection.status === 'Cleared') {
-       const outlet = await this.outletModel.findById(collection.outletId);
-       if (outlet) {
-         outlet.commercial.outstandingBalance = (outlet.commercial.outstandingBalance || 0) + collection.amount;
-         await outlet.save();
-       }
-    }
+    const session = await this.connection.startSession();
+    session.startTransaction();
 
-    await this.collectionModel.deleteOne({ _id: id, organizationId }).exec();
-    return { deleted: true };
+    try {
+      const collection = await this.collectionModel.findOne({ _id: id, organizationId }).session(session).exec();
+      if (!collection) throw new NotFoundException('Collection not found');
+      
+      // If we delete a cleared collection, we should reverse its impact
+      if (collection.status === 'Cleared') {
+        await this.outletModel.updateOne(
+          { _id: collection.outletId },
+          { $inc: { 'commercial.outstandingBalance': collection.amount } },
+          { session }
+        );
+      }
+
+      await this.collectionModel.deleteOne({ _id: id, organizationId }).session(session).exec();
+      
+      await session.commitTransaction();
+      return { deleted: true };
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }

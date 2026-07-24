@@ -10,6 +10,13 @@ services:
       - mongo-data:/data/db
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: bharatsales-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -21,8 +28,11 @@ services:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongo:27017/bharatsales
       - PORT=6002
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       - mongo
+      - redis
     restart: unless-stopped
 
   web:

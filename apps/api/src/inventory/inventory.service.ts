@@ -75,7 +75,7 @@ export class InventoryService {
       let allocatedTotal = 0;
       const finalAllocations: { inventoryId: string; batch: string; quantity: number }[] = [];
       for (const manual of manualAllocations) {
-        const query: any = { organizationId, productId, batch: manual.batch };
+        const query: any = { organizationId, productId, batch: manual.batch, status: 'Active' };
         if (warehouseId) query.warehouseId = warehouseId;
         const inventory = await this.inventoryModel.findOne(query).session(session).exec();
         

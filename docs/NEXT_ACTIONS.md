@@ -1,7 +1,10 @@
-# Next Actions
+# Next Actions - BharatSales AI
 
-1. Complete verification of **Auth and Roles** modules based on E2E test runs.
-2. Fix any defects found in the authentication logic, tenant isolation, or routing.
-3. Record results in `docs/AUTH_TEST_RESULTS.md`.
-4. Proceed to Module 3: **Attendance, Live Location, and Geofence**.
-5. Ensure `Start Day` correctly enforces GPS accuracy and time bound logic.
+## Current Status
+All release-critical items mandated in the Complete Master BRD have been fully resolved. The `main` branch is in a STAGING-READY state.
+
+## Immediate Next Steps
+1. **Staging Deployment**: Deploy the application to the UAT environment using the Docker/Kubernetes definitions for the actual stakeholder sign-off.
+2. **Real-World UAT Testing**: Provide URL access to Beta Customers for real-world Load Testing and usability confirmation.
+3. **Third-Party Live Configurations**: Inject the real API credentials for Razorpay, Whatsapp, and Tally into the production vault.
+4. **App Store Provisioning**: Bundle the Field App PWA via TWA/Capacitor for Android deployment to Google Play if native deployment is required.

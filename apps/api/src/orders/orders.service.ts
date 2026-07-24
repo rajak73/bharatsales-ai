@@ -266,6 +266,8 @@ export class OrdersService {
             0 // minShelfLifeDays (todo: fetch from policy)
           );
           item.allocations = allocations;
+          console.log('ALLOCATIONS FROM INVENTORY:', allocations);
+          console.log('ORDER ITEM NOW HAS ALLOCATIONS:', item.allocations);
         } catch (error: any) {
           if (error.message.includes('Insufficient stock')) {
             hasInsufficientStock = true;
@@ -278,12 +280,14 @@ export class OrdersService {
       if (hasInsufficientStock) {
         order.status = 'Hold_Stock' as any;
         order.markModified('items');
+        await order.save({ session });
         await this.updateStatus(organizationId, orderId, 'Hold_Stock', actorId, 'Insufficient stock during approval attempt', session);
         await session.commitTransaction();
         return order as any;
       }
 
       order.markModified('items');
+      await order.save({ session });
       const updated = await this.updateStatus(organizationId, orderId, 'Approved', actorId, reason || 'Approved by web dashboard', session);
       await session.commitTransaction();
       return updated;

@@ -77,7 +77,7 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
     [Resource.Expenses]: [Action.Create, Action.Read, Action.Update, Action.Approve],
     [Resource.Attendance]: [Action.Read, Action.Update, Action.Export],
     [Resource.Visits]: [Action.Read, Action.Update, Action.Export],
-    [Resource.Collections]: [Action.Read, Action.Update, Action.Approve, Action.Export],
+    [Resource.Collections]: [Action.Create, Action.Read, Action.Update, Action.Approve, Action.Export],
     [Resource.Targets]: [Action.Create, Action.Read, Action.Update, Action.Delete],
     [Resource.Inventory]: [Action.Read, Action.Update, Action.Export],
   },

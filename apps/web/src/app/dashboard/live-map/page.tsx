@@ -68,7 +68,7 @@ export default function LiveMapPage() {
       <div className="card">
         <div className="flex flex-wrap gap-4">
           <input type="text" placeholder="Search reps..." className="input-field w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          <select className="input-field w-40" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option>All Status</option><option>At Outlet</option><option>Traveling</option><option>On Break</option></select>
+          <select className="input-field w-40" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option>All Status</option><option>At Outlet</option><option>Traveling</option><option>On Break</option><option>Offline</option></select>
         </div>
       </div>
 
@@ -83,6 +83,7 @@ export default function LiveMapPage() {
               <span className="flex items-center"><span className="w-3 h-3 bg-green-500 rounded-full mr-1"></span>At Outlet</span>
               <span className="flex items-center"><span className="w-3 h-3 bg-blue-500 rounded-full mr-1"></span>Traveling</span>
               <span className="flex items-center"><span className="w-3 h-3 bg-yellow-500 rounded-full mr-1"></span>On Break</span>
+              <span className="flex items-center"><span className="w-3 h-3 bg-gray-400 rounded-full mr-1"></span>Offline</span>
             </div>
           </div>
         </div>
@@ -99,14 +100,14 @@ export default function LiveMapPage() {
               <div key={rep.id || rep.name} className="card">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-3">
-                    <div className={`w-3 h-3 rounded-full ${rep.status === 'At Outlet' ? 'bg-green-500' : rep.status === 'Traveling' ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
+                    <div className={`w-3 h-3 rounded-full ${rep.status === 'At Outlet' ? 'bg-green-500' : rep.status === 'Traveling' ? 'bg-blue-500' : rep.status === 'Offline' ? 'bg-gray-400' : 'bg-yellow-500'}`}></div>
                     <span className="font-medium text-gray-900">{rep.name}</span>
                   </div>
                   <span className="text-xs text-gray-400">{rep.lastUpdate}</span>
                 </div>
                 <div className="text-sm text-gray-500 mb-2">{rep.outlet}</div>
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs font-medium ${rep.status === 'At Outlet' ? 'text-green-600' : rep.status === 'Traveling' ? 'text-blue-600' : 'text-yellow-600'}`}>{rep.status}</span>
+                  <span className={`text-xs font-medium ${rep.status === 'At Outlet' ? 'text-green-600' : rep.status === 'Traveling' ? 'text-blue-600' : rep.status === 'Offline' ? 'text-gray-600' : 'text-yellow-600'}`}>{rep.status}</span>
                   <span className="text-xs text-gray-400">🔋 {rep.battery}%</span>
                 </div>
               </div>

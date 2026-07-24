@@ -46,6 +46,7 @@ import { SyncModule } from './sync/sync.module';
 import { ClaimsModule } from './claims/claims.module';
 import { SuperadminModule } from './superadmin/superadmin.module';
 import { ExportsModule } from './exports/exports.module';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
   imports: [
@@ -53,6 +54,12 @@ import { ExportsModule } from './exports/exports.module';
       ttl: 60000,
       limit: 1000,
     }]),
+    ...(process.env.NODE_ENV !== 'test' ? [BullModule.forRoot({
+      redis: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+      },
+    })] : []),
     MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales'),
     MongooseModule.forFeature([
       { name: 'Tenant', schema: TenantSchema },

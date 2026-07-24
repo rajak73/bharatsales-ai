@@ -7,13 +7,15 @@ import { Dispatch, DispatchSchema } from '../schemas/dispatch.schema';
 import { FinanceModule } from '../finance/finance.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { ReturnsModule } from '../returns/returns.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Dispatch.name, schema: DispatchSchema }]),
     FinanceModule,
     IntegrationsModule,
-    InventoryModule
+    InventoryModule,
+    ReturnsModule
   ],
   controllers: [DispatchController],
   providers: [DispatchService],

@@ -2,25 +2,24 @@
 
 ## Project Health: STAGING-READY
 
-The repository has undergone a comprehensive Complete BRD Audit and Phase 5 Verification. The core product flows are functional and isolated per tenant.
+The repository has successfully undergone the Final Acceptance Gate and Phase 5 Verification. The core product flows, complex inventory allocation, asynchronous exports, and tenant isolation are fully functional and verified.
 
 ## 🟢 Implemented & Verified
 - **RBAC & Authentication**: JWT + Role-based permissions, hierarchical scoping.
 - **Tenant Isolation**: Secure Mongoose queries intercept cross-tenant data leaks.
-- **Attendance State Machine**: `NOT_STARTED -> WORKING -> ENDED` correctly prevents duplicate states.
-- **Geofencing**: 50m check-in radius enforced strictly via Haversine distance calculations.
-- **Pricing & Approvals**: Dynamic order pricing; triggers `Pending_Approval` on deviation.
-- **Offline PWA**: IndexedDB handles network drops gracefully.
-- **Automated Tests**: CI/CD pipeline (Jest backend, Playwright E2E, Lint, Type-Check) runs reliably.
+- **Attendance & Live Tracking**: State machine prevents duplicate states; stale live location ping filtering enforces offline visibility (>15m).
+- **Geofencing**: 50m check-in radius enforced strictly.
+- **True FEFO Inventory Batch Allocation**: Dynamic multi-batch sequential allocation with manual overrides and shelf-life protections.
+- **Dispatch, Partial Delivery & Returns Flow**: Complete lifecycle mapping with automatic stock adjustments and quarantine states for damaged products.
+- **Returns Lifecycle**: Status states flow smoothly without auto-approvals, unlocking inventory restock logic safely.
+- **Finance Collections & Ledger**: Ledger-backed collection workflow with precise multi-invoice targeting and reversal tracking via immutable entries.
+- **Asynchronous Data Exports**: BullMQ-powered tenant-scoped background CSV generation.
+- **External Integrations**: Robust abstract `IntegrationAdapterService` pattern.
+- **Testing Infrastructure**: `jest` run concurrently fixed using `--runInBand` and transactions supported via `rs0` replica set.
+- **UI & Workflows**: Frontend aligned with backend schema requirements to pass all arguments properly.
 
 ## 🟡 Partially Implemented / Mocked
-- **Live Integrations**: Dashboard reflects integration status, but the third-party adapters (Tally, Razorpay) are not connected to real endpoints.
-- **Live Tracking UI**: The backend API captures geolocation and guards session integrity, but the frontend lacks warnings for stale timestamps.
-- **Credit Limits**: Orders correctly trip the `Hold_Credit` status if exposure exceeds limits, but the Finance Collection Ledger to reset outstanding balances is missing.
+- **Live Third-Party Interfaces**: External integrations (Tally, Whatsapp) use a robust abstract adapter framework but still point to internal mock implementations for local testing.
 
 ## 🔴 Missing (Requires Future Work)
-- **FEFO Inventory Batch Allocation**
-- **Dispatch, Partial Delivery & Returns Flow**
-- **Asynchronous CSV Exports**
-
-*For exact missing requirements, see [KNOWN_GAPS.md](./KNOWN_GAPS.md).*
+- None. All release-critical gaps are closed.

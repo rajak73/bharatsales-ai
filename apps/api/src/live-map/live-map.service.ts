@@ -41,12 +41,29 @@ export class LiveMapService {
           outletName = activeVisit.outlet?.name || 'Unknown Outlet';
         }
 
+        const now = new Date();
+        const staleThreshold = new Date(now.getTime() - 15 * 60 * 1000); // 15 mins
+        const lastActivityTime = latestPing ? latestPing.deviceTimestamp : session.startTime;
+        let isStale = false;
+        
+        if (lastActivityTime && lastActivityTime < staleThreshold) {
+            status = 'Offline';
+            isStale = true;
+        }
+
+        let timeString = 'Unknown';
+        if (latestPing) {
+           timeString = latestPing.deviceTimestamp.toLocaleTimeString();
+        } else if (session.startTime) {
+           timeString = session.startTime.toLocaleTimeString();
+        }
+
         return {
           id: session.user._id.toString(),
           name: session.user.name,
           status,
-          outlet: outletName,
-          lastUpdate: latestPing ? latestPing.deviceTimestamp.toLocaleTimeString() : new Date().toLocaleTimeString(),
+          outlet: isStale ? 'No signal > 15m' : outletName,
+          lastUpdate: isStale ? `Stale since ${timeString}` : timeString,
           location: {
             lat: location?.lat || 28.6139,
             lng: location?.lng || 77.2090

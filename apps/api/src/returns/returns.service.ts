@@ -163,4 +163,26 @@ export class ReturnsService {
     await this.returnModel.findOneAndDelete({ _id: id, organizationId }).exec();
     return { deleted: true };
   }
+
+  async createReturnFromShortDelivery(
+    organizationId: string,
+    orderId: string,
+    outletId: string,
+    shortItems: { productId: string, shortQty: number }[],
+    session?: any
+  ): Promise<ReturnOrder> {
+    if (!shortItems || shortItems.length === 0) return null as any;
+
+    const newReturn = new this.returnModel({
+      organizationId,
+      orderId,
+      outlet: outletId,
+      reason: 'Auto-generated from Short/Damaged Delivery',
+      value: '0',
+      status: 'Submitted', // Immediately submitted
+      items: shortItems.map(item => ({ product: item.productId, qty: item.shortQty }))
+    });
+
+    return newReturn.save({ session });
+  }
 }

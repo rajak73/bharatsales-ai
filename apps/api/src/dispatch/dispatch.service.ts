@@ -8,6 +8,7 @@ import { OrdersService } from '../orders/orders.service';
 import { FinanceService } from '../finance/finance.service';
 import { WhatsappAdapter } from '../integrations/adapters/whatsapp.adapter';
 import { InventoryService } from '../inventory/inventory.service';
+import { ReturnsService } from '../returns/returns.service';
 
 @Injectable()
 export class DispatchService {
@@ -20,6 +21,7 @@ export class DispatchService {
     private financeService: FinanceService,
     private whatsappAdapter: WhatsappAdapter,
     private inventoryService: InventoryService,
+    private returnsService: ReturnsService,
   ) {}
 
   private get ordersService(): OrdersService {
@@ -55,7 +57,13 @@ export class DispatchService {
     const savedDispatch = await newDispatch.save({ session });
     
     // Simulate WhatsApp Notification (Fire and forget)
-    this.whatsappAdapter.sendDispatchNotification('+919999999999', orderId, vehicle, driver).catch(err => {
+    this.whatsappAdapter.syncData({
+      type: 'Dispatch',
+      phoneNumber: '+919999999999',
+      orderId,
+      vehicle,
+      driver
+    }).catch((err: any) => {
       this.logger.error('Failed to send WhatsApp notification', err);
     });
 
@@ -153,6 +161,23 @@ export class DispatchService {
       }
       const savedDispatch = await dispatch.save({ session });
 
+      // Create return order for short/missing items
+      if (hasShort && deliveredItems) {
+        const shortItems = deliveredItems
+          .filter(d => d.shortQty && d.shortQty > 0)
+          .map(d => ({ productId: d.productId, shortQty: d.shortQty }));
+
+        if (shortItems.length > 0) {
+          await this.returnsService.createReturnFromShortDelivery(
+            organizationId,
+            dispatch.orderId,
+            order.outletId, // from order
+            shortItems as any,
+            session
+          );
+        }
+      }
+
       // Update Order Status (BR-015)
       // If it's a damaged delivery, it could trigger a return, but order is considered delivered in part
       const orderStatus: any = finalStatus;
@@ -161,7 +186,12 @@ export class DispatchService {
 
       await session.commitTransaction();
 
-      this.whatsappAdapter.sendDeliveryNotification('+919999999999', dispatch.orderId, dispatchId).catch(err => {
+      this.whatsappAdapter.syncData({
+        type: 'Delivery',
+        phoneNumber: '+919999999999',
+        orderId: dispatch.orderId,
+        dispatchId
+      }).catch((err: any) => {
         this.logger.error('Failed to send WhatsApp POD notification', err);
       });
 
