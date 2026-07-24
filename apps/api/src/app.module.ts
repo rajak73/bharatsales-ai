@@ -54,12 +54,16 @@ import { BullModule } from '@nestjs/bull';
       ttl: 60000,
       limit: 1000,
     }]),
-    ...(process.env.NODE_ENV !== 'test' ? [BullModule.forRoot({
-      redis: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-      },
-    })] : []),
+    ...(process.env.NODE_ENV !== 'test' ? [BullModule.forRoot(
+      process.env.REDIS_URL 
+        ? { redis: process.env.REDIS_URL }
+        : {
+            redis: {
+              host: process.env.REDIS_HOST || 'localhost',
+              port: parseInt(process.env.REDIS_PORT || '6379'),
+            }
+          }
+    )] : []),
     MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales'),
     MongooseModule.forFeature([
       { name: 'Tenant', schema: TenantSchema },
