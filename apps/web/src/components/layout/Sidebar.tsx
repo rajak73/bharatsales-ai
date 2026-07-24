@@ -93,7 +93,7 @@ export function Sidebar({ open, user }: { open: boolean, user?: { role: string }
             {open && <span className="font-medium truncate">Super Admin</span>}
           </Link>
         )}
-        <Link href="/distributor" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Distributor' : undefined}>
+        <Link href="/dashboard/distributors" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Distributor' : undefined}>
           <Factory className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
           {open && <span className="font-medium truncate">Distributor</span>}
         </Link>

@@ -30,7 +30,8 @@ export default function TargetsPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | undefined) => {
+    if (amount === undefined || amount === null) return '₹0';
     if (amount >= 100000) return '₹' + (amount / 100000).toFixed(1) + 'L';
     return '₹' + amount.toLocaleString();
   };

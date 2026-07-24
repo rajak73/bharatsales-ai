@@ -35,6 +35,7 @@ export const Resource = {
   PriceLists: 'price_lists',
   Expenses: 'expenses',
   Analytics: 'analytics',
+  Claims: 'claims',
 } as const;
 export type Resource = typeof Resource[keyof typeof Resource];
 
@@ -80,6 +81,7 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
     [Resource.Collections]: [Action.Create, Action.Read, Action.Update, Action.Approve, Action.Export],
     [Resource.Targets]: [Action.Create, Action.Read, Action.Update, Action.Delete],
     [Resource.Inventory]: [Action.Read, Action.Update, Action.Export],
+    [Resource.Claims]: [Action.Create, Action.Read, Action.Update, Action.Approve, Action.Export],
   },
   'National Sales Manager': {
     [Resource.Users]: [Action.Read, Action.Update],
