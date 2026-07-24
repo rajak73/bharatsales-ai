@@ -3,6 +3,12 @@ import * as bcrypt from 'bcryptjs';
 
 async function bootstrap() {
   const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales';
+  
+  if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_PROD_SEED) {
+    console.error('CRITICAL: Seed script execution blocked in production environment.');
+    process.exit(1);
+  }
+
   await mongoose.connect(uri);
   console.log('Connected to MongoDB:', uri);
 
