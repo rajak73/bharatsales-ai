@@ -11,7 +11,10 @@ export class ExportsService {
 
   constructor(
     @InjectModel('ExportJob') private exportJobModel: Model<ExportJob>,
-    // In a real app we inject domain services to fetch data, e.g. OrdersService
+    @InjectModel('Order') private orderModel: Model<any>,
+    @InjectModel('ReturnOrder') private returnModel: Model<any>,
+    @InjectModel('Invoice') private invoiceModel: Model<any>,
+    @InjectModel('Collection') private collectionModel: Model<any>,
   ) {}
 
   async requestExport(organizationId: string, userId: string, entityType: string, filters: any): Promise<ExportJob> {
@@ -53,14 +56,42 @@ export class ExportsService {
       job.status = 'processing';
       await job.save();
 
-      // Mock processing delay for large CSV generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      let data: any[] = [];
+      const query = { organizationId, ...job.filters };
 
-      // In reality, query the DB based on job.entityType and job.filters
-      // Create a CSV string
-      const csvContent = `id,organizationId,createdAt\n1,${organizationId},${new Date().toISOString()}\n`;
+      if (job.entityType === 'orders') {
+        data = await this.orderModel.find(query).lean().exec();
+      } else if (job.entityType === 'returns') {
+        data = await this.returnModel.find(query).lean().exec();
+      } else if (job.entityType === 'invoices') {
+        data = await this.invoiceModel.find(query).lean().exec();
+      } else if (job.entityType === 'collections') {
+        data = await this.collectionModel.find(query).lean().exec();
+      }
 
-      // Tenant-scoped file storage (mocked via local tmp directory for now)
+      let csvContent = '';
+      if (data.length > 0) {
+        const headers = Object.keys(data[0]).filter(k => k !== '_id' && k !== '__v');
+        csvContent += headers.join(',') + '\n';
+        for (const row of data) {
+          const rowData = headers.map(header => {
+            let val = row[header];
+            if (typeof val === 'object' && val !== null) {
+              val = JSON.stringify(val).replace(/"/g, '""');
+              return `"${val}"`;
+            }
+            if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+              val = val.replace(/"/g, '""');
+              return `"${val}"`;
+            }
+            return val;
+          });
+          csvContent += rowData.join(',') + '\n';
+        }
+      } else {
+        csvContent = 'No data found\n';
+      }
+
       const exportDir = path.join(process.cwd(), 'uploads', 'exports', organizationId);
       if (!fs.existsSync(exportDir)) {
         fs.mkdirSync(exportDir, { recursive: true });

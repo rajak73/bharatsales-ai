@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ClaimsService } from '@bharatsales/api-client';
 import { Claim } from '@bharatsales/shared-types';
 import { Loader2, Search, FileText, Check, X, ShieldAlert } from 'lucide-react';
@@ -12,20 +12,7 @@ export default function ClaimsPage() {
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
 
-  useEffect(() => {
-    try {
-      const token = localStorage.getItem('bharatsales_token');
-      if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser({ role: payload.role });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    fetchClaims();
-  }, []);
-
-  const fetchClaims = async () => {
+  const fetchClaims = useCallback(async () => {
     try {
       setLoading(true);
       const data = await ClaimsService.getClaims();
@@ -40,7 +27,20 @@ export default function ClaimsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClaim]);
+
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('bharatsales_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUser({ role: payload.role });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    fetchClaims();
+  }, [fetchClaims]);
 
   const handleApprove = async (claimId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();

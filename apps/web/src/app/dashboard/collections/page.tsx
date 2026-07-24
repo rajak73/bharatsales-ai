@@ -81,10 +81,11 @@ export default function CollectionsPage() {
   };
 
   const handleReverse = async (id: string) => {
-    if (!confirm('Are you sure you want to reverse this collection? This will recreate the outstanding balance.')) return;
+    if (!confirm('Are you sure you want to reverse this payment? This will reinstate invoice balances.')) return;
     try {
-      await CollectionsService.updateCollectionStatus(id, 'Reversed');
+      await CollectionsService.reverseCollection(id);
       setCollections(collections.map(c => c.id === id ? { ...c, status: 'Reversed' } : c));
+      alert('Payment reversed successfully.');
     } catch (error) {
       console.error('Failed to reverse collection', error);
       alert('Failed to reverse collection.');

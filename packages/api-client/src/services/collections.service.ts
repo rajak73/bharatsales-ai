@@ -16,4 +16,9 @@ export class CollectionsService {
     const response = await apiClient.patch<PaymentCollection>(`/finance/collections/${id}/status`, { status });
     return response.data;
   }
+
+  static async reverseCollection(id: string): Promise<PaymentCollection> {
+    const response = await apiClient.post<PaymentCollection>(`/finance/collections/${id}/reverse`);
+    return response.data;
+  }
 }

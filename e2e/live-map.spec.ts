@@ -17,7 +17,7 @@ test.describe('Live Map Manager UI', () => {
     // 3. Verify Live Map UI renders
     await expect(page.locator('h1:has-text("Live Team Tracking")')).toBeVisible();
     await expect(page.locator('text=Live Map View')).toBeVisible();
-    await expect(page.locator('text=Active Representatives')).toBeVisible();
+    await expect(page.locator('h3:has-text("Active Representatives")')).toBeVisible();
 
     // 4. Verify filters work
     const searchInput = page.locator('input[placeholder="Search reps..."]');

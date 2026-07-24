@@ -116,30 +116,80 @@ export class FinanceService {
         ...data,
         organizationId,
         collectedByUserId: userId,
-        status
+        status,
+        receiptNumber: data.receiptNumber || `REC-${Date.now()}`
       });
 
       await collection.save({ session });
 
-      if (data.invoiceId) {
+      let unallocatedAmount = data.amount || 0;
+      const actualAllocations: { invoiceId: string, amount: number }[] = [];
+
+      // Support manual allocations mapping
+      if (data.allocations && data.allocations.length > 0) {
+        const totalManual = data.allocations.reduce((sum, a) => sum + a.amount, 0);
+        if (totalManual > unallocatedAmount) {
+          throw new BadRequestException(`Manual allocations total (${totalManual}) exceeds collection amount (${unallocatedAmount})`);
+        }
+        
+        for (const alloc of data.allocations) {
+          const invoice = await this.invoiceModel.findOne({ _id: alloc.invoiceId, organizationId, outletId: data.outletId }).session(session);
+          if (!invoice) throw new BadRequestException(`Invoice ${alloc.invoiceId} not found or does not belong to outlet`);
+          
+          const remainingAmount = invoice.totalAmount - (invoice.paidAmount || 0);
+          if (alloc.amount > remainingAmount) {
+             throw new BadRequestException(`Allocation ${alloc.amount} exceeds remaining balance ${remainingAmount} of invoice ${alloc.invoiceId}`);
+          }
+          
+          invoice.paidAmount = (invoice.paidAmount || 0) + alloc.amount;
+          invoice.status = invoice.paidAmount >= invoice.totalAmount ? 'Paid' : (invoice.paidAmount > 0 ? 'Partial' : 'Unpaid');
+          await invoice.save({ session });
+          
+          unallocatedAmount -= alloc.amount;
+          actualAllocations.push({ invoiceId: invoice._id.toString(), amount: alloc.amount });
+        }
+      } else if (data.invoiceId) {
+        // Single invoice mapping
         const invoice = await this.invoiceModel.findOne({ _id: data.invoiceId, organizationId, outletId: data.outletId }).session(session);
         if (!invoice) {
           throw new BadRequestException('Invoice not found or does not belong to the specified outlet');
         }
 
         const remainingAmount = invoice.totalAmount - (invoice.paidAmount || 0);
-        if ((data.amount || 0) > remainingAmount) {
-          throw new BadRequestException(`Collection amount (${data.amount}) exceeds the remaining invoice balance (${remainingAmount})`);
+        if (unallocatedAmount > remainingAmount) {
+          throw new BadRequestException(`Collection amount (${unallocatedAmount}) exceeds the remaining invoice balance (${remainingAmount})`);
         }
 
-        invoice.paidAmount = (invoice.paidAmount || 0) + (data.amount || 0);
-        if (invoice.paidAmount >= invoice.totalAmount) {
-          invoice.status = 'Paid';
-        } else if (invoice.paidAmount > 0) {
-          invoice.status = 'Partial';
-        }
+        invoice.paidAmount = (invoice.paidAmount || 0) + unallocatedAmount;
+        invoice.status = invoice.paidAmount >= invoice.totalAmount ? 'Paid' : (invoice.paidAmount > 0 ? 'Partial' : 'Unpaid');
         await invoice.save({ session });
+        
+        actualAllocations.push({ invoiceId: invoice._id.toString(), amount: unallocatedAmount });
+        unallocatedAmount = 0;
+      } else {
+        // FIFO allocation
+        const unpaidInvoices = await this.invoiceModel.find({ 
+          organizationId, 
+          outletId: data.outletId, 
+          status: { $in: ['Unpaid', 'Partial'] } 
+        }).sort({ createdAt: 1 }).session(session);
+
+        for (const invoice of unpaidInvoices) {
+          if (unallocatedAmount <= 0) break;
+          const remainingAmount = invoice.totalAmount - (invoice.paidAmount || 0);
+          const alloc = Math.min(unallocatedAmount, remainingAmount);
+          invoice.paidAmount = (invoice.paidAmount || 0) + alloc;
+          unallocatedAmount -= alloc;
+
+          invoice.status = invoice.paidAmount >= invoice.totalAmount ? 'Paid' : (invoice.paidAmount > 0 ? 'Partial' : 'Unpaid');
+          await invoice.save({ session });
+          
+          actualAllocations.push({ invoiceId: invoice._id.toString(), amount: alloc });
+        }
       }
+
+      collection.allocations = actualAllocations;
+      await collection.save({ session });
 
       if (status === 'Cleared') {
         outlet.commercial.outstandingBalance = Math.max(0, outlet.commercial.outstandingBalance - (data.amount || 0));
@@ -193,7 +243,22 @@ export class FinanceService {
         await outlet.save({ session });
       }
 
-      if (original.invoiceId) {
+      if (original.allocations && original.allocations.length > 0) {
+        for (const alloc of original.allocations) {
+          const invoice = await this.invoiceModel.findById(alloc.invoiceId).session(session);
+          if (invoice) {
+            invoice.paidAmount -= alloc.amount;
+            if (invoice.paidAmount <= 0) {
+              invoice.paidAmount = 0;
+              invoice.status = 'Unpaid';
+            } else {
+              invoice.status = 'Partial';
+            }
+            await invoice.save({ session });
+          }
+        }
+      } else if (original.invoiceId) {
+        // Fallback for older data without allocations array
         const invoice = await this.invoiceModel.findById(original.invoiceId).session(session);
         if (invoice) {
           invoice.paidAmount -= original.amount;

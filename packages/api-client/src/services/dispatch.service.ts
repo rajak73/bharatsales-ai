@@ -12,8 +12,8 @@ export class DispatchService {
     return response.data;
   }
 
-  static async updateDispatchStatus(id: string, status: string): Promise<Dispatch> {
-    const response = await apiClient.patch<Dispatch>(`/dispatch/${id}/status`, { status });
+  static async updateDispatchStatus(id: string, status: string, deliveredItems?: any[], globalDamagedQty?: number, globalShortQty?: number): Promise<Dispatch> {
+    const response = await apiClient.patch<Dispatch>(`/dispatch/${id}/status`, { status, deliveredItems, globalDamagedQty, globalShortQty });
     return response.data;
   }
 }

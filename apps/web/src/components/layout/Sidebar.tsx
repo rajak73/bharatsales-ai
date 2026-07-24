@@ -35,7 +35,6 @@ const navItems = [
   { icon: Percent, label: 'Incentives', href: '/dashboard/incentives', roles: ALL_ROLES },
   { icon: Repeat, label: 'Returns', href: '/dashboard/returns', roles: ALL_ROLES },
   { icon: ShieldAlert, label: 'Claims', href: '/dashboard/claims', roles: ALL_ROLES },
-  { icon: Receipt, label: 'Collections', href: '/dashboard/collections', roles: ALL_ROLES },
   { icon: BookOpen, label: 'Ledger', href: '/dashboard/ledger', roles: ALL_ROLES },
   { icon: Receipt, label: 'Expenses', href: '/dashboard/expenses', roles: ALL_ROLES },
   { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },

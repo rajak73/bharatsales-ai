@@ -24,9 +24,11 @@ export default function ExportsPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const [selectedEntity, setSelectedEntity] = useState('orders');
+
   const requestExport = async () => {
     try {
-      await ExportsService.requestExport('orders', {});
+      await ExportsService.requestExport(selectedEntity, {});
       fetchJobs();
     } catch (err) {
       console.error('Failed to request export', err);
@@ -37,12 +39,24 @@ export default function ExportsPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Data Exports</h1>
-        <button
-          onClick={requestExport}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors"
-        >
-          New Export
-        </button>
+        <div className="flex space-x-3">
+          <select 
+            value={selectedEntity}
+            onChange={(e) => setSelectedEntity(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="orders">Orders</option>
+            <option value="returns">Returns</option>
+            <option value="invoices">Invoices</option>
+            <option value="collections">Collections</option>
+          </select>
+          <button
+            onClick={requestExport}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors"
+          >
+            New Export
+          </button>
+        </div>
       </div>
 
       <div className="bg-white shadow rounded-lg overflow-hidden">

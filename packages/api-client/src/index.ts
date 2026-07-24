@@ -140,3 +140,6 @@ export * from './services/claims.service';
 export * from './services/finance.service';
 export * from './services/superadmin.service';
 export * from './services/onboarding.service';
+export * from './services/analytics.service';
+export * from './services/distributors.service';
+export * from './services/exports.service';

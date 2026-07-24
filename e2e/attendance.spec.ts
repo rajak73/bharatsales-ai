@@ -9,8 +9,8 @@ test.describe('Attendance & Geolocation Flow', () => {
   });
 
   test('Sales Rep can Start Day, send Live Location, Check In, Check Out, and End Day via real PWA UI', async ({ page, context }) => {
-    // 1. Mock Geolocation (matching an outlet's location in seeds)
-    await context.setGeolocation({ latitude: 12.9716, longitude: 77.5946, accuracy: 10 });
+    // 1. Mock Geolocation (matching an outlet's location in seeds - Delhi)
+    await context.setGeolocation({ latitude: 28.5284, longitude: 77.2183, accuracy: 10 });
 
     // 2. Login as Rep to PWA (Port 6001)
     await page.goto('http://localhost:6001/login');

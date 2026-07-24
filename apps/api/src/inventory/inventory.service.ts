@@ -30,15 +30,79 @@ export class InventoryService {
     return newInventory.save();
   }
 
-  async checkStockAvailable(organizationId: string, productId: string, quantity: number): Promise<boolean> {
-    const inventoryItems = await this.inventoryModel.find({ organizationId, productId }).exec();
+  async checkStockAvailable(organizationId: string, productId: string, quantity: number, minShelfLifeDays: number = 0): Promise<boolean> {
+    const minExpiryDate = new Date();
+    minExpiryDate.setDate(minExpiryDate.getDate() + minShelfLifeDays);
+
+    const query: any = {
+      organizationId,
+      productId,
+      stock: { $gt: 0 },
+      blocked: { $ne: true },
+      $or: [
+        { status: { $exists: false } },
+        { status: 'Active' }
+      ],
+      $and: [
+        {
+          $or: [
+            { expiry: { $exists: false } },
+            { expiry: null },
+            { expiry: { $gt: minExpiryDate.toISOString() } }
+          ]
+        }
+      ]
+    };
+
+    const inventoryItems = await this.inventoryModel.find(query).exec();
     const totalStock = inventoryItems.reduce((sum, item) => sum + (item.stock || 0), 0);
     return totalStock >= quantity;
   }
 
-  async reserveStock(organizationId: string, productId: string, quantity: number, warehouseId?: string, session?: any): Promise<{ inventoryId: string; batch: string; quantity: number }[]> {
+  async reserveStock(
+    organizationId: string, 
+    productId: string, 
+    quantity: number, 
+    warehouseId?: string, 
+    session?: any,
+    manualAllocations?: { batch: string; quantity: number }[],
+    minShelfLifeDays: number = 0
+  ): Promise<{ inventoryId: string; batch: string; quantity: number }[]> {
     this.logger.log(`Reserving ${quantity} of product ${productId} for org ${organizationId}`);
     
+    // If manual allocations are provided, use them directly (assumes validation/permission was done beforehand)
+    if (manualAllocations && manualAllocations.length > 0) {
+      let allocatedTotal = 0;
+      const finalAllocations: { inventoryId: string; batch: string; quantity: number }[] = [];
+      for (const manual of manualAllocations) {
+        const query: any = { organizationId, productId, batch: manual.batch };
+        if (warehouseId) query.warehouseId = warehouseId;
+        const inventory = await this.inventoryModel.findOne(query).session(session).exec();
+        
+        if (!inventory || inventory.stock < manual.quantity) {
+           throw new Error(`Insufficient stock for manual batch override: ${manual.batch}`);
+        }
+        
+        inventory.stock -= manual.quantity;
+        inventory.reservedStock = (inventory.reservedStock || 0) + manual.quantity;
+        await inventory.save({ session });
+        
+        allocatedTotal += manual.quantity;
+        finalAllocations.push({
+          inventoryId: (inventory as any)._id.toString(),
+          batch: inventory.batch,
+          quantity: manual.quantity
+        });
+      }
+      if (allocatedTotal !== quantity) {
+        throw new Error(`Manual allocations total ${allocatedTotal} does not match required quantity ${quantity}`);
+      }
+      return finalAllocations;
+    }
+
+    const minExpiryDate = new Date();
+    minExpiryDate.setDate(minExpiryDate.getDate() + minShelfLifeDays);
+
     const query: any = { 
       organizationId, 
       productId, 
@@ -51,13 +115,13 @@ export class InventoryService {
     };
     if (warehouseId) query.warehouseId = warehouseId;
     
-    // Check non-expired batch (if expiry exists, it must be > now)
+    // Check non-expired batch (if expiry exists, it must be > now + shelfLife)
     query.$and = [
       {
         $or: [
           { expiry: { $exists: false } },
           { expiry: null },
-          { expiry: { $gt: new Date().toISOString() } }
+          { expiry: { $gt: minExpiryDate.toISOString() } }
         ]
       }
     ];
@@ -88,7 +152,7 @@ export class InventoryService {
     }
 
     if (remaining > 0) {
-      throw new Error(`Insufficient stock for product ${productId}`);
+      throw new Error(`Insufficient stock for product ${productId}. Required: ${quantity}, Missing: ${remaining}`);
     }
     
     return allocations;
@@ -178,7 +242,7 @@ export class InventoryService {
     }
   }
 
-  async adjustStock(organizationId: string, adjustment: { productId: string, batch: string, type: string, quantity: number, reason?: string, warehouseId?: string }, session?: any): Promise<Inventory> {
+  async adjustStock(organizationId: string, adjustment: { productId: string, batch: string, type: string, quantity: number, reason?: string, warehouseId?: string, status?: string, blocked?: boolean }, session?: any): Promise<Inventory> {
     const query: any = { organizationId, productId: adjustment.productId, batch: adjustment.batch };
     if (adjustment.warehouseId) query.warehouseId = adjustment.warehouseId;
 
@@ -194,6 +258,8 @@ export class InventoryService {
       if (inventory.stock < 0) {
          throw new Error(`Adjustment would result in negative stock. Current stock: ${inventory.stock - adjustmentQty}`);
       }
+      if (adjustment.status) inventory.status = adjustment.status;
+      if (adjustment.blocked !== undefined) inventory.blocked = adjustment.blocked;
       return inventory.save({ session });
     } else {
       if (adjustmentQty < 0) throw new Error('Cannot reduce stock below 0 for a non-existent batch.');
@@ -211,6 +277,8 @@ export class InventoryService {
         batch: adjustment.batch,
         stock: adjustmentQty,
         warehouseId: adjustment.warehouseId,
+        status: adjustment.status || 'Active',
+        blocked: adjustment.blocked !== undefined ? adjustment.blocked : false
       });
       return newInventory.save({ session });
     }

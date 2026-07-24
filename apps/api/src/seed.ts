@@ -13,7 +13,7 @@ async function bootstrap() {
 
   // Clear existing data (but do not clear collections that we aren't seeding or that shouldn't exist)
   console.log('Clearing existing data...');
-  const collections = ['tenants', 'hierarchy_nodes', 'users', 'products', 'price_lists', 'distributors', 'outlets', 'beats', 'inventory_batches', 'settings'];
+  const collections = ['tenants', 'hierarchy_nodes', 'users', 'products', 'price_lists', 'distributors', 'outlets', 'beats', 'inventory_batches', 'settings', 'onboarding_states', 'orders', 'attendance', 'visits', 'collections', 'claims', 'exports'];
   for (const collectionName of collections) {
     try {
       await db.collection(collectionName).deleteMany({});

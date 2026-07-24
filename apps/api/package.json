@@ -8,7 +8,7 @@
     "start": "node dist/main.js",
     "seed": "ts-node --transpile-only src/seed.ts",
     "lint": "echo 'No linting required'",
-    "test": "jest",
+    "test": "jest --runInBand --detectOpenHandles --forceExit",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

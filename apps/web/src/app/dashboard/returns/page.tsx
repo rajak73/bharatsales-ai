@@ -43,23 +43,37 @@ export default function ReturnsPage() {
 
   const handleApprove = async (id: string) => {
     try {
-      await ReturnsService.updateReturnStatus(id, 'Approved');
-      setReturns(returns.map(r => r.id === id ? { ...r, status: 'Approved' } : r));
+      const updated = await ReturnsService.approveReturn(id);
+      setReturns(returns.map(r => r.id === id ? updated : r));
       setSuccessMessage(`Return ${id} approved!`);
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error('Failed to approve return', error);
+      alert('Failed to approve return');
     }
   };
 
   const handleReject = async (id: string) => {
     try {
-      await ReturnsService.updateReturnStatus(id, 'Rejected');
-      setReturns(returns.map(r => r.id === id ? { ...r, status: 'Rejected' } : r));
+      const updated = await ReturnsService.rejectReturn(id);
+      setReturns(returns.map(r => r.id === id ? updated : r));
       setSuccessMessage(`Return ${id} rejected.`);
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error('Failed to reject return', error);
+      alert('Failed to reject return');
+    }
+  };
+
+  const handleUpdateStatus = async (id: string, status: string, classification?: string) => {
+    try {
+      const updated = await ReturnsService.updateReturnStatus(id, status, classification);
+      setReturns(returns.map(r => r.id === id ? updated : r));
+      setSuccessMessage(`Return ${id} marked as ${status}!`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error(`Failed to mark return as ${status}`, error);
+      alert(`Failed to update status`);
     }
   };
 
@@ -76,7 +90,7 @@ export default function ReturnsPage() {
       const payload: Partial<ReturnOrder> = {
         outlet: newReturn.outlet,
         reason: newReturn.reason as any,
-        status: 'Pending Approval', // Default status
+        status: 'Pending_Approval', // Default status
         items: newReturn.items,
         value: newReturn.value || '0',
         createdAt: new Date().toISOString()
@@ -112,9 +126,9 @@ export default function ReturnsPage() {
 
       <div className="grid grid-cols-4 gap-4">
         <div className="card text-center"><div className="text-2xl font-bold text-gray-900">{returns.length}</div><div className="text-sm text-gray-500">Total Returns</div></div>
-        <div className="card text-center"><div className="text-2xl font-bold text-yellow-600">{returns.filter(r => r.status === 'Pending Approval').length}</div><div className="text-sm text-gray-500">Pending</div></div>
+        <div className="card text-center"><div className="text-2xl font-bold text-yellow-600">{returns.filter(r => r.status === 'Pending_Approval').length}</div><div className="text-sm text-gray-500">Pending</div></div>
         <div className="card text-center"><div className="text-2xl font-bold text-green-600">₹{returns.reduce((s, r) => s + parseFloat(r.value || '0'), 0)}</div><div className="text-sm text-gray-500">Claim Amount</div></div>
-        <div className="card text-center"><div className="text-2xl font-bold text-primary-600">{returns.filter(r => r.status === 'Processed').length}</div><div className="text-sm text-gray-500">Processed</div></div>
+        <div className="card text-center"><div className="text-2xl font-bold text-primary-600">{returns.filter(r => r.status === 'Closed').length}</div><div className="text-sm text-gray-500">Processed</div></div>
       </div>
 
       <div className="card">
@@ -143,13 +157,34 @@ export default function ReturnsPage() {
                     <td className="px-6 py-3 text-gray-600">{qty}</td>
                     <td className="px-6 py-3"><span className={`px-2 py-1 rounded text-xs font-medium ${ret.reason === 'Expiry' ? 'bg-red-100 text-red-700' : ret.reason === 'Quality' ? 'bg-yellow-100 text-yellow-700' : ret.reason === 'Commercial' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{ret.reason}</span></td>
                     <td className="px-6 py-3 font-medium">₹{ret.value}</td>
-                    <td className="px-6 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${ret.status === 'Approved' || ret.status === 'Processed' ? 'bg-green-100 text-green-700' : ret.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{ret.status}</span></td>
+                    <td className="px-6 py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${ret.status === 'Approved' || ret.status === 'Closed' ? 'bg-green-100 text-green-700' : (ret.status === 'Pending_Approval') ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{ret.status}</span></td>
                     <td className="px-6 py-3">
-                      {ret.status === 'Pending Approval' && (
+                      {(ret.status === 'Pending_Approval' || ret.status === 'Submitted') && (
                         <div className="flex space-x-2">
                           <button onClick={() => handleApprove(ret.id)} className="text-green-600 text-xs font-medium hover:text-green-700">Approve</button>
                           <button onClick={() => handleReject(ret.id)} className="text-red-600 text-xs font-medium hover:text-red-700">Reject</button>
                         </div>
+                      )}
+                      {ret.status === 'Approved' && (
+                        <button onClick={() => handleUpdateStatus(ret.id, 'Received')} className="text-blue-600 text-xs font-medium hover:text-blue-700">Receive Goods</button>
+                      )}
+                      {ret.status === 'Received' && (
+                        <div className="flex items-center space-x-2">
+                          <select id={`class-${ret.id}`} className="text-xs border rounded p-1" defaultValue="saleable">
+                            <option value="saleable">Saleable</option>
+                            <option value="damaged">Damaged</option>
+                            <option value="quarantine">Quarantine</option>
+                            <option value="expired">Expired</option>
+                            <option value="return-to-vendor">Return to Vendor</option>
+                          </select>
+                          <button onClick={() => {
+                            const val = (document.getElementById(`class-${ret.id}`) as HTMLSelectElement).value;
+                            handleUpdateStatus(ret.id, 'Inspected', val);
+                          }} className="text-purple-600 text-xs font-medium hover:text-purple-700">Inspect</button>
+                        </div>
+                      )}
+                      {ret.status === 'Inspected' && (
+                        <button onClick={() => handleUpdateStatus(ret.id, 'Closed')} className="text-green-600 text-xs font-medium hover:text-green-700">Close Return</button>
                       )}
                     </td>
                   </tr>

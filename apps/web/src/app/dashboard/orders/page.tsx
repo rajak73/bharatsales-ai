@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { OrdersService, InvoicesService } from '@bharatsales/api-client';
 import { Order, OrderLineItem } from '@bharatsales/shared-types';
 import { Loader2, ShoppingCart, Search, FileText, ChevronRight, X, Check } from 'lucide-react';
@@ -25,10 +26,9 @@ export default function OrdersPage() {
     } catch (e) {
       console.error(e);
     }
-    fetchOrders();
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       const data = await OrdersService.getOrders();
@@ -44,7 +44,11 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedOrder]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const handleApprove = async (orderId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();

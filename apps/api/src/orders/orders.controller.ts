@@ -52,8 +52,18 @@ export class OrdersController {
 
 @RequirePermissions(Resource.Orders, Action.Create)
   @Post(':id/approve')
-    async approveOrder(@Request() req: any, @Param('id') orderId: string) {
-    return this.ordersService.approveOrder(req.user.orgId, orderId, req.user.sub);
+  async approveOrder(
+    @Request() req: any, 
+    @Param('id') orderId: string, 
+    @Body() body: { manualAllocations?: any, reason?: string }
+  ) {
+    return this.ordersService.approveOrder(
+      req.user.orgId, 
+      orderId, 
+      req.user.sub,
+      body?.manualAllocations,
+      body?.reason
+    );
   }
 
 @RequirePermissions(Resource.Orders, Action.Create)

@@ -10,7 +10,7 @@ export class Dispatch implements Omit<IDispatch, 'id' | 'createdAt' | 'updatedAt
   @Prop({ required: true }) orderId: string;
   @Prop({ required: true }) vehicle: string;
   @Prop({ required: true }) driver: string;
-  @Prop({ required: true, enum: ['Pending', 'In Transit', 'Delivered', 'Partial_Delivery', 'Damaged_Delivery', 'Short_Delivery', 'Refused', 'Return_Initiated', 'Cancelled'], default: 'Pending' }) status: string;
+  @Prop({ required: true, enum: ['Pending', 'In Transit', 'Delivered', 'Partial_Delivery', 'Damaged_Delivery', 'Short_Delivery', 'Refused', 'Return_Initiated', 'Cancelled'], default: 'Pending' }) status: 'Pending' | 'In Transit' | 'Delivered' | 'Partial_Delivery' | 'Damaged_Delivery' | 'Short_Delivery' | 'Refused' | 'Return_Initiated' | 'Cancelled';
   @Prop({ type: [{ 
     productId: { type: String, required: true }, 
     orderedQty: { type: Number, required: true },

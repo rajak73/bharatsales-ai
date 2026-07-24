@@ -66,7 +66,7 @@ export default function DispatchesPage() {
   const handleCapturePOD = async () => {
     try {
       setIsSubmitting(true);
-      await DispatchService.updateDispatchStatus(podDispatchId, podForm.status as any); // Should also send podForm details
+      await DispatchService.updateDispatchStatus(podDispatchId, podForm.status as any, undefined, podForm.damagedQty, podForm.shortQty);
       setDispatches(dispatches.map(d => d.id === podDispatchId ? { ...d, status: podForm.status as any } : d));
       setSuccessMessage(`Proof of Delivery captured for ${podDispatchId}!`);
       setTimeout(() => setSuccessMessage(''), 3000);

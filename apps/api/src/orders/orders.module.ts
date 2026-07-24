@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
@@ -8,7 +8,7 @@ import { SchemeSchema } from '../schemas/scheme.schema';
 import { DistributorSchema } from '../schemas/distributor.schema';
 import { ProductSchema } from '../schemas/product.schema';
 import { InventoryModule } from '../inventory/inventory.module';
-import { DispatchModule } from '../dispatch/dispatch.module';
+
 import { ApprovalsModule } from '../approvals/approvals.module';
 
 @Module({
@@ -21,7 +21,6 @@ import { ApprovalsModule } from '../approvals/approvals.module';
       { name: 'Product', schema: ProductSchema }
     ]),
     InventoryModule,
-    forwardRef(() => DispatchModule),
     ApprovalsModule
   ],
   controllers: [OrdersController],

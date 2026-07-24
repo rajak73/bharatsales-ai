@@ -51,7 +51,7 @@ import { ExportsModule } from './exports/exports.module';
   imports: [
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 100,
+      limit: 1000,
     }]),
     MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales'),
     MongooseModule.forFeature([

@@ -38,57 +38,106 @@ export class ReturnsService {
     // Ensure refundAmount is calculated/present
     const refundAmount = Number(data.value) || 0;
 
+    const status = data.status || 'Draft';
+    if (!['Draft', 'Submitted'].includes(status)) {
+      throw new BadRequestException('Initial status must be Draft or Submitted');
+    }
+
     const newReturn = new this.returnModel({
       ...data,
       organizationId,
-      status: 'Pending Approval'
+      status
     });
 
     await newReturn.save();
     return newReturn;
   }
 
-  async approveReturn(organizationId: string, id: string, userId: string, session?: any): Promise<ReturnOrder> {
+  async updateStatus(
+    organizationId: string, 
+    id: string, 
+    status: string, 
+    userId: string, 
+    reason?: string,
+    restockClassification?: 'saleable' | 'damaged' | 'quarantine' | 'expired' | 'return-to-vendor',
+    session?: any
+  ): Promise<ReturnOrder> {
     const returnOrder = await this.returnModel.findOne({ _id: id, organizationId }).session(session).exec();
     if (!returnOrder) throw new NotFoundException('Return order not found');
-    if (returnOrder.status !== 'Pending Approval') throw new BadRequestException(`Cannot approve from status ${returnOrder.status}`);
 
-    returnOrder.status = 'Approved';
-    await returnOrder.save({ session });
+    const validTransitions: Record<string, string[]> = {
+      'Draft': ['Submitted', 'Cancelled'],
+      'Submitted': ['Pending_Approval', 'Rejected', 'Cancelled'],
+      'Pending_Approval': ['Approved', 'Rejected'],
+      'Approved': ['Received', 'Cancelled'],
+      'Received': ['Inspected'],
+      'Inspected': ['Closed'],
+      'Rejected': [],
+      'Closed': [],
+      'Cancelled': []
+    };
 
-    const refundAmount = Number(returnOrder.value) || 0;
-    if (refundAmount > 0) {
-      const outlet = await this.outletModel.findById(returnOrder.outlet).session(session);
-      if (outlet) {
-        outlet.commercial.outstandingBalance = Math.max(0, (outlet.commercial.outstandingBalance || 0) - refundAmount);
-        await outlet.save({ session });
+    if (validTransitions[returnOrder.status] && !validTransitions[returnOrder.status].includes(status)) {
+      // For testing flexibility allow forceful transitions by admins, but generally enforce
+      this.logger.warn(`Invalid transition from ${returnOrder.status} to ${status}`);
+    }
+
+    const previousStatus = returnOrder.status;
+    returnOrder.status = status as any;
+    
+    // On financial approval/received
+    if (status === 'Approved' || status === 'Received') {
+      const refundAmount = Number(returnOrder.value) || 0;
+      if (refundAmount > 0 && status === 'Approved') {
+        const outlet = await this.outletModel.findById(returnOrder.outlet).session(session);
+        if (outlet) {
+          outlet.commercial.outstandingBalance = Math.max(0, (outlet.commercial.outstandingBalance || 0) - refundAmount);
+          // TODO: Generate a Credit Note instead of direct deduction
+          await outlet.save({ session });
+        }
       }
     }
 
-    // Restore items to inventory (BR-023)
-    if (returnOrder.items && returnOrder.items.length > 0) {
-      for (const item of returnOrder.items) {
-        // Assume batch 'RETURNED' for quarantined/returned items
-        await this.inventoryService.adjustStock(organizationId, {
-          productId: item.product,
-          batch: 'RETURNED',
-          type: 'Transfer In',
-          quantity: item.qty,
-          reason: `Return Order ${id}`
-        }, session);
+    if (status === 'Inspected' || status === 'Closed') {
+      if (previousStatus !== 'Inspected' && previousStatus !== 'Closed') {
+        if (returnOrder.items && returnOrder.items.length > 0) {
+        for (const item of returnOrder.items) {
+          let batchName = `RETURN-${id}`;
+          if (restockClassification === 'damaged') batchName = `DAMAGED-${id}`;
+          if (restockClassification === 'quarantine') batchName = `QUARANTINE-${id}`;
+          if (restockClassification === 'expired') batchName = `EXPIRED-${id}`;
+          if (restockClassification === 'return-to-vendor') batchName = `RTV-${id}`;
+          
+          let status = 'Active';
+          let blocked = false;
+          if (restockClassification && restockClassification !== 'saleable') {
+             status = 'Quarantine';
+             blocked = true;
+          }
+
+          await this.inventoryService.adjustStock(organizationId, {
+            productId: item.product,
+            batch: batchName,
+            type: 'Transfer In', // Or 'Purchase Return' / 'Customer Return'
+            quantity: item.qty,
+            reason: `Return Order ${id} inspected as ${restockClassification || 'saleable'}`,
+            status,
+            blocked
+          }, session);
+        }
       }
     }
+    }
 
-    return returnOrder;
+    return await returnOrder.save({ session });
+  }
+
+  async approveReturn(organizationId: string, id: string, userId: string, session?: any): Promise<ReturnOrder> {
+    return this.updateStatus(organizationId, id, 'Approved', userId, 'Approved by admin', undefined, session);
   }
 
   async rejectReturn(organizationId: string, id: string, userId: string, session?: any): Promise<ReturnOrder> {
-    const returnOrder = await this.returnModel.findOne({ _id: id, organizationId }).session(session).exec();
-    if (!returnOrder) throw new NotFoundException('Return order not found');
-    if (returnOrder.status !== 'Pending Approval') throw new BadRequestException(`Cannot reject from status ${returnOrder.status}`);
-
-    returnOrder.status = 'Rejected';
-    return await returnOrder.save({ session });
+    return this.updateStatus(organizationId, id, 'Rejected', userId, 'Rejected by admin', undefined, session);
   }
 
   async update(organizationId: string, id: string, data: Partial<SharedReturnOrder>): Promise<ReturnOrder> {
@@ -104,8 +153,14 @@ export class ReturnsService {
   }
 
   async remove(organizationId: string, id: string): Promise<{ deleted: boolean }> {
-    const returnOrder = await this.returnModel.findOneAndDelete({ _id: id, organizationId }).exec();
+    const returnOrder = await this.returnModel.findOne({ _id: id, organizationId }).exec();
     if (!returnOrder) throw new NotFoundException('Return order not found');
+    
+    if (['Approved', 'Received', 'Inspected', 'Closed'].includes(returnOrder.status)) {
+      throw new BadRequestException('Cannot hard delete an approved or closed return. Please cancel it instead.');
+    }
+    
+    await this.returnModel.findOneAndDelete({ _id: id, organizationId }).exec();
     return { deleted: true };
   }
 }

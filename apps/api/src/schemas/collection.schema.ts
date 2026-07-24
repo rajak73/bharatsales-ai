@@ -18,6 +18,8 @@ export class PaymentCollection implements Omit<IPaymentCollection, 'id' | 'creat
   
   @Prop({ required: true, enum: ['Pending', 'Cleared', 'Bounced'], default: 'Pending' }) status: 'Pending' | 'Cleared' | 'Bounced';
   @Prop({ required: true }) collectionDate: string;
+  
+  @Prop({ type: [{ invoiceId: String, amount: Number }] }) allocations?: { invoiceId: string, amount: number }[];
 }
 
 export const CollectionSchema = SchemaFactory.createForClass(PaymentCollection);

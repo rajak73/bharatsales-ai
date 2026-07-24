@@ -25,7 +25,6 @@ describe('AuthController (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
-    await mongoose.disconnect();
   });
 
   describe('Login & Session Edge Cases', () => {

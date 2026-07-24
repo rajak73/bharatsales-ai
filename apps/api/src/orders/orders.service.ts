@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
 import { Order, Outlet, Scheme, Distributor, Product } from '@bharatsales/shared-types';
@@ -17,10 +18,14 @@ export class OrdersService {
     @InjectModel('Distributor') private distributorModel: Model<Distributor>,
     @InjectModel('Product') private productModel: Model<Product>,
     private inventoryService: InventoryService,
-    @Inject(forwardRef(() => DispatchService)) private dispatchService: DispatchService,
+    private moduleRef: ModuleRef,
     private approvalsService: ApprovalsService,
     @InjectConnection() private connection: Connection,
   ) {}
+
+  private get dispatchService(): DispatchService {
+    return this.moduleRef.get(DispatchService, { strict: false });
+  }
 
   async findAll(organizationId: string): Promise<Order[]> {
     return this.orderModel.find({ organizationId }).sort({ createdAt: -1 }).exec();
@@ -223,7 +228,13 @@ export class OrdersService {
     return await order.save({ session }) as any;
   }
 
-  async approveOrder(organizationId: string, orderId: string, actorId: string): Promise<Order> {
+  async approveOrder(
+    organizationId: string, 
+    orderId: string, 
+    actorId: string, 
+    manualAllocations?: Record<string, { batch: string; quantity: number }[]>,
+    reason?: string
+  ): Promise<Order> {
     const session = await this.connection.startSession();
     session.startTransaction();
     try {
@@ -232,18 +243,48 @@ export class OrdersService {
         throw new BadRequestException(`Order ${orderId} not found`);
       }
 
-      if (order.status !== 'Submitted') {
+      if (!['Submitted', 'Hold_Stock', 'Pending_Approval'].includes(order.status as string)) {
         throw new BadRequestException(`Order cannot be approved from status ${order.status}`);
       }
 
-      // Reserve stock for all items (FEFO) and capture batch allocations
-      for (const item of order.items || []) {
-        const allocations = await this.inventoryService.reserveStock(organizationId, item.productId, item.quantity, undefined, session);
-        item.allocations = allocations;
+      if (manualAllocations && !reason) {
+        throw new BadRequestException('A reason is mandatory when providing manual batch overrides');
       }
-      order.markModified('items');
 
-      const updated = await this.updateStatus(organizationId, orderId, 'Approved', actorId, 'Approved by web dashboard', session);
+      // Reserve stock for all items (FEFO) and capture batch allocations
+      let hasInsufficientStock = false;
+      for (const item of order.items || []) {
+        try {
+          const itemManualAllocations = manualAllocations ? manualAllocations[item.productId] : undefined;
+          const allocations = await this.inventoryService.reserveStock(
+            organizationId, 
+            item.productId, 
+            item.quantity, 
+            undefined, 
+            session,
+            itemManualAllocations,
+            0 // minShelfLifeDays (todo: fetch from policy)
+          );
+          item.allocations = allocations;
+        } catch (error: any) {
+          if (error.message.includes('Insufficient stock')) {
+            hasInsufficientStock = true;
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      if (hasInsufficientStock) {
+        order.status = 'Hold_Stock' as any;
+        order.markModified('items');
+        await this.updateStatus(organizationId, orderId, 'Hold_Stock', actorId, 'Insufficient stock during approval attempt', session);
+        await session.commitTransaction();
+        return order as any;
+      }
+
+      order.markModified('items');
+      const updated = await this.updateStatus(organizationId, orderId, 'Approved', actorId, reason || 'Approved by web dashboard', session);
       await session.commitTransaction();
       return updated;
     } catch (error) {
