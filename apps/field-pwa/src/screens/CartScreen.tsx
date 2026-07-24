@@ -18,7 +18,7 @@ export function CartScreen() {
   
   const outlets = useLiveQuery(() => db.outlets.toArray(), []) ?? EMPTY_OUTLETS;
   const distributors = useLiveQuery(() => db.distributors.toArray(), []) ?? EMPTY_DISTRIBUTORS;
-  const schemes = useLiveQuery(() => db.schemes.where('isActive').equals('true').toArray(), []) ?? EMPTY_SCHEMES;
+  const schemes = useLiveQuery(() => db.schemes.filter(s => s.isActive).toArray(), []) ?? EMPTY_SCHEMES;
 
   // Default to first outlet if none selected (for testing UI, should normally let user pick)
   const currentOutletId = selectedOutletId || (outlets.length > 0 ? outlets[0].id : '');
