@@ -92,7 +92,7 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/attendance/start')
         .set('Authorization', `Bearer ${token1}`)
-        .send({ lat: 28.5, lng: 77.2, accuracy: 10, deviceTimestamp: new Date().toISOString() })
+        .send({ lat: 28.5, lng: 77.2, accuracy: 10, deviceTimestamp: new Date().toISOString(), photoUrl: 'https://example.com/photo.jpg' })
         .expect(201);
       
       expect(res.body.status).toBe('Active');
@@ -119,7 +119,7 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/visits/check-in')
         .set('Authorization', `Bearer ${token1}`)
-        .send({ outletId, lat: 28.5284, lng: 77.2183, accuracy: 5 })
+        .send({ outletId, lat: 28.5284, lng: 77.2183, accuracy: 5, photoUrl: 'https://example.com/photo.jpg' })
         .expect(201);
 
       expect(res.body.status).toBe('Active');

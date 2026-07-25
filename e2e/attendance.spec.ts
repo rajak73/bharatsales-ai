@@ -66,7 +66,12 @@ test.describe('Attendance & Geolocation Flow', () => {
     await expect(checkInButton).toBeVisible();
     await checkInButton.click();
     
-    // Verify Check In success (assuming Check Out button appears)
+    // Check for any error banner
+    const errorBanner = page.locator('.text-red-700');
+    if (await errorBanner.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log('CHECK IN ERROR:', await errorBanner.textContent());
+    }
+
     const checkOutButton = page.locator('button:has-text("Check Out")');
     await expect(checkOutButton).toBeVisible();
     

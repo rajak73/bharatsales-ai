@@ -7,7 +7,7 @@ export interface PaymentCollection {
   collectedByUserId: string;
   
   amount: number;
-  paymentMode: 'Cash' | 'Cheque' | 'UPI' | 'Bank Transfer';
+  paymentMode: 'Cash' | 'Cheque' | 'UPI' | 'Bank Transfer' | 'Credit Note';
   referenceNumber?: string; // For Cheque or UPI
   
   status: 'Draft' | 'Submitted' | 'Pending_Verification' | 'Verified' | 'Rejected' | 'Reversed' | 'Pending' | 'Cleared' | 'Bounced';

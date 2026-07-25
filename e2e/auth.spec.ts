@@ -39,7 +39,7 @@ test.describe('Authentication & Invitation Flow', () => {
       data: { email: testEmail, role: 'Sales Representative' }
     });
     const body = await res.json();
-    
+    console.log('INVITE RESPONSE:', body);
     expect(body.inviteToken).toBeDefined();
     inviteToken = body.inviteToken;
     // Logout by clearing storage instead of relying on a specific UI button

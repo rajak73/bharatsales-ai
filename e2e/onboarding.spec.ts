@@ -5,8 +5,8 @@ test.describe('Onboarding Flow UI', () => {
   test('Company Admin can complete the onboarding wizard', async ({ page }) => {
     // 1. Login
     await page.goto('http://localhost:6003/login');
-    // Using an admin who hasn't completed onboarding, or just check the wizard renders
-    await page.fill('input[type="email"]', 'superadmin@bharatsales.com');
+    // Using an admin who hasn't completed onboarding
+    await page.fill('input[type="email"]', 'admin@rajpharma.com');
     await page.fill('input[type="password"]', 'password123');
     await page.click('button[type="submit"]');
 

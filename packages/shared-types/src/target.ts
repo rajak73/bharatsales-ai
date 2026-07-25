@@ -10,6 +10,7 @@ export interface SalesTarget {
   
   targetValue: number; // e.g., ₹500,000
   actualValue: number;
+  targetMetric?: 'SalesValue' | 'VisitCount' | 'ProductiveCalls' | 'CollectionValue';
   
   status: 'On Track' | 'At Risk' | 'Achieved' | 'Missed';
   

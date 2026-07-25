@@ -11,6 +11,7 @@ class Pricing {
   @Prop({ required: true, min: 0 }) pts: number;
   @Prop({ required: true, min: 0 }) ptr: number;
   @Prop({ required: true, min: 0 }) gstPercentage: number;
+  @Prop({ type: Map, of: Number }) tierPricing?: Record<string, number>;
 }
 
 @Schema({ _id: false })
@@ -28,6 +29,7 @@ export class Product implements Omit<IProduct, 'id' | 'createdAt' | 'updatedAt'>
   @Prop({ required: true }) brand: string;
   @Prop({ required: true }) category: string;
   @Prop() hsn?: string;
+  @Prop({ default: 1, min: 1 }) moq: number;
   @Prop({ required: true, enum: ['Active', 'Inactive'], default: 'Active' }) status: 'Active' | 'Inactive';
   @Prop({ type: Pricing, required: true }) pricing: Pricing;
   @Prop({ type: Stock, required: true }) stock: Stock;

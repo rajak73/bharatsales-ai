@@ -5,6 +5,7 @@ import { ReturnsService } from './returns.service';
 import { ReturnOrder, ReturnSchema } from '../schemas/return.schema';
 import { Outlet, OutletSchema, Invoice, InvoiceSchema } from '../schemas';
 import { InventoryModule } from '../inventory/inventory.module';
+import { FinanceModule } from '../finance/finance.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { InventoryModule } from '../inventory/inventory.module';
       { name: 'Invoice', schema: InvoiceSchema },
     ]),
     InventoryModule,
+    FinanceModule,
   ],
   controllers: [ReturnsController],
   providers: [ReturnsService],

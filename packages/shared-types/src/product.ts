@@ -7,12 +7,15 @@ export interface Product {
   category: string;
   status: 'Active' | 'Inactive';
   hsn?: string;
+  moq?: number;
+  shelfLifeDays?: number;
   pricing: {
     mrp: number;
     basePrice: number; // Stored in smallest currency unit (e.g., paise)
     pts: number;
     ptr: number;
     gstPercentage: number;
+    tierPricing?: Record<string, number>;
   };
   stock: {
     available: number;

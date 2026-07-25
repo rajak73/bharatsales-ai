@@ -1,17 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Outlet } from '../schemas/outlet.schema';
 import { Order } from '../schemas/order.schema';
 import { Visit } from '../schemas/visit.schema';
 import { Outlet as SharedOutlet } from '@bharatsales/shared-types';
+import { Tenant } from '../schemas/tenant.schema';
 
 @Injectable()
 export class OutletsService {
   constructor(
     @InjectModel(Outlet.name) private outletModel: Model<Outlet>,
     @InjectModel(Order.name) private orderModel: Model<Order>,
-    @InjectModel(Visit.name) private visitModel: Model<Visit>
+    @InjectModel(Visit.name) private visitModel: Model<Visit>,
+    @InjectModel(Tenant.name) private tenantModel: Model<Tenant>
   ) {}
 
   async findAllByOrgId(organizationId: string): Promise<Outlet[]> {
@@ -46,15 +48,36 @@ export class OutletsService {
     };
   }
 
-  async create(organizationId: string, outletData: Omit<SharedOutlet, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>): Promise<Outlet> {
-    delete (outletData as any).organizationId;
-    delete (outletData as any)._id;
-    delete (outletData as any).createdAt;
-    delete (outletData as any).updatedAt;
+  async create(organizationId: string, createdByUserId: string, outletData: Partial<SharedOutlet>): Promise<Outlet> {
+    const existing = await this.outletModel.findOne({
+      organizationId,
+      $or: [
+        { mobile: outletData.mobile },
+        ...(outletData.tax?.gstin ? [{ 'tax.gstin': outletData.tax.gstin }] : [])
+      ]
+    }).exec();
+    if (existing) {
+      throw new BadRequestException('An outlet with this mobile number or GSTIN already exists.');
+    }
+
+    // Tier limit validation
+    const tenant = await this.tenantModel.findById(organizationId).exec();
+    if (tenant) {
+      const maxOutlets = (tenant as any).commercialSettings?.maxOutlets || 0; // assuming it exists or similar limit
+      if (maxOutlets > 0) {
+        const currentOutletCount = await this.outletModel.countDocuments({ organizationId }).exec();
+        if (currentOutletCount >= maxOutlets) {
+          throw new BadRequestException(`Organization has reached its maximum outlet limit of ${maxOutlets}. Please upgrade your plan.`);
+        }
+      }
+    }
+
     const newOutlet = new this.outletModel({
       ...outletData,
       organizationId,
-      status: outletData.status || 'Active', // Default status if not provided
+      status: 'Pending Approval', // BR-002 Default to Pending Approval
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
     return newOutlet.save();
   }

@@ -28,9 +28,16 @@ export class ProductsController {
     return this.productsService.getCatalog(orgId);
   }
 
-@RequirePermissions(Resource.Products, Action.Create)
+  @RequirePermissions(Resource.Products, Action.Read)
+  @Get(':id/outlet/:outletId')
+  async getProductForOutlet(@Request() req: any, @Param('id') id: string, @Param('outletId') outletId: string) {
+    const orgId = req.user.orgId;
+    return this.productsService.getProductForOutlet(orgId, id, outletId);
+  }
+
+  @RequirePermissions(Resource.Products, Action.Create)
   @Post()
-    @AuditEntity('Product')
+  @AuditEntity('Product')
   async createProduct(@Request() req: any, @Body() productData: Omit<Product, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>) {
     const orgId = req.user.orgId;
     return this.productsService.create(orgId, productData);

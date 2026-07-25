@@ -5,7 +5,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 export default defineConfig({
   define: {
-    'process.env': {}
+    'process.env': {
+      VITE_API_URL: process.env.VITE_API_URL || 'http://localhost:6002'
+    }
   },
   plugins: [
     react(),

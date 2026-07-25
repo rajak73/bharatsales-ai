@@ -2,7 +2,7 @@ import { apiClient } from '../index';
 import type { AttendanceSession } from '@bharatsales/shared-types';
 
 export const AttendanceService = {
-  startDay: async (data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string }): Promise<AttendanceSession> => {
+  startDay: async (data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string; photoUrl?: string }): Promise<AttendanceSession> => {
     const response = await apiClient.post('/attendance/start', data);
     return response.data;
   },

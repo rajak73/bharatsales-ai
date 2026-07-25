@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { HierarchyNode } from '@bharatsales/shared-types';
@@ -16,6 +16,18 @@ export class HierarchyService {
     delete (nodeData as any)._id;
     delete (nodeData as any).createdAt;
     delete (nodeData as any).updatedAt;
+    
+    if (nodeData.parentId) {
+      const parent = await this.hierarchyModel.findOne({ _id: nodeData.parentId, organizationId }).exec();
+      if (!parent) {
+        throw new BadRequestException('Parent node not found');
+      }
+      const levels: Record<string, number> = { 'Zone': 1, 'Region': 2, 'Area': 3, 'Territory': 4 };
+      if (nodeData.level && levels[nodeData.level as string] <= levels[parent.level as string]) {
+        throw new BadRequestException(`Invalid depth: A ${nodeData.level} cannot be a child of a ${parent.level}`);
+      }
+    }
+
     const newNode = new this.hierarchyModel({
       ...nodeData,
       organizationId,
@@ -29,20 +41,51 @@ export class HierarchyService {
     delete (updateData as any)._id;
     delete (updateData as any).createdAt;
     delete (updateData as any).updatedAt;
+    
+    const thisNode = await this.hierarchyModel.findOne({ _id: id, organizationId }).exec();
+    if (!thisNode) {
+      throw new NotFoundException('Hierarchy node not found');
+    }
+
+    if (updateData.parentId && updateData.parentId.toString() !== thisNode.parentId?.toString()) {
+      const targetParent = await this.hierarchyModel.findOne({ _id: updateData.parentId, organizationId }).exec();
+      if (!targetParent) {
+        throw new BadRequestException('Target parent node not found');
+      }
+      
+      const levels: Record<string, number> = { 'Zone': 1, 'Region': 2, 'Area': 3, 'Territory': 4 };
+      const newLevel = updateData.level || thisNode.level;
+      if (levels[newLevel as string] <= levels[targetParent.level as string]) {
+        throw new BadRequestException(`Invalid depth: A ${newLevel} cannot be a child of a ${targetParent.level}`);
+      }
+
+      // Cyclical Loop Prevention
+      let currentParentId = targetParent._id.toString();
+      while (currentParentId) {
+        if (currentParentId === id) {
+          throw new BadRequestException('Cyclical hierarchy loop detected');
+        }
+        const p = await this.hierarchyModel.findOne({ _id: currentParentId, organizationId }).exec();
+        if (!p || !p.parentId) break;
+        currentParentId = p.parentId.toString();
+      }
+    }
+
     const node = await this.hierarchyModel.findOneAndUpdate(
       { _id: id, organizationId },
       { $set: updateData },
       { new: true }
     ).exec();
     
-    if (!node) {
-      throw new NotFoundException('Hierarchy node not found');
-    }
-    
     return node;
   }
 
   async deleteNode(organizationId: string, id: string) {
+    const childrenCount = await this.hierarchyModel.countDocuments({ parentId: id, organizationId }).exec();
+    if (childrenCount > 0) {
+      throw new BadRequestException('Cannot delete node with assigned children. Reassign children first.');
+    }
+
     const node = await this.hierarchyModel.findOneAndDelete({ _id: id, organizationId }).exec();
     if (!node) {
       throw new NotFoundException('Hierarchy node not found');

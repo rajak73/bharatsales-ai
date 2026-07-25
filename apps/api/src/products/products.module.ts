@@ -5,9 +5,14 @@ import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
 import { Product, ProductSchema } from '../schemas/product.schema';
 
+import { OutletSchema } from '../schemas/outlet.schema';
+
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Product.name, schema: ProductSchema }]),
+    MongooseModule.forFeature([
+      { name: Product.name, schema: ProductSchema },
+      { name: 'Outlet', schema: OutletSchema }
+    ]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'bharatsales-super-secret-key-2026',
       signOptions: { expiresIn: '7d' },

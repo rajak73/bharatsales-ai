@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
+import { AuditService } from '../audit/audit.service';
 import { UserDocument, TenantDocument, SessionDocument, TokenDocument } from '../schemas';
 
 export interface IEmailProvider {
@@ -88,7 +89,8 @@ export class AuthService {
     @InjectModel('Tenant') private tenantModel: Model<TenantDocument>,
     @InjectModel('Session') private sessionModel: Model<SessionDocument>,
     @InjectModel('Token') private tokenModel: Model<TokenDocument>,
-    private jwtService: JwtService
+    private jwtService: JwtService,
+    private auditService: AuditService
   ) {}
 
   async register(registerDto: any) {
@@ -129,9 +131,11 @@ export class AuthService {
       throw new UnauthorizedException('User account is not active or not found');
     }
 
-    const tenant = await this.tenantModel.findById(user.organizationId).exec();
-    if (!tenant || tenant.status === 'Suspended' || tenant.status === 'Archived') {
-      throw new UnauthorizedException('Organization account is suspended or archived.');
+    if (user.role !== 'Super Admin') {
+      const tenant = await this.tenantModel.findById(user.organizationId).exec();
+      if (!tenant || tenant.status === 'Suspended' || tenant.status === 'Archived') {
+        throw new UnauthorizedException('Organization account is suspended or archived.');
+      }
     }
 
     // Account Lockout Check
@@ -188,6 +192,19 @@ export class AuthService {
       user.lockedUntil = undefined;
       await user.save();
     }
+
+    // Log the successful login audit event
+    this.auditService.logAction({
+      organizationId: user.organizationId,
+      actorId: user._id.toString(),
+      actorRole: user.role,
+      action: 'LOGIN',
+      entityName: 'Session',
+      entityId: session._id.toString(),
+      ipAddress,
+      deviceInfo,
+      reason: 'User authenticated successfully'
+    }).catch(err => console.error('Audit Log Error:', err));
 
     return this.generateTokenResponse(user, refreshToken);
   }
@@ -311,6 +328,16 @@ export class AuthService {
     validToken.used = true;
     await validToken.save();
 
+    this.auditService.logAction({
+      organizationId: user.organizationId,
+      actorId: user._id.toString(),
+      actorRole: user.role,
+      action: 'PASSWORD_RESET',
+      entityName: 'User',
+      entityId: user._id.toString(),
+      reason: 'User completed password reset flow'
+    }).catch(err => console.error('Audit Log Error:', err));
+
     return { success: true, message: 'Password reset successful.' };
   }
 
@@ -370,7 +397,23 @@ export class AuthService {
   }
 
   async logout(refreshToken: string) {
-    await this.sessionModel.updateOne({ refreshToken }, { $set: { revoked: true } });
+    const session = await this.sessionModel.findOneAndUpdate(
+      { refreshToken },
+      { $set: { revoked: true } }
+    ).exec();
+
+    if (session) {
+      this.auditService.logAction({
+        organizationId: session.organizationId,
+        actorId: session.userId.toString(),
+        actorRole: 'Unknown', // We don't have the user object here easily, but we can log the action
+        action: 'LOGOUT',
+        entityName: 'Session',
+        entityId: session._id.toString(),
+        reason: 'User initiated logout'
+      }).catch(err => console.error('Audit Log Error:', err));
+    }
+
     return { success: true };
   }
 

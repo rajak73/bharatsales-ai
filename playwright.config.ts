@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+process.env.NEXT_PUBLIC_API_URL = 'http://localhost:6002';
+process.env.VITE_API_URL = 'http://localhost:6002';
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -21,19 +24,19 @@ export default defineConfig({
     {
       command: 'cd apps/api && pnpm run dev',
       url: 'http://localhost:6002/health',
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       timeout: 120 * 1000,
     },
     {
       command: 'cd apps/web && pnpm run dev',
       url: 'http://localhost:6003',
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       timeout: 120 * 1000,
     },
     {
       command: 'cd apps/field-pwa && pnpm run dev',
       url: 'http://localhost:6001',
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       timeout: 120 * 1000,
     }
   ],

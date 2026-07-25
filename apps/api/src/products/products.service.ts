@@ -1,12 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Product } from '../schemas/product.schema';
-import { Product as SharedProduct } from '@bharatsales/shared-types';
+import { Product as SharedProduct, Outlet } from '@bharatsales/shared-types';
+import { Outlet as OutletSchema } from '../schemas/outlet.schema';
 
 @Injectable()
 export class ProductsService {
-  constructor(@InjectModel(Product.name) private productModel: Model<Product>) {}
+  constructor(
+    @InjectModel(Product.name) private productModel: Model<Product>,
+    @InjectModel(OutletSchema.name) private outletModel: Model<Outlet>
+  ) {}
 
   async findAllByOrgId(organizationId: string): Promise<Product[]> {
     return this.productModel.find({ organizationId }).exec();
@@ -14,6 +18,32 @@ export class ProductsService {
 
   async getCatalog(organizationId: string): Promise<Product[]> {
     return this.productModel.find({ organizationId, status: 'Active' }).select('-taxHistory -createdAt -updatedAt').exec();
+  }
+
+  async getProductForOutlet(organizationId: string, id: string, outletId: string): Promise<any> {
+    const product = await this.productModel.findOne({ _id: id, organizationId }).exec();
+    if (!product) throw new NotFoundException('Product not found');
+
+    const outlet = await this.outletModel.findOne({ _id: outletId, organizationId }).exec();
+    if (!outlet) throw new NotFoundException('Outlet not found');
+
+    const result = product.toObject();
+    const tierPricing = result.pricing.tierPricing;
+    if (outlet.tier && tierPricing) {
+      let overridePrice: number | undefined;
+      // Handle both Map and plain object
+      if (tierPricing instanceof Map) {
+        overridePrice = (tierPricing as any).get(outlet.tier);
+      } else {
+        overridePrice = tierPricing[outlet.tier];
+      }
+      
+      if (overridePrice !== undefined) {
+        result.pricing.basePrice = overridePrice;
+      }
+    }
+    
+    return result;
   }
 
   async create(organizationId: string, productData: Omit<SharedProduct, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>): Promise<Product> {

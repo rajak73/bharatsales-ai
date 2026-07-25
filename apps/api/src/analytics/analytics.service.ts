@@ -41,6 +41,11 @@ export class AnalyticsService {
     });
     const todaysCollectionTotal = todaysCollections.reduce((sum, c) => sum + (c.amount || 0), 0);
 
+    // Route Coverage
+    const uniqueVisitedOutlets = new Set(visitedOutletIds.filter(Boolean)).size;
+    const totalOutlets = await this.outletModel.countDocuments({ organizationId }).exec();
+    const routeCoverage = totalOutlets > 0 ? Math.round((uniqueVisitedOutlets / totalOutlets) * 100) : 0;
+
     // Recent Orders
     const recentOrdersDb = await this.orderModel.find({ organizationId }).sort({ createdAt: -1 }).limit(5);
     const outletIds = [...new Set(recentOrdersDb.map(o => o.outletId))];
@@ -113,6 +118,7 @@ export class AnalyticsService {
         { label: 'Visits Completed', value: `${todaysVisits.length}`, change: '0%', up: true, icon: '📍' },
         { label: 'Productive Calls', value: `${productiveCalls}`, change: '0', up: true, icon: '✅' },
         { label: 'Collections', value: `₹${todaysCollectionTotal.toLocaleString()}`, change: '+0%', up: true, icon: '💰' },
+        { label: 'Route Coverage', value: `${routeCoverage}%`, change: '+0%', up: true, icon: '🗺️' },
       ],
       recentOrders,
       salesData,

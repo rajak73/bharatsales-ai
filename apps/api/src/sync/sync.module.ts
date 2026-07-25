@@ -3,6 +3,8 @@ import { SyncController } from './sync.controller';
 import { SyncService } from './sync.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { OrderSchema, VisitSchema, CollectionSchema, ProductSchema, PriceListSchema, OutletSchema } from '../schemas';
+import { OrdersModule } from '../orders/orders.module';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
   imports: [
@@ -13,7 +15,9 @@ import { OrderSchema, VisitSchema, CollectionSchema, ProductSchema, PriceListSch
       { name: 'Product', schema: ProductSchema },
       { name: 'PriceList', schema: PriceListSchema },
       { name: 'Outlet', schema: OutletSchema }
-    ])
+    ]),
+    OrdersModule,
+    InventoryModule
   ],
   controllers: [SyncController],
   providers: [SyncService]

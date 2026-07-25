@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { ReturnOrder } from '../schemas/return.schema';
 import { ReturnOrder as SharedReturnOrder, Outlet, Invoice } from '@bharatsales/shared-types';
 import { InventoryService } from '../inventory/inventory.service';
+import { FinanceService } from '../finance/finance.service';
 
 @Injectable()
 export class ReturnsService {
@@ -13,7 +14,8 @@ export class ReturnsService {
     @InjectModel(ReturnOrder.name) private returnModel: Model<ReturnOrder>,
     @InjectModel('Outlet') private outletModel: Model<Outlet>,
     @InjectModel('Invoice') private invoiceModel: Model<Invoice>,
-    private inventoryService: InventoryService
+    private inventoryService: InventoryService,
+    private financeService: FinanceService
   ) {}
 
   async getReturns(organizationId: string): Promise<ReturnOrder[]> {
@@ -89,12 +91,7 @@ export class ReturnsService {
     if (status === 'Approved' || status === 'Received') {
       const refundAmount = Number(returnOrder.value) || 0;
       if (refundAmount > 0 && status === 'Approved') {
-        const outlet = await this.outletModel.findById(returnOrder.outlet).session(session);
-        if (outlet) {
-          outlet.commercial.outstandingBalance = Math.max(0, (outlet.commercial.outstandingBalance || 0) - refundAmount);
-          // TODO: Generate a Credit Note instead of direct deduction
-          await outlet.save({ session });
-        }
+        await this.financeService.createCreditNote(organizationId, returnOrder.outlet, refundAmount, returnOrder._id.toString(), session);
       }
     }
 

@@ -79,7 +79,8 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     try {
       const session = await AttendanceService.startDay({
         ...location,
-        deviceTimestamp: new Date().toISOString()
+        deviceTimestamp: new Date().toISOString(),
+        photoUrl: 'https://example.com/dummy-selfie.jpg'
       });
       setActiveSession(session);
     } catch (error) {

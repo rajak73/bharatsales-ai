@@ -21,6 +21,12 @@ export class Visit extends Document {
   @Prop({ type: { lat: Number, lng: Number, accuracy: Number }, required: true })
   checkInLocation: { lat: number; lng: number; accuracy: number };
 
+  @Prop({ type: { lat: Number, lng: Number, accuracy: Number } })
+  checkOutLocation?: { lat: number; lng: number; accuracy: number };
+
+  @Prop()
+  photoUrl?: string;
+
   @Prop()
   distanceFromOutlet?: number;
 

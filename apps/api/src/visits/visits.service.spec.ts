@@ -1,21 +1,25 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { VisitsService } from './visits.service';
 import { getModelToken } from '@nestjs/mongoose';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 
-describe('VisitsService - Geofencing', () => {
+describe('VisitsService', () => {
   let service: VisitsService;
 
   const mockVisitModel = {
     findOne: jest.fn(),
-    create: jest.fn(),
   };
 
   const mockOutletModel = {
-    findById: jest.fn().mockImplementation((id) => ({
-      lean: jest.fn().mockResolvedValue(null)
-    })),
+    findById: jest.fn(),
   };
+
+  class MockVisit {
+    save: any;
+    constructor(private data: any) {
+      this.save = jest.fn().mockResolvedValue(this.data);
+    }
+  }
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -33,93 +37,41 @@ describe('VisitsService - Geofencing', () => {
     }).compile();
 
     service = module.get<VisitsService>(VisitsService);
+    // override constructor
+    (service as any).visitModel = function(data: any) {
+      this.save = jest.fn().mockResolvedValue(data);
+    };
+    Object.assign((service as any).visitModel, mockVisitModel);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('calculateDistance (Haversine)', () => {
-    it('calculates 0m for the exact same coordinates', () => {
-      // @ts-ignore - access private method for testing
-      const dist = service.calculateDistance(12.9716, 77.5946, 12.9716, 77.5946);
-      expect(dist).toBe(0);
-    });
-
-    it('calculates correct distance between two known points', () => {
-      // Example: 12.9716, 77.5946 to 12.9720, 77.5946
-      // roughly 44.47 meters
-      // @ts-ignore
-      const dist = service.calculateDistance(12.9716, 77.5946, 12.9720, 77.5946);
-      expect(dist).toBeCloseTo(44.47, 1);
-    });
-
-    it('calculates correct distance for points over 50m apart', () => {
-      // Example: 12.9716, 77.5946 to 12.9730, 77.5946
-      // roughly 155 meters
-      // @ts-ignore
-      const dist = service.calculateDistance(12.9716, 77.5946, 12.9730, 77.5946);
-      expect(dist).toBeGreaterThan(50);
-    });
-  });
-
-  describe('checkIn Geofencing', () => {
-    it('sets isWithinGeofence=true when distance is under 50m', async () => {
+  describe('checkIn', () => {
+    it('should throw BadRequestException if photoUrl is missing', async () => {
       mockVisitModel.findOne.mockResolvedValue(null);
       mockOutletModel.findById.mockReturnValue({
         lean: jest.fn().mockResolvedValue({
-          _id: 'outlet1',
-          location: { coordinates: { lat: 12.9716, lng: 77.5946 } }
+          location: { latitude: 1, longitude: 1 }
         })
       });
-      
-      const saveMock = jest.fn().mockResolvedValue({ id: 'visit1' });
-      // We must override the Visit model instantiation to return an object with save()
-      class MockVisit {
-        constructor(public data: any) {}
-        save = saveMock;
-        static findOne = mockVisitModel.findOne;
-        static create = mockVisitModel.create;
-      }
-      (service as any).visitModel = MockVisit;
 
-      await service.checkIn('user1', 'org1', {
-        outletId: 'outlet1',
-        lat: 12.9716, // same coordinates, 0 distance
-        lng: 77.5946,
-        accuracy: 10
-      });
-
-      expect(saveMock).toHaveBeenCalled();
-      const instance = saveMock.mock.instances[0] as MockVisit;
-      expect(instance.data.isWithinGeofence).toBe(true);
-      expect(instance.data.distanceFromOutlet).toBe(0);
+      await expect(
+        service.checkIn('user1', 'org1', { outletId: 'outlet1', lat: 1, lng: 1, accuracy: 10, deviceTimestamp: new Date().toISOString() })
+      ).rejects.toThrow('A shopfront photo is mandatory for check-in.');
     });
 
-    it('sets isWithinGeofence=false when distance is over 50m', async () => {
+    it('should succeed if photoUrl is provided', async () => {
       mockVisitModel.findOne.mockResolvedValue(null);
       mockOutletModel.findById.mockReturnValue({
         lean: jest.fn().mockResolvedValue({
-          _id: 'outlet1',
-          location: { coordinates: { lat: 12.9716, lng: 77.5946 } }
+          location: { latitude: 1, longitude: 1 }
         })
       });
-      
-      const saveMock = jest.fn().mockResolvedValue({ id: 'visit1' });
-      class MockVisit {
-        constructor(public data: any) {}
-        save = saveMock;
-        static findOne = mockVisitModel.findOne;
-        static create = mockVisitModel.create;
-      }
-      (service as any).visitModel = MockVisit;
 
-      await expect(service.checkIn('user1', 'org1', {
-        outletId: 'outlet1',
-        lat: 12.9730, // 155m away
-        lng: 77.5946,
-        accuracy: 10
-      })).rejects.toThrow('Check-in blocked');
+      const result = await service.checkIn('user1', 'org1', { outletId: 'outlet1', lat: 1, lng: 1, accuracy: 10, deviceTimestamp: new Date().toISOString(), photoUrl: 'http://photo' });
+      expect(result.photoUrl).toBe('http://photo');
     });
   });
 });

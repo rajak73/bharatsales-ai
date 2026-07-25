@@ -80,7 +80,7 @@ describe('Attendance State Machine (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post('/attendance/start')
       .set('Authorization', `Bearer ${token}`)
-      .send({ lat: 10.1, lng: 20.1, accuracy: 5 })
+      .send({ lat: 10.1, lng: 20.1, accuracy: 5, photoUrl: 'https://example.com/photo.jpg' })
       .expect(201);
     
     expect(res.body.status).toBe('Active');
@@ -91,7 +91,7 @@ describe('Attendance State Machine (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post('/attendance/start')
       .set('Authorization', `Bearer ${token}`)
-      .send({ lat: 10.2, lng: 20.2, accuracy: 10 })
+      .send({ lat: 10.2, lng: 20.2, accuracy: 10, photoUrl: 'https://example.com/photo.jpg' })
       .expect(201);
     
     expect(res.body.status).toBe('Active');
@@ -103,7 +103,7 @@ describe('Attendance State Machine (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post('/visits/check-in')
       .set('Authorization', `Bearer ${token}`)
-      .send({ outletId, lat: 10, lng: 20, accuracy: 5 })
+      .send({ outletId, lat: 10, lng: 20, accuracy: 5, photoUrl: 'https://example.com/photo.jpg' })
       .expect(201);
     
     expect(res.body.status).toBe('Active');

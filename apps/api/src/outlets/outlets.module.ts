@@ -6,6 +6,7 @@ import { OutletsService } from './outlets.service';
 import { Outlet, OutletSchema } from '../schemas/outlet.schema';
 import { Order, OrderSchema } from '../schemas/order.schema';
 import { Visit, VisitSchema } from '../schemas/visit.schema';
+import { Tenant, TenantSchema } from '../schemas/tenant.schema';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { Visit, VisitSchema } from '../schemas/visit.schema';
       { name: Outlet.name, schema: OutletSchema },
       { name: Order.name, schema: OrderSchema },
       { name: Visit.name, schema: VisitSchema },
+      { name: Tenant.name, schema: TenantSchema },
     ]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'bharatsales-super-secret-key-2026',

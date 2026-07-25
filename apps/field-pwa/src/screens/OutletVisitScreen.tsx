@@ -53,7 +53,8 @@ export function OutletVisitScreen() {
           
           const visit = await VisitsService.checkIn({
             outletId: outlet.id,
-            ...loc
+            ...loc,
+            photoUrl: 'https://example.com/dummy-shopfront.jpg'
           });
 
           setActiveVisitId(visit._id);

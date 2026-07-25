@@ -1,7 +1,9 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession } from 'mongoose';
-import { Order, Visit, PaymentCollection, Product, PriceList, Outlet } from '../schemas';
+import { Order, Visit, PaymentCollection, Product, PriceList, Outlet, Inventory } from '../schemas';
+import { OrdersService } from '../orders/orders.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 @Injectable()
 export class SyncService {
@@ -11,23 +13,39 @@ export class SyncService {
     @InjectModel('Collection') private collectionModel: Model<PaymentCollection>,
     @InjectModel('Product') private productModel: Model<Product>,
     @InjectModel('PriceList') private priceListModel: Model<PriceList>,
-    @InjectModel('Outlet') private outletModel: Model<Outlet>
+    @InjectModel('Outlet') private outletModel: Model<Outlet>,
+    private ordersService: OrdersService,
+    private inventoryService: InventoryService
   ) {}
 
-  async pull(organizationId: string, lastSyncTimestamp?: string) {
+  async pull(organizationId: string, userId: string, lastSyncTimestamp?: string) {
     const query = lastSyncTimestamp ? { updatedAt: { $gt: new Date(lastSyncTimestamp) } } : {};
     const orgQuery = { organizationId, ...query };
 
-    const [products, prices, outlets] = await Promise.all([
+    const [products, prices, outlets, collections, inventory, schemes, targets, beats, orders, visits] = await Promise.all([
       this.productModel.find(orgQuery).exec(),
       this.priceListModel.find(orgQuery).exec(),
-      this.outletModel.find(orgQuery).exec()
+      this.outletModel.find(orgQuery).exec(),
+      this.collectionModel.find({ organizationId }).exec(),
+      this.inventoryService.getInventory(organizationId),
+      this.orderModel.db.model('Scheme').find(orgQuery).exec(),
+      this.orderModel.db.model('Target').find({ ...orgQuery, entityType: 'User', entityId: userId }).exec(),
+      this.orderModel.db.model('BeatSchedule').find({ ...orgQuery, user: userId }).populate('beat').exec(),
+      this.orderModel.find({ ...orgQuery, createdByUserId: userId }).exec(),
+      this.visitModel.find({ ...orgQuery, user: userId }).exec()
     ]);
 
     return {
       products,
       prices,
       outlets,
+      collections,
+      inventory,
+      schemes,
+      targets,
+      beats,
+      orders,
+      visits,
       timestamp: new Date().toISOString()
     };
   }
@@ -49,11 +67,15 @@ export class SyncService {
               continue;
             }
           }
-          await this.orderModel.findOneAndUpdate(
-            { _id: order._id || new (this.orderModel.db as any).base.Types.ObjectId() },
-            { ...(() => { delete order.organizationId; delete order._id; delete order.createdAt; delete order.updatedAt; return order; })(), organizationId, salesRepId: userId },
-            { upsert: true, new: true, session }
-          );
+          // Route through OrdersService.create() instead of direct DB write
+          // This ensures MOQ, Credit limits, and FEFO inventory rules apply
+          try {
+             // We pass idempotencyKey to prevent duplicate syncs
+             order.idempotencyKey = order.idempotencyKey || `sync-${order._id || Date.now()}`;
+             await this.ordersService.create(organizationId, userId, order);
+          } catch (e: any) {
+             conflicts.push({ type: 'Order', id: order._id || 'new', reason: e.message });
+          }
         }
       }
 

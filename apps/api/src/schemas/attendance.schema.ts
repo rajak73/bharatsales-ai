@@ -26,6 +26,15 @@ export class AttendanceSession extends Document {
 
   @Prop()
   deviceTimestamp?: Date;
+
+  @Prop()
+  photoUrl?: string;
+
+  @Prop({ enum: ['PENDING', 'APPROVED', 'REJECTED'], default: null })
+  regularizationStatus?: string;
+
+  @Prop()
+  regularizationReason?: string;
 }
 
 export const AttendanceSessionSchema = SchemaFactory.createForClass(AttendanceSession);

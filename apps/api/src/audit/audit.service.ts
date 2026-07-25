@@ -22,4 +22,8 @@ export class AuditService {
     const log = new this.auditLogModel(data);
     await log.save();
   }
+
+  async getGlobalLogs(limit: number = 50) {
+    return this.auditLogModel.find().sort({ timestamp: -1, createdAt: -1 }).limit(limit).exec();
+  }
 }

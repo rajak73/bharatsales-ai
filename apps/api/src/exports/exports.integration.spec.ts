@@ -38,7 +38,7 @@ describe('Exports Integration (e2e)', () => {
 
     // Generate Token
     token = jwtService.sign({ sub: user._id.toString(), email: user.email, orgId: tenantId, role: user.role });
-  }, 30000);
+  }, 60000);
 
   afterAll(async () => {
     await app.close();

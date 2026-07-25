@@ -3,7 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { UnauthorizedException } from '@nestjs/common';
-
+import { AuditService } from '../audit/audit.service';
 describe('AuthService', () => {
   let service: AuthService;
 
@@ -38,6 +38,7 @@ describe('AuthService', () => {
         { provide: getModelToken('Session'), useValue: mockSessionModel },
         { provide: getModelToken('Token'), useValue: mockTokenModel },
         { provide: JwtService, useValue: mockJwtService },
+        { provide: AuditService, useValue: {} },
       ],
     }).compile();
 

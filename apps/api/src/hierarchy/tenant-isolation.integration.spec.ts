@@ -49,6 +49,7 @@ describe('Tenant Isolation & Hierarchy Security (e2e)', () => {
       role: 'Company Admin',
       status: 'Active',
       name: 'User A',
+      photoUrl: 'https://example.com/photo.jpg',
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -60,6 +61,7 @@ describe('Tenant Isolation & Hierarchy Security (e2e)', () => {
       role: 'Company Admin',
       status: 'Active',
       name: 'User B',
+      photoUrl: 'https://example.com/photo.jpg',
       createdAt: new Date(),
       updatedAt: new Date()
     });

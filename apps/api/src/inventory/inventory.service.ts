@@ -242,9 +242,10 @@ export class InventoryService {
     }
   }
 
-  async adjustStock(organizationId: string, adjustment: { productId: string, batch: string, type: string, quantity: number, reason?: string, warehouseId?: string, status?: string, blocked?: boolean }, session?: any): Promise<Inventory> {
+  async adjustStock(organizationId: string, adjustment: { productId: string, batch: string, type: string, quantity: number, reason?: string, warehouseId?: string, distributorId?: string, status?: string, blocked?: boolean }, session?: any): Promise<Inventory> {
     const query: any = { organizationId, productId: adjustment.productId, batch: adjustment.batch };
     if (adjustment.warehouseId) query.warehouseId = adjustment.warehouseId;
+    if (adjustment.distributorId) query.distributorId = adjustment.distributorId;
 
     let inventory = await this.inventoryModel.findOne(query).session(session).exec();
     
@@ -277,6 +278,7 @@ export class InventoryService {
         batch: adjustment.batch,
         stock: adjustmentQty,
         warehouseId: adjustment.warehouseId,
+        distributorId: adjustment.distributorId,
         status: adjustment.status || 'Active',
         blocked: adjustment.blocked !== undefined ? adjustment.blocked : false
       });

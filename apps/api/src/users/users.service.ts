@@ -4,12 +4,14 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { User } from '@bharatsales/shared-types';
+import { Tenant } from '../schemas/tenant.schema';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel('User') private readonly userModel: Model<any>,
-    @InjectModel('Token') private readonly tokenModel: Model<any>
+    @InjectModel('Token') private readonly tokenModel: Model<any>,
+    @InjectModel(Tenant.name) private readonly tenantModel: Model<Tenant>
   ) {}
 
   async findAllByOrgId(organizationId: string) {
@@ -33,6 +35,16 @@ export class UsersService {
     const existing = await this.userModel.findOne({ email: userData.email }).exec();
     if (existing) {
       throw new BadRequestException('Email already exists');
+    }
+
+    // Tier limit validation
+    const tenant = await this.tenantModel.findById(organizationId).exec();
+    if (tenant) {
+      const maxUsers = (tenant as any).commercialSettings?.maxUsers || 0;
+      const currentUserCount = await this.userModel.countDocuments({ organizationId }).exec();
+      if (maxUsers > 0 && currentUserCount >= maxUsers) {
+        throw new BadRequestException(`Organization has reached its maximum user limit of ${maxUsers}. Please upgrade your plan.`);
+      }
     }
 
     const hashedPassword = await bcrypt.hash(userData.password || 'password123', 10);
@@ -62,6 +74,16 @@ export class UsersService {
     const existing = await this.userModel.findOne({ email }).exec();
     if (existing) {
       throw new BadRequestException('Email already exists in the system');
+    }
+
+    // Tier limit validation
+    const tenant = await this.tenantModel.findById(organizationId).exec();
+    if (tenant) {
+      const maxUsers = (tenant as any).commercialSettings?.maxUsers || 0;
+      const currentUserCount = await this.userModel.countDocuments({ organizationId }).exec();
+      if (maxUsers > 0 && currentUserCount >= maxUsers) {
+        throw new BadRequestException(`Organization has reached its maximum user limit of ${maxUsers}. Please upgrade your plan.`);
+      }
     }
 
     // Creating a user in "Invited" status with a random password.

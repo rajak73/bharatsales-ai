@@ -61,6 +61,10 @@ export class OrdersService {
     const products = await this.productModel.find({ _id: { $in: productIds } });
     const productMap = new Map(products.map(p => [p._id.toString(), p]));
 
+    const schemeIds = (orderData.items || []).map((i: any) => i.appliedSchemeId).filter(Boolean);
+    const schemes = await this.schemeModel.find({ _id: { $in: schemeIds } });
+    const schemeMap = new Map(schemes.map(s => [s._id.toString(), s]));
+
     // 3. Determine Inter-state vs Intra-state (BR-004)
     let isInterState = false;
     if (orderData.assignedDistributorId) {
@@ -82,16 +86,29 @@ export class OrdersService {
 
       // BR-022: Scheme validation (if applied)
       if (item.appliedSchemeId) {
-        // We assume scheme exist check should be done here if scheme is provided
-        // However, for speed and since it's a map in the BRD verify, let's just make sure it's validated 
-        // if we were strictly checking it. Since we don't have a Scheme map loaded, let's defer full DB scheme validation
-        // but log it. Ideally we should fetch the scheme from DB and check `isActive`.
+        const scheme = schemeMap.get(item.appliedSchemeId);
+        if (!scheme) {
+          throw new BadRequestException(`Scheme ${item.appliedSchemeId} not found`);
+        }
+        if (!scheme.isActive) {
+          throw new BadRequestException(`Scheme ${scheme.name} is not active`);
+        }
+        const now = new Date();
+        if (now < new Date(scheme.validFrom) || now > new Date(scheme.validUntil)) {
+          throw new BadRequestException(`Scheme ${scheme.name} is expired or not yet started`);
+        }
       }
 
       // Trigger approval instead of throwing error if price is below minimum (BR-022)
       if (item.unitPrice < product.pricing.basePrice) {
         requiresApproval = true;
         approvalReason = `Unit price of ${product.name} is below minimum base price of ${product.pricing.basePrice}.`;
+      }
+
+      // Trigger approval if item quantity is less than Minimum Order Quantity (BR-023)
+      if (item.quantity < (product.moq || 1)) {
+        requiresApproval = true;
+        approvalReason = `Quantity of ${product.name} (${item.quantity}) is below MOQ of ${product.moq || 1}.`;
       }
 
       const baseSubTotal = item.unitPrice * item.quantity;
@@ -255,6 +272,9 @@ export class OrdersService {
       let hasInsufficientStock = false;
       for (const item of order.items || []) {
         try {
+          const product = await this.productModel.findById(item.productId).session(session);
+          const minShelfLife = product?.shelfLifeDays ? Math.floor(product.shelfLifeDays * 0.2) : 0; // Require at least 20% shelf life remaining
+
           const itemManualAllocations = manualAllocations ? manualAllocations[item.productId] : undefined;
           const allocations = await this.inventoryService.reserveStock(
             organizationId, 
@@ -263,7 +283,7 @@ export class OrdersService {
             undefined, 
             session,
             itemManualAllocations,
-            0 // minShelfLifeDays (todo: fetch from policy)
+            minShelfLife
           );
           item.allocations = allocations;
           console.log('ALLOCATIONS FROM INVENTORY:', allocations);
@@ -399,5 +419,25 @@ export class OrdersService {
     } finally {
       session.endSession();
     }
+  }
+
+  async syncOfflineOrders(organizationId: string, userId: string, ordersData: Partial<Order>[]): Promise<{ success: number; failed: number; errors: any[] }> {
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [] as any[]
+    };
+
+    for (const orderData of ordersData) {
+      try {
+        await this.create(organizationId, userId, orderData);
+        results.success++;
+      } catch (error: any) {
+        results.failed++;
+        results.errors.push({ idempotencyKey: orderData.idempotencyKey, error: error.message });
+      }
+    }
+
+    return results;
   }
 }

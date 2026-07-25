@@ -11,7 +11,7 @@ export class AttendanceService {
     @InjectModel('Visit') private visitModel: Model<Visit>
   ) {}
 
-  async startDay(userId: string, organizationId: string, data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string; isMock?: boolean }) {
+  async startDay(userId: string, organizationId: string, data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string; isMock?: boolean; photoUrl?: string }) {
     // Check if there is already an active session for today
     const existing = await this.attendanceModel.findOne({ user: userId, status: 'Active' });
     if (existing) {
@@ -21,6 +21,10 @@ export class AttendanceService {
 
     if (data.isMock) {
       throw new BadRequestException('Mock locations are not allowed for attendance.');
+    }
+
+    if (!data.photoUrl) {
+      throw new BadRequestException('A selfie photo is mandatory for starting the day.');
     }
 
     if (data.deviceTimestamp) {
@@ -39,7 +43,30 @@ export class AttendanceService {
       startLocation: { lat: data.lat, lng: data.lng, accuracy: data.accuracy },
       status: 'Active',
       deviceTimestamp: data.deviceTimestamp ? new Date(data.deviceTimestamp) : undefined,
+      photoUrl: data.photoUrl,
     });
+    return session.save();
+  }
+
+  async requestRegularization(userId: string, sessionId: string, reason: string) {
+    const session = await this.attendanceModel.findOne({ _id: sessionId, user: userId });
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+    if (session.regularizationStatus === 'PENDING') {
+      throw new ConflictException('A regularization request is already pending for this session');
+    }
+    session.regularizationStatus = 'PENDING';
+    session.regularizationReason = reason;
+    return session.save();
+  }
+
+  async approveRegularization(sessionId: string, status: 'APPROVED' | 'REJECTED') {
+    const session = await this.attendanceModel.findById(sessionId);
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+    session.regularizationStatus = status;
     return session.save();
   }
 

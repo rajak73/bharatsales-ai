@@ -18,7 +18,7 @@ export class SyncController {
 @RequirePermissions(Resource.Visits, Action.Read)
   @Get('pull')
   async pull(@Request() req: any, @Query('lastSyncTimestamp') lastSyncTimestamp?: string) {
-    return this.syncService.pull(req.user.orgId, lastSyncTimestamp);
+    return this.syncService.pull(req.user.orgId, req.user.sub, lastSyncTimestamp);
   }
 
 @RequirePermissions(Resource.Visits, Action.Create)

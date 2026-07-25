@@ -71,7 +71,7 @@ describe('AuthController (e2e)', () => {
 
     // 4. suspended organization
     it('/auth/login (POST) - suspended organization', async () => {
-      const user = await connection.collection('users').findOne({ email: 'superadmin@bharatsales.com' });
+      const user = await connection.collection('users').findOne({ email: 'admin@bharatfoods.com' });
       await connection.collection('tenants').updateOne(
         { _id: new mongoose.Types.ObjectId(user!.organizationId) },
         { $set: { status: 'Suspended' } }
@@ -79,7 +79,7 @@ describe('AuthController (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: 'superadmin@bharatsales.com', password: 'password123' })
+        .send({ email: 'admin@bharatfoods.com', password: 'password123' })
         .expect(401);
 
       // Revert

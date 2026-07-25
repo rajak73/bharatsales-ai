@@ -12,32 +12,50 @@ export class TargetsService {
 
   async getTargets(organizationId: string) {
     const targets = await this.targetModel.find({ organizationId }).lean();
+    const db = this.orderModel.db;
     
     // Dynamic Gamification Engine Calculation (BR-012)
     const calculatedTargets = await Promise.all(
       targets.map(async (target) => {
-        // Find eligible orders in the date range
-        // Status: 'Submitted', 'Approved', 'Dispatched', 'Delivered'
-        // Using string match for ISO dates
-        const query: any = {
-          organizationId,
-          status: { $in: ['Submitted', 'Approved', 'Dispatched', 'Delivered'] },
-          createdAt: {
-            $gte: target.startDate,
-            $lte: target.endDate
-          }
+        let actualValue = 0;
+        const metric = target.targetMetric || 'SalesValue';
+        
+        const dateQuery = {
+          $gte: target.startDate,
+          $lte: target.endDate
         };
 
-        if (target.entityType === 'User') {
-          query.createdByUserId = target.entityId;
-        } else if (target.entityType === 'Outlet') {
-          query.outletId = target.entityId;
-        } else if (target.entityType === 'Territory') {
-          // If we had a territory field we'd map it. Skip for this demo unless specified.
-        }
+        if (metric === 'SalesValue') {
+          const query: any = {
+            organizationId,
+            status: { $in: ['Submitted', 'Approved', 'Dispatched', 'Delivered'] },
+            createdAt: dateQuery
+          };
+          if (target.entityType === 'User') query.createdByUserId = target.entityId;
+          else if (target.entityType === 'Outlet') query.outletId = target.entityId;
 
-        const eligibleOrders = await this.orderModel.find(query);
-        const actualValue = eligibleOrders.reduce((sum, order) => sum + (order.totals?.grandTotal || 0), 0);
+          const eligibleOrders = await this.orderModel.find(query);
+          actualValue = eligibleOrders.reduce((sum, order) => sum + (order.totals?.grandTotal || 0), 0);
+        } else if (metric === 'VisitCount') {
+          const query: any = { organizationId, createdAt: dateQuery };
+          if (target.entityType === 'User') query.user = target.entityId;
+          else if (target.entityType === 'Outlet') query.outlet = target.entityId;
+          
+          actualValue = await db.model('Visit').countDocuments(query);
+        } else if (metric === 'ProductiveCalls') {
+          const query: any = { organizationId, createdAt: dateQuery, isProductive: true };
+          if (target.entityType === 'User') query.user = target.entityId;
+          else if (target.entityType === 'Outlet') query.outlet = target.entityId;
+          
+          actualValue = await db.model('Visit').countDocuments(query);
+        } else if (metric === 'CollectionValue') {
+          const query: any = { organizationId, createdAt: dateQuery, status: 'Success' };
+          if (target.entityType === 'User') query.collectedBy = target.entityId;
+          else if (target.entityType === 'Outlet') query.outlet = target.entityId;
+          
+          const collections = await db.model('Collection').find(query);
+          actualValue = collections.reduce((sum: number, col: any) => sum + (col.amount || 0), 0);
+        }
 
         // Run rate calculation
         const endDate = new Date(target.endDate);
@@ -55,7 +73,6 @@ export class TargetsService {
         } else if (now > endDate && actualValue < target.targetValue) {
           status = 'Missed';
         } else if (dailyRunRate > (target.targetValue / 10)) { 
-          // At Risk if they need more than 10% of total target per day
           status = 'At Risk';
         }
 
@@ -64,7 +81,6 @@ export class TargetsService {
           id: target._id.toString(),
           actualValue,
           status,
-          // Sending dynamic data out 
           meta: {
             remainingDays,
             dailyRunRate,
@@ -84,10 +100,7 @@ export class TargetsService {
     delete (data as any).updatedAt;
     const target = new this.targetModel({ ...data, organizationId });
     const saved = await target.save();
-    return {
-      ...saved.toObject(),
-      id: saved._id.toString()
-    };
+    return { ...saved.toObject(), id: saved._id.toString() };
   }
 
   async updateTarget(organizationId: string, id: string, data: Partial<Target>) {
@@ -99,10 +112,7 @@ export class TargetsService {
       { new: true }
     ).exec();
     if (!target) throw new NotFoundException('Target not found');
-    return {
-      ...target.toObject(),
-      id: target._id.toString()
-    };
+    return { ...target.toObject(), id: target._id.toString() };
   }
 
   async deleteTarget(organizationId: string, id: string): Promise<{ deleted: boolean }> {

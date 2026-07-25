@@ -1,47 +1,32 @@
-import { Injectable } from '@nestjs/common';
-import { Report, ReportStats } from '@bharatsales/shared-types';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Report, ReportStats, Order, Outlet } from '@bharatsales/shared-types';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class ReportsService {
-  
-  // Standard hardcoded predefined reports for MVP
+  private readonly logger = new Logger(ReportsService.name);
+  private reportJobs = new Map<string, { status: string, progress: number, data?: string, url?: string, error?: string }>();
+
+  constructor(
+    @InjectModel('Order') private orderModel: Model<Order>,
+    @InjectModel('Outlet') private outletModel: Model<Outlet>
+  ) {}
+
   private predefinedReports: Report[] = [
-    {
-      id: 'rep-01',
-      organizationId: '',
-      name: 'Daily Sales Summary',
-      desc: 'Aggregated daily sales by region and outlet.',
-      category: 'Sales',
-      lastRun: 'Today, 08:00 AM',
-      status: 'Ready'
-    },
-    {
-      id: 'rep-02',
-      organizationId: '',
-      name: 'Monthly Collection Target',
-      desc: 'Collections vs Monthly Targets.',
-      category: 'Finance',
-      lastRun: 'Yesterday',
-      status: 'Ready'
-    },
-    {
-      id: 'rep-03',
-      organizationId: '',
-      name: 'Outlet Activity Report',
-      desc: 'Visits and orders per outlet.',
-      category: 'Execution',
-      lastRun: '2 days ago',
-      status: 'Ready'
-    },
-    {
-      id: 'rep-04',
-      organizationId: '',
-      name: 'Inventory Valuation',
-      desc: 'Current stock count and valuation.',
-      category: 'Inventory',
-      lastRun: 'Today, 06:00 AM',
-      status: 'Ready'
-    }
+    { id: 'rep-01', organizationId: '', name: 'Order Report', desc: 'Daily sales orders', category: 'Sales', lastRun: '-', status: 'Ready' },
+    { id: 'rep-02', organizationId: '', name: 'Attendance Report', desc: 'User attendance', category: 'HR', lastRun: '-', status: 'Ready' },
+    { id: 'rep-03', organizationId: '', name: 'Visits Report', desc: 'Outlet visits', category: 'Execution', lastRun: '-', status: 'Ready' },
+    { id: 'rep-04', organizationId: '', name: 'Inventory Report', desc: 'Stock levels', category: 'Supply Chain', lastRun: '-', status: 'Ready' },
+    { id: 'rep-05', organizationId: '', name: 'Dispatch Report', desc: 'Dispatch records', category: 'Supply Chain', lastRun: '-', status: 'Ready' },
+    { id: 'rep-06', organizationId: '', name: 'Delivery Report', desc: 'Delivery records', category: 'Supply Chain', lastRun: '-', status: 'Ready' },
+    { id: 'rep-07', organizationId: '', name: 'Returns Report', desc: 'Return orders', category: 'Returns', lastRun: '-', status: 'Ready' },
+    { id: 'rep-08', organizationId: '', name: 'Claims Report', desc: 'Claims records', category: 'Claims', lastRun: '-', status: 'Ready' },
+    { id: 'rep-09', organizationId: '', name: 'Collections Report', desc: 'Payment collections', category: 'Finance', lastRun: '-', status: 'Ready' },
+    { id: 'rep-10', organizationId: '', name: 'Outstanding Report', desc: 'Outstanding balances', category: 'Finance', lastRun: '-', status: 'Ready' },
+    { id: 'rep-11', organizationId: '', name: 'Targets Report', desc: 'Target achievements', category: 'Performance', lastRun: '-', status: 'Ready' },
+    { id: 'rep-12', organizationId: '', name: 'Audit Report', desc: 'Audit logs', category: 'Audit', lastRun: '-', status: 'Ready' },
   ];
 
   async getReports(organizationId: string): Promise<Report[]> {
@@ -49,66 +34,150 @@ export class ReportsService {
   }
 
   async getReportStats(organizationId: string): Promise<ReportStats> {
+    const totalOrders = await this.orderModel.countDocuments({ organizationId });
     return {
       total: this.predefinedReports.length,
-      scheduled: 2,
-      generatedToday: 1,
+      scheduled: 0,
+      generatedToday: totalOrders > 0 ? 1 : 0,
       pendingExport: 0
     };
   }
 
-  // Simulated Async Reporting Jobs
-  private reportJobs = new Map<string, { status: string, progress: number, url?: string }>();
-
   async runReport(organizationId: string, payload: any): Promise<{ jobId: string }> {
-    const jobId = `job-${Date.now()}`;
+    const jobId = `job-${randomUUID()}`;
     this.reportJobs.set(jobId, { status: 'Processing', progress: 0 });
 
-    // Simulate background processing
-    setTimeout(() => {
+    this.generateReportAsync(organizationId, payload, jobId).catch(err => {
+      this.logger.error(`Report generation failed for ${jobId}`, err);
       const job = this.reportJobs.get(jobId);
       if (job) {
-        job.progress = 50;
+        job.status = 'Failed';
+        job.error = err.message;
       }
-    }, 1000);
-
-    setTimeout(() => {
-      const job = this.reportJobs.get(jobId);
-      if (job) {
-        job.status = 'Completed';
-        job.progress = 100;
-        job.url = `/api/reports/exports/${jobId}`;
-      }
-    }, 3000);
+    });
 
     return { jobId };
   }
 
+  private async generateReportAsync(organizationId: string, payload: any, jobId: string) {
+    const job = this.reportJobs.get(jobId);
+    if (!job) return;
+    job.progress = 20;
+
+    const db = this.orderModel.db;
+    let rows: string[][] = [];
+
+    switch (payload.reportId) {
+      case 'rep-01': {
+        const data = await this.orderModel.find({ organizationId }).populate('outletId').exec();
+        rows = [['Order ID', 'Date', 'Outlet Name', 'Status', 'Grand Total', 'Created By']];
+        for (const r of data) {
+          let outletName = 'Unknown Outlet';
+          if (r.outletId) {
+            const outletDoc = await this.outletModel.findById(r.outletId);
+            if (outletDoc) outletName = outletDoc.name;
+          }
+          rows.push([ r.orderNumber || r._id.toString(), new Date(r.createdAt as any).toISOString().split('T')[0], outletName, r.status, (r.totals?.grandTotal || 0).toString(), r.createdByUserId || 'System' ]);
+        }
+        break;
+      }
+      case 'rep-02': {
+        const model = db.model('Attendance');
+        const data = await model.find({ organizationId }).exec();
+        rows = [['Date', 'User ID', 'Start Time', 'End Time', 'Status']];
+        data.forEach((r: any) => rows.push([r.date, r.user, r.startTime, r.endTime || '', r.status]));
+        break;
+      }
+      case 'rep-03': {
+        const model = db.model('Visit');
+        const data = await model.find({ organizationId }).exec();
+        rows = [['Visit ID', 'Outlet ID', 'User ID', 'Productive', 'Status']];
+        data.forEach((r: any) => rows.push([r._id.toString(), r.outlet, r.user, r.isProductive ? 'Yes' : 'No', r.status]));
+        break;
+      }
+      case 'rep-04': {
+        const model = db.model('Inventory');
+        const data = await model.find({ organizationId }).exec();
+        rows = [['Product ID', 'Batch', 'Quantity', 'Status']];
+        data.forEach((r: any) => rows.push([r.productId, r.batch, r.quantity.toString(), r.status]));
+        break;
+      }
+      case 'rep-05': {
+        const model = db.model('Dispatch');
+        const data = await model.find({ organizationId }).exec();
+        rows = [['Dispatch ID', 'Order ID', 'Status', 'Driver']];
+        data.forEach((r: any) => rows.push([r._id.toString(), r.orderId, r.status, r.driverId || '']));
+        break;
+      }
+      case 'rep-06': {
+        const model = db.model('Delivery');
+        const data = await model.find({ organizationId }).exec();
+        rows = [['Delivery ID', 'Dispatch ID', 'Status']];
+        data.forEach((r: any) => rows.push([r._id.toString(), r.dispatchId, r.status]));
+        break;
+      }
+      case 'rep-07': {
+        const model = db.model('ReturnOrder');
+        const data = await model.find({ organizationId }).exec();
+        rows = [['Return ID', 'Order ID', 'Outlet ID', 'Status', 'Value']];
+        data.forEach((r: any) => rows.push([r._id.toString(), r.orderId || '', r.outlet, r.status, r.value]));
+        break;
+      }
+      case 'rep-08': {
+        const model = db.model('Claim');
+        const data = await model.find({ organizationId }).exec();
+        rows = [['Claim ID', 'Type', 'Amount', 'Status']];
+        data.forEach((r: any) => rows.push([r._id.toString(), r.type, r.amount.toString(), r.status]));
+        break;
+      }
+      case 'rep-09': {
+        const model = db.model('Collection');
+        const data = await model.find({ organizationId }).exec();
+        rows = [['Collection ID', 'Outlet ID', 'Amount', 'Mode', 'Status']];
+        data.forEach((r: any) => rows.push([r._id.toString(), r.outlet, r.amount.toString(), r.mode, r.status]));
+        break;
+      }
+      case 'rep-10': {
+        const data = await this.outletModel.find({ organizationId }).exec();
+        rows = [['Outlet ID', 'Name', 'Outstanding Balance', 'Credit Limit']];
+        data.forEach((r: any) => rows.push([r._id.toString(), r.name, r.commercial?.outstandingBalance?.toString() || '0', r.commercial?.creditLimit?.toString() || '0']));
+        break;
+      }
+      case 'rep-11': {
+        const model = db.model('Target');
+        const data = await model.find({ organizationId }).exec();
+        rows = [['Target ID', 'Entity Type', 'Entity ID', 'Metric', 'Target Value']];
+        data.forEach((r: any) => rows.push([r._id.toString(), r.entityType, r.entityId, r.targetMetric || 'SalesValue', r.targetValue.toString()]));
+        break;
+      }
+      case 'rep-12': {
+        const model = db.model('AuditLog');
+        const data = await model.find({ organizationId }).exec();
+        rows = [['Audit ID', 'Entity', 'Action', 'User ID', 'Date']];
+        data.forEach((r: any) => rows.push([r._id.toString(), r.entity, r.action, r.userId, r.createdAt]));
+        break;
+      }
+      default: {
+        rows = [['Error'], ['No data available for this report type']];
+      }
+    }
+
+    job.progress = 90;
+    job.data = rows.map(r => r.join(',')).join('\n');
+    job.status = 'Completed';
+    job.progress = 100;
+    job.url = `/api/reports/exports/${jobId}`;
+  }
+
   async getJobStatus(organizationId: string, jobId: string): Promise<any> {
     const job = this.reportJobs.get(jobId);
-    if (!job) {
-      throw new Error(`Job ${jobId} not found`);
-    }
-    return job;
+    if (!job) throw new Error(`Job ${jobId} not found`);
+    return { status: job.status, progress: job.progress, url: job.url, error: job.error };
   }
 
   async getExport(organizationId: string, jobId: string): Promise<any> {
     const job = this.reportJobs.get(jobId);
-    if (!job || job.status !== 'Completed') {
-      throw new Error(`Export for job ${jobId} is not ready`);
-    }
-    
-    // Generate real CSV data (basic example)
-    const csvContent = [
-      ['Date', 'Outlet', 'Order Total', 'Status'],
-      ['2023-10-01', 'Outlet A', '500', 'Delivered'],
-      ['2023-10-02', 'Outlet B', '1200', 'Pending']
-    ].map(e => e.join(',')).join('\n');
-
-    return {
-      data: csvContent,
-      filename: `${jobId}.csv`,
-      contentType: 'text/csv',
-    };
+    if (!job || job.status !== 'Completed' || !job.data) throw new Error(`Export for job ${jobId} is not ready`);
+    return { data: job.data, filename: `Report_${jobId.substring(0, 8)}.csv`, contentType: 'text/csv' };
   }
 }

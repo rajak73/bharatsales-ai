@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SyncService } from './sync.service';
 
 import { getModelToken } from '@nestjs/mongoose';
+import { OrdersService } from '../orders/orders.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 describe('SyncService', () => {
   let service: SyncService;
@@ -16,6 +18,8 @@ describe('SyncService', () => {
         { provide: getModelToken('Product'), useValue: {} },
         { provide: getModelToken('PriceList'), useValue: {} },
         { provide: getModelToken('Outlet'), useValue: {} },
+        { provide: OrdersService, useValue: {} },
+        { provide: InventoryService, useValue: {} },
       ],
     }).compile();
 

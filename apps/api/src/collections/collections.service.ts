@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
-import { PaymentCollection, Outlet } from '@bharatsales/shared-types';
+import { PaymentCollection, Outlet, Invoice } from '@bharatsales/shared-types';
 
 @Injectable()
 export class CollectionsService {
   constructor(
     @InjectModel('Collection') private readonly collectionModel: Model<PaymentCollection>,
     @InjectModel('Outlet') private readonly outletModel: Model<Outlet>,
+    @InjectModel('Invoice') private readonly invoiceModel: Model<Invoice>,
     @InjectConnection() private readonly connection: Connection
   ) {}
 
@@ -48,6 +49,22 @@ export class CollectionsService {
           { $inc: { 'commercial.outstandingBalance': -saved.amount } },
           { session }
         );
+
+        // Apply allocations to invoices
+        if (saved.allocations && saved.allocations.length > 0) {
+          for (const alloc of saved.allocations) {
+            const invoice = await this.invoiceModel.findById(alloc.invoiceId).session(session);
+            if (invoice) {
+              invoice.paidAmount += alloc.amount;
+              if (invoice.paidAmount >= invoice.totalAmount) {
+                invoice.status = 'Paid';
+              } else if (invoice.paidAmount > 0) {
+                invoice.status = 'Partial';
+              }
+              await invoice.save({ session });
+            }
+          }
+        }
       }
 
       await session.commitTransaction();
@@ -102,6 +119,31 @@ export class CollectionsService {
             { $inc: { 'commercial.outstandingBalance': balanceChange } },
             { session }
           );
+
+          if (collection.allocations && collection.allocations.length > 0) {
+            for (const alloc of collection.allocations) {
+              const invoice = await this.invoiceModel.findById(alloc.invoiceId).session(session);
+              if (invoice) {
+                // If it was cleared, add amount. If reversed, subtract.
+                const allocChange = (!wasSettled && isNowSettled) ? alloc.amount : (wasSettled && isNowReversed ? -alloc.amount : 0);
+                
+                if (allocChange !== 0) {
+                  invoice.paidAmount += allocChange;
+                  // Ensure paidAmount doesn't go below 0
+                  if (invoice.paidAmount < 0) invoice.paidAmount = 0;
+                  
+                  if (invoice.paidAmount >= invoice.totalAmount) {
+                    invoice.status = 'Paid';
+                  } else if (invoice.paidAmount > 0) {
+                    invoice.status = 'Partial';
+                  } else {
+                    invoice.status = 'Unpaid';
+                  }
+                  await invoice.save({ session });
+                }
+              }
+            }
+          }
         }
       }
 
@@ -142,6 +184,25 @@ export class CollectionsService {
           { $inc: { 'commercial.outstandingBalance': collection.amount } },
           { session }
         );
+
+        if (collection.allocations && collection.allocations.length > 0) {
+          for (const alloc of collection.allocations) {
+            const invoice = await this.invoiceModel.findById(alloc.invoiceId).session(session);
+            if (invoice) {
+              invoice.paidAmount -= alloc.amount;
+              if (invoice.paidAmount < 0) invoice.paidAmount = 0;
+              
+              if (invoice.paidAmount >= invoice.totalAmount) {
+                invoice.status = 'Paid';
+              } else if (invoice.paidAmount > 0) {
+                invoice.status = 'Partial';
+              } else {
+                invoice.status = 'Unpaid';
+              }
+              await invoice.save({ session });
+            }
+          }
+        }
       }
 
       await this.collectionModel.deleteOne({ _id: id, organizationId }).session(session).exec();

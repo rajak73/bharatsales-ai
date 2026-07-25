@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TenantSchema, UserSchema, OutletSchema, ProductSchema, OrderSchema, SchemeSchema, DistributorSchema, InvoiceSchema, CollectionSchema, TargetSchema, WarehouseSchema, InventorySchema, DispatchSchema, ReturnSchema, NotificationLogSchema, SessionSchema, AuditLogSchema, AttendanceSessionSchema, VisitSchema, BeatSchema, BeatScheduleSchema, LocationPingSchema, IntegrationSchema, ApprovalSchema, ApprovalRuleSchema, ExpenseSchema, PriceListSchema, TaxRateSchema } from './schemas';
@@ -55,6 +56,7 @@ import { BullModule } from '@nestjs/bull';
       ttl: 60000,
       limit: 1000,
     }]),
+    ScheduleModule.forRoot(),
     ...(process.env.NODE_ENV !== 'test' ? [BullModule.forRoot(
       process.env.REDIS_URL 
         ? { redis: process.env.REDIS_URL }

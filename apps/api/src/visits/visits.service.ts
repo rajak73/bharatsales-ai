@@ -27,7 +27,7 @@ export class VisitsService {
     return R * c;
   }
 
-  async checkIn(userId: string, organizationId: string, data: { outletId: string; lat: number; lng: number; accuracy: number; isMock?: boolean; deviceTimestamp?: string }) {
+  async checkIn(userId: string, organizationId: string, data: { outletId: string; lat: number; lng: number; accuracy: number; isMock?: boolean; deviceTimestamp?: string; photoUrl?: string }) {
     // Check if user already has an active visit
     const existingVisit = await this.visitModel.findOne({ user: userId, status: 'Active' });
     if (existingVisit) {
@@ -50,6 +50,10 @@ export class VisitsService {
 
     if (data.isMock) {
       throw new BadRequestException('Mock locations are not allowed for check-in.');
+    }
+
+    if (!data.photoUrl) {
+      throw new BadRequestException('A shopfront photo is mandatory for check-in.');
     }
 
     if (data.deviceTimestamp) {
@@ -86,6 +90,7 @@ export class VisitsService {
       checkInLocation: { lat: data.lat, lng: data.lng, accuracy: data.accuracy },
       distanceFromOutlet: Math.round(distanceFromOutlet),
       isWithinGeofence,
+      photoUrl: data.photoUrl,
       status: 'Active'
     });
 

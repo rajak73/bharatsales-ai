@@ -55,7 +55,8 @@ export class OutletsController {
   @AuditEntity('Outlet')
   async createOutlet(@Request() req: any, @Body() outletData: Omit<Outlet, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>) {
     const orgId = req.user.orgId;
-    return this.outletsService.create(orgId, outletData);
+    const userId = req.user.sub || req.user.id;
+    return this.outletsService.create(orgId, userId, outletData as any);
   }
 
   @Delete(':id')
