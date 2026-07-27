@@ -152,37 +152,9 @@ export function LoginScreen() {
           </div>
         </form>
 
-        {/* SSO Section */}
-        <div className="relative mt-2 mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-3 bg-slate-50 text-gray-500 font-medium">or login with</span>
-          </div>
-        </div>
-
-        <div className="flex gap-4 mb-8">
-          <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-2xl py-3 shadow-sm hover:bg-gray-50 transition-colors">
-            {/* Minimal Google G replacement */}
-            <span className="font-bold text-lg">
-              <span className="text-blue-500">G</span><span className="text-red-500">o</span><span className="text-yellow-500">o</span><span className="text-blue-500">g</span><span className="text-green-500">l</span><span className="text-red-500">e</span>
-            </span>
-          </button>
-          <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-2xl py-3 shadow-sm hover:bg-gray-50 transition-colors">
-            <div className="flex flex-wrap w-4 h-4 gap-[1px]">
-              <div className="w-[7px] h-[7px] bg-[#F25022]"></div>
-              <div className="w-[7px] h-[7px] bg-[#7FBA00]"></div>
-              <div className="w-[7px] h-[7px] bg-[#00A4EF]"></div>
-              <div className="w-[7px] h-[7px] bg-[#FFB900]"></div>
-            </div>
-            <span className="font-bold text-gray-700">Microsoft</span>
-          </button>
-        </div>
-
-        <div className="text-center space-y-4">
-          <p className="text-sm text-gray-600">
-            Don't have an account? <a href="#" className="font-bold text-[#2D3A8C]">Register Now</a>
+        <div className="text-center space-y-4 pt-6 mt-6 border-t border-gray-100">
+          <p className="text-sm text-gray-500">
+            For access, please contact your Company Administrator to receive your login credentials.
           </p>
           <div className="text-xs text-gray-400 font-medium flex items-center justify-center gap-2">
             <a href="#" className="hover:text-gray-600">Terms of Service</a>
