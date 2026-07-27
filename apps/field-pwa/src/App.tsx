@@ -11,6 +11,7 @@ import { AttendanceProvider } from './contexts/AttendanceContext'
 import { AttendanceScreen } from './screens/AttendanceScreen'
 import { OutletVisitScreen } from './screens/OutletVisitScreen'
 import { LoginScreen } from './screens/LoginScreen'
+import { NotificationsScreen } from './screens/NotificationsScreen'
 import { LogOut } from 'lucide-react'
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
 import { useEffect } from 'react'
@@ -111,6 +112,7 @@ function AppContent() {
             <Route path="/cart" element={<CartScreen />} />
             <Route path="/profile" element={<ProfileScreen />} />
             <Route path="/attendance" element={<AttendanceScreen />} />
+            <Route path="/notifications" element={<NotificationsScreen />} />
             <Route path="/visit" element={<OutletVisitScreen />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

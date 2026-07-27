@@ -83,7 +83,7 @@ export function HomeScreen() {
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold backdrop-blur-sm border border-white/30">
             RA
           </div>
-          <button className="text-white relative">
+          <button className="text-white relative" onClick={() => navigate('/notifications')}>
             <Bell size={22} />
             <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-[#2D3A8C] rounded-full"></span>
           </button>
