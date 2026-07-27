@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, MapPin, Target, Store,
   ShoppingCart, CheckSquare, Package, Box, Factory,
   Truck, Percent, Tags, Gift, ArrowDownToLine,
-  Bell, Link as LinkIcon, UserCog, Smartphone, CreditCard,
+  Link as LinkIcon, UserCog, Smartphone, CreditCard,
   Sparkles, CalendarClock, Settings, ShieldCheck, Repeat, Receipt, Network,
   BarChart3, ShieldAlert, BookOpen, Server, ChevronDown, ChevronRight
 } from 'lucide-react';
@@ -49,7 +49,7 @@ const navGroups = [
   {
     title: 'Settings & Admin',
     items: [
-      { icon: Bell, label: 'Notifications', href: '/dashboard/notifications', roles: ALL_ROLES },
+
       { icon: UserCog, label: 'Roles', href: '/dashboard/roles', roles: ADMIN_ROLES },
       { icon: Network, label: 'Hierarchy', href: '/dashboard/hierarchy', roles: ADMIN_ROLES },
       { icon: Settings, label: 'Settings', href: '/dashboard/settings', roles: ADMIN_ROLES },

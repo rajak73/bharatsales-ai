@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AnalyticsService } from '@bharatsales/api-client';
-import { Loader2, TrendingUp, TrendingDown, Users, ShoppingCart, DollarSign, Bell } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, Users, ShoppingCart, DollarSign } from 'lucide-react';
 import { Card, Button } from '@bharatsales/ui';
 
 export default function DashboardPage() {
@@ -76,11 +76,7 @@ export default function DashboardPage() {
           <p className="text-gray-500 mt-1 text-sm">Here is your sales overview for today.</p>
         </div>
         <div className="flex items-center gap-4">
-          <button className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors relative">
-            {/* @ts-ignore */}
-            <Bell size={18} />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-primary-500 rounded-full"></span>
-          </button>
+
           <Button className="px-5 py-2">
             Generate Report
           </Button>

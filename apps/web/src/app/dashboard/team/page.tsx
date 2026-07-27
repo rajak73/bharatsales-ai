@@ -83,7 +83,6 @@ export default function TeamPage() {
           <p className="text-gray-500">Manage your field sales team • {filteredMembers.length} members</p>
         </div>
         <div className="flex space-x-3">
-          <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">📥 Import</button>
           <button onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Member</button>
         </div>
       </div>
@@ -174,10 +173,6 @@ export default function TeamPage() {
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${member.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                   {member.status}
                 </span>
-                <div className="flex space-x-2">
-                  <button className="text-primary-600 hover:text-primary-700 text-xs font-medium">View</button>
-                  <button className="text-gray-400 hover:text-gray-600 text-xs">Edit</button>
-                </div>
               </div>
             </div>
           ))
