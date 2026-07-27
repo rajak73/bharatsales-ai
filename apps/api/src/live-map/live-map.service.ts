@@ -11,10 +11,13 @@ export class LiveMapService {
   ) {}
 
   async getLiveReps(organizationId: string) {
-    const activeSessions = await this.attendanceModel.find({ status: 'Active' }).populate('user', 'name');
+    const activeSessions = await this.attendanceModel.find({ status: { $in: ['Active', 'On_Break'] } }).populate('user', 'name');
+    
+    // Filter out any corrupted sessions where the user was deleted
+    const validSessions = activeSessions.filter(session => session.user != null);
 
     const reps = await Promise.all(
-      activeSessions.map(async (session) => {
+      validSessions.map(async (session) => {
         // Find any active visits for this user
         const activeVisit = await this.visitModel.findOne({
           user: session.user._id,
@@ -52,10 +55,10 @@ export class LiveMapService {
         }
 
         let timeString = 'Unknown';
-        if (latestPing) {
-           timeString = latestPing.deviceTimestamp.toLocaleTimeString();
+        if (latestPing && latestPing.deviceTimestamp) {
+           timeString = new Date(latestPing.deviceTimestamp).toLocaleTimeString();
         } else if (session.startTime) {
-           timeString = session.startTime.toLocaleTimeString();
+           timeString = new Date(session.startTime).toLocaleTimeString();
         }
 
         return {
