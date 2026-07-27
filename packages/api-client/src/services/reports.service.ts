@@ -22,8 +22,8 @@ export class ReportsService {
     return response.data;
   }
 
-  static async getExport(jobId: string): Promise<{ downloadUrl: string, expiresAt: string }> {
-    const response = await apiClient.get<{ downloadUrl: string, expiresAt: string }>(`/reports/exports/${jobId}`);
+  static async getExport(jobId: string): Promise<{ data: string, filename: string, contentType: string }> {
+    const response = await apiClient.get<{ data: string, filename: string, contentType: string }>(`/reports/exports/${jobId}`);
     return response.data;
   }
 }

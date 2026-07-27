@@ -60,12 +60,15 @@ export default function ReportsPage() {
             
             // Get export URL and download
             const exportData = await ReportsService.getExport(jobId);
+            const blob = new Blob([exportData.data || ''], { type: exportData.contentType || 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = exportData.downloadUrl;
-            a.download = `${reportName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+            a.href = url;
+            a.download = exportData.filename || `${reportName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
             
             setTimeout(() => setSuccessMessage(''), 5000);
           } else if (status.status === 'Failed') {

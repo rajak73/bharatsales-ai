@@ -1,7 +1,7 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { switchMap } from 'rxjs/operators';
 import { AuditService } from './audit.service';
 import { AUDIT_LOG_KEY } from './audit.decorator';
 
@@ -23,26 +23,31 @@ export class AuditInterceptor implements NestInterceptor {
     // Only log mutations
     if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) {
       return next.handle().pipe(
-        tap((response) => {
+        switchMap(async (response) => {
           const user = request.user;
           if (user) {
             const ipAddress = request.ip || request.connection?.remoteAddress;
             const deviceInfo = request.headers['user-agent'];
             const reason = request.headers['x-audit-reason'] || request.body?.reason;
 
-            this.auditService.logAction({
-              organizationId: user.orgId,
-              actorId: user.sub || user.id,
-              actorRole: user.role,
-              action: method,
-              entityName: entityName,
-              entityId: response?.id || response?._id?.toString(),
-              details: { body: request.body, params: request.params },
-              ipAddress,
-              deviceInfo,
-              reason,
-            }).catch(err => console.error('Audit Log Error:', err));
+            try {
+              await this.auditService.logAction({
+                organizationId: user.orgId,
+                actorId: user.sub || user.id,
+                actorRole: user.role,
+                action: method,
+                entityName: entityName,
+                entityId: response?.id || response?._id?.toString(),
+                details: { body: request.body, params: request.params },
+                ipAddress,
+                deviceInfo,
+                reason,
+              });
+            } catch (err) {
+              console.error('Audit Log Error:', err);
+            }
           }
+          return response;
         })
       );
     }
