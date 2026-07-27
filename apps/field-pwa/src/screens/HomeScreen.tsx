@@ -20,10 +20,11 @@ export function HomeScreen() {
         }
 
         const myTarget = targets.find(t => t.entityType === 'User' && t.entityId === userId && t.period === 'Daily');
+        if (myTarget) {
           setTargetData({
             goal: myTarget.targetValue || 0,
-            achieved: myTarget.achievedValue || 0,
-            percentage: myTarget.targetValue ? Math.round(((myTarget.achievedValue || 0) / myTarget.targetValue) * 100) : 0,
+            achieved: myTarget.actualValue || 0,
+            percentage: myTarget.targetValue ? Math.round(((myTarget.actualValue || 0) / myTarget.targetValue) * 100) : 0,
             shopsVisited: 0,
             totalShops: 0,
           });

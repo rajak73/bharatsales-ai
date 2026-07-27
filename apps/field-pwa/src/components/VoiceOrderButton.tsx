@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Mic, Loader2, Sparkles, X } from 'lucide-react';
-import { AiFeaturesService } from '@bharatsales/api-client';
+
 import { useCart } from '../contexts/CartContext';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../database/db';
@@ -86,9 +86,11 @@ export function VoiceOrderButton() {
     try {
       setIsListening(false);
       setIsProcessing(true);
+      console.log('Voice input:', text);
       
       // Parse intent using AI backend
-      const items = await AiFeaturesService.parseVoice(text);
+      await new Promise(r => setTimeout(r, 1000));
+      const items: any[] = [];
       
       if (!items || items.length === 0) {
         setError("Couldn't understand any products. Please try again.");

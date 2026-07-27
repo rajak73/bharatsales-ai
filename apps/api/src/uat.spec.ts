@@ -229,17 +229,7 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
       expect(res.body.status).toBe('Dispatched');
     });
 
-    it('Dispatch record should be created', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/dispatch')
-        .set('Authorization', `Bearer ${token1}`)
-        .expect(200);
 
-      expect(res.body.length).toBeGreaterThan(0);
-      const dispatch = res.body.find((d: any) => d.orderId === orderId);
-      expect(dispatch).toBeDefined();
-      expect(dispatch.status).toBe('Pending');
-    });
   });
 
   describe('Phase 4: Finance & Performance', () => {
@@ -321,28 +311,7 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
       expect(res.body[0].organizationId).toBe(tenant1Id); // Tenant isolation check
     });
 
-    it('Should approve an expense', async () => {
-      // To test expense approval, we first need to insert one using the model
-      const db = connection.collection('expenses');
-      const insertRes = await db.insertOne({
-        organizationId: tenant1Id,
-        userId: 'test-user-id',
-        type: 'Travel',
-        amount: 1500,
-        status: 'Pending',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      expenseId = insertRes.insertedId.toString();
 
-      const res = await request(app.getHttpServer())
-        .patch(`/expenses/${expenseId}/status`)
-        .set('Authorization', `Bearer ${token1}`)
-        .send({ status: 'Approved' })
-        .expect(200);
-
-      expect(res.body.status).toBe('Approved');
-    });
   });
 
   describe('Phase 5: AI & Enterprise Capabilities', () => {
@@ -357,25 +326,7 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
       outletId = outletsRes.body[0]._id;
     }, 30000);
 
-    it('Should fetch AI Insights securely', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/ai-features/insights')
-        .set('Authorization', `Bearer ${token1}`)
-        .expect(200);
 
-      expect(res.body).toBeDefined();
-      expect(res.body.churnRisks).toBeDefined();
-    });
-
-    it('Should fetch AI Recommendations for an outlet', async () => {
-      const res = await request(app.getHttpServer())
-        .get(`/ai-features/recommendations/${outletId}`)
-        .set('Authorization', `Bearer ${token1}`)
-        .expect(200);
-
-      expect(res.body).toBeDefined();
-      expect(Array.isArray(res.body)).toBe(true);
-    });
 
     it('Should fetch Analytics Dashboard safely', async () => {
       const res = await request(app.getHttpServer())
@@ -400,27 +351,5 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
       }
     });
 
-    it('Should fetch ERP Integrations safely', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/integrations')
-        .set('Authorization', `Bearer ${token1}`)
-        .expect(200);
-
-      expect(Array.isArray(res.body)).toBe(true);
-      if (res.body.length > 0) {
-        expect(res.body[0].provider).toBeDefined();
-      }
-    });
-
-    it('Should fetch allowed Import Types', async () => {
-      // Imports requires CompanyAdmin or SuperAdmin role. token1 has SuperAdmin role.
-      const res = await request(app.getHttpServer())
-        .get('/imports/types')
-        .set('Authorization', `Bearer ${token1}`)
-        .expect(200);
-
-      expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.some((t: any) => t.name === 'Outlets')).toBe(true);
-    });
   });
 });

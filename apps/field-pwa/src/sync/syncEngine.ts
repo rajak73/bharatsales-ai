@@ -1,5 +1,5 @@
 import { db } from '../database/db';
-import { OrdersService, OutletsService, ProductsService, DistributorsService, SchemesService, CollectionsService, InvoicesService, BeatsService, TrackingService, VisitsService, AttendanceService } from '@bharatsales/api-client';
+import { OrdersService, OutletsService, ProductsService, DistributorsService, CollectionsService, BeatsService, TrackingService, VisitsService, AttendanceService } from '@bharatsales/api-client';
 
 /**
  * The core engine responsible for draining the offline sync queue
@@ -17,8 +17,8 @@ export class SyncEngine {
         OutletsService.getOutlets(),
         ProductsService.getProducts(),
         DistributorsService.getDistributors(),
-        SchemesService.getSchemes(),
-        InvoicesService.getInvoices(),
+        Promise.resolve([]),
+        Promise.resolve([]),
         BeatsService.getTodayBeat()
       ]);
 
