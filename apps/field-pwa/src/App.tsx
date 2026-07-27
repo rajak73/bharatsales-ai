@@ -13,7 +13,7 @@ import { AttendanceScreen } from './screens/AttendanceScreen'
 import { OutletVisitScreen } from './screens/OutletVisitScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { LogOut } from 'lucide-react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { SyncEngine } from './sync/syncEngine'
 
@@ -34,6 +34,16 @@ function ProfileScreen() {
   return (
     <div className="p-4 space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
+      
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <Link
+          to="/attendance"
+          className="w-full flex items-center justify-center bg-blue-600 text-white px-4 py-3 rounded-lg text-lg font-bold hover:bg-blue-700 shadow-md transition-colors"
+        >
+          Daily Attendance (Start Day)
+        </Link>
+      </div>
+
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <h3 className="font-semibold text-gray-900 mb-2">Sync Status</h3>
         <p className="text-sm text-gray-500 mb-4">Pending items in queue: {pendingCount}</p>
