@@ -8,8 +8,11 @@ import { Order, OrderSchema } from '../schemas/order.schema';
 import { Visit, VisitSchema } from '../schemas/visit.schema';
 import { Tenant, TenantSchema } from '../schemas/tenant.schema';
 
+import { HierarchyModule } from '../hierarchy/hierarchy.module';
+
 @Module({
   imports: [
+    HierarchyModule,
     MongooseModule.forFeature([
       { name: Outlet.name, schema: OutletSchema },
       { name: Order.name, schema: OrderSchema },

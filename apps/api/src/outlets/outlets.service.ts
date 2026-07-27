@@ -6,6 +6,7 @@ import { Order } from '../schemas/order.schema';
 import { Visit } from '../schemas/visit.schema';
 import { Outlet as SharedOutlet } from '@bharatsales/shared-types';
 import { Tenant } from '../schemas/tenant.schema';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 @Injectable()
 export class OutletsService {
@@ -13,11 +14,22 @@ export class OutletsService {
     @InjectModel(Outlet.name) private outletModel: Model<Outlet>,
     @InjectModel(Order.name) private orderModel: Model<Order>,
     @InjectModel(Visit.name) private visitModel: Model<Visit>,
-    @InjectModel(Tenant.name) private tenantModel: Model<Tenant>
+    @InjectModel(Tenant.name) private tenantModel: Model<Tenant>,
+    private readonly hierarchyService: HierarchyService
   ) {}
 
-  async findAllByOrgId(organizationId: string): Promise<Outlet[]> {
-    return this.outletModel.find({ organizationId }).exec();
+  async findAllByOrgId(organizationId: string, user?: any): Promise<Outlet[]> {
+    const query: any = { organizationId };
+
+    if (user && !['Super Admin', 'Company Admin', 'Auditor'].includes(user.role)) {
+      if (!user.territoryIds || user.territoryIds.length === 0) {
+        return []; // Non-admin with no territory sees nothing
+      }
+      const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, user.territoryIds);
+      query.territoryId = { $in: descendantIds };
+    }
+
+    return this.outletModel.find(query).exec();
   }
 
   async getOutlet360(organizationId: string, outletId: string) {

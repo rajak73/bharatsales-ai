@@ -92,4 +92,25 @@ export class HierarchyService {
     }
     return { deleted: true };
   }
+
+  async getDescendantTerritoryIds(organizationId: string, nodeIds: string[]): Promise<string[]> {
+    if (!nodeIds || nodeIds.length === 0) return [];
+    
+    let currentIds = [...nodeIds];
+    const allIds = new Set(currentIds);
+
+    // Max depth is 4 (Zone -> Region -> Area -> Territory)
+    for (let depth = 0; depth < 4; depth++) {
+      if (currentIds.length === 0) break;
+      const children = await this.hierarchyModel.find({ 
+        organizationId, 
+        parentId: { $in: currentIds } 
+      }).exec();
+      
+      currentIds = children.map((c: any) => c._id.toString());
+      currentIds.forEach(id => allIds.add(id));
+    }
+    
+    return Array.from(allIds);
+  }
 }

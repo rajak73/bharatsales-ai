@@ -42,6 +42,7 @@ export class Outlet implements Omit<IOutlet, 'id' | 'createdAt' | 'updatedAt'> {
   @Prop({ type: Location, required: true }) location: Location;
   @Prop({ type: Commercial, required: true }) commercial: Commercial;
   @Prop({ type: Tax, required: true }) tax: Tax;
+  @Prop({ type: String, index: true }) territoryId?: string;
 }
 
 export const OutletSchema = SchemaFactory.createForClass(Outlet);

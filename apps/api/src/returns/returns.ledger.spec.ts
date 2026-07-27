@@ -36,6 +36,8 @@ describe('ReturnsService Ledger Compliance', () => {
         { provide: getModelToken(ReturnOrder.name), useValue: mockModel },
         { provide: getModelToken('Outlet'), useValue: mockModel },
         { provide: getModelToken('Invoice'), useValue: mockModel },
+        { provide: getModelToken('Order'), useValue: mockModel },
+        { provide: getModelToken('Product'), useValue: mockModel },
         { provide: 'DatabaseConnection', useValue: mockConnection },
         { provide: InventoryService, useValue: {} },
         { provide: FinanceService, useValue: mockFinanceService }

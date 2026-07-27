@@ -6,6 +6,7 @@ import { ApprovalsService } from '../approvals/approvals.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { BadRequestException } from '@nestjs/common';
 import { getConnectionToken } from '@nestjs/mongoose';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -30,6 +31,9 @@ describe('OrdersService', () => {
 
   const mockInventoryService = {};
   const mockApprovalsService = {};
+  const mockHierarchyService = {
+    getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't2']),
+  };
   
   const mockConnection = {
     startSession: jest.fn(),
@@ -71,8 +75,16 @@ describe('OrdersService', () => {
           useValue: mockInventoryService,
         },
         {
+          provide: ModuleRef,
+          useValue: { get: jest.fn() },
+        },
+        {
           provide: ApprovalsService,
           useValue: mockApprovalsService,
+        },
+        {
+          provide: HierarchyService,
+          useValue: mockHierarchyService,
         },
         {
           provide: getConnectionToken(),

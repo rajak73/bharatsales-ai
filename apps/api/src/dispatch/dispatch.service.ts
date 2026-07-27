@@ -56,16 +56,18 @@ export class DispatchService {
     });
     const savedDispatch = await newDispatch.save({ session });
     
-    // Simulate WhatsApp Notification (Fire and forget)
-    this.whatsappAdapter.syncData({
-      type: 'Dispatch',
-      phoneNumber: '+919999999999',
-      orderId,
-      vehicle,
-      driver
-    }).catch((err: any) => {
-      this.logger.error('Failed to send WhatsApp notification', err);
-    });
+    try {
+      await this.whatsappAdapter.syncData({
+        type: 'Dispatch',
+        phoneNumber: '+919999999999',
+        orderId,
+        vehicle,
+        driver
+      });
+    } catch (err: any) {
+      this.logger.error('Failed to send WhatsApp notification, aborting dispatch creation', err);
+      throw new Error(`WhatsApp notification failed: ${err.message}`);
+    }
 
     return savedDispatch;
   }

@@ -4,6 +4,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Outlet } from '../schemas/outlet.schema';
 import { Order } from '../schemas/order.schema';
 import { Visit } from '../schemas/visit.schema';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { ConflictException, BadRequestException } from '@nestjs/common';
 
 describe('OutletsService', () => {
@@ -45,6 +46,12 @@ describe('OutletsService', () => {
           provide: getModelToken('Tenant'),
           useValue: mockTenantModel,
         },
+        {
+          provide: HierarchyService,
+          useValue: {
+            getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't2'])
+          }
+        }
       ],
     }).compile();
 

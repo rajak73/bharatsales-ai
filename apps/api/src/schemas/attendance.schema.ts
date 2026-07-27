@@ -21,7 +21,7 @@ export class AttendanceSession extends Document {
   @Prop({ type: { lat: Number, lng: Number, accuracy: Number } })
   endLocation?: { lat: number; lng: number; accuracy: number };
 
-  @Prop({ required: true, enum: ['Active', 'Completed'] })
+  @Prop({ required: true, enum: ['Active', 'On_Break', 'Completed'] })
   status: string;
 
   @Prop()

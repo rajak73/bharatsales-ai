@@ -6,6 +6,7 @@ import { Order, Outlet, Scheme, Distributor, Product } from '@bharatsales/shared
 import { InventoryService } from '../inventory/inventory.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { ApprovalsService } from '../approvals/approvals.service';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 @Injectable()
 export class OrdersService {
@@ -20,6 +21,7 @@ export class OrdersService {
     private inventoryService: InventoryService,
     private moduleRef: ModuleRef,
     private approvalsService: ApprovalsService,
+    private hierarchyService: HierarchyService,
     @InjectConnection() private connection: Connection,
   ) {}
 
@@ -27,8 +29,27 @@ export class OrdersService {
     return this.moduleRef.get(DispatchService, { strict: false });
   }
 
-  async findAll(organizationId: string): Promise<Order[]> {
-    return this.orderModel.find({ organizationId }).sort({ createdAt: -1 }).exec();
+  async findAll(organizationId: string, user?: any): Promise<Order[]> {
+    const query: any = { organizationId };
+
+    if (user && !['Super Admin', 'Company Admin', 'Auditor'].includes(user.role)) {
+      if (!user.territoryIds || user.territoryIds.length === 0) {
+        return []; // Non-admin with no territory sees nothing
+      }
+      
+      const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, user.territoryIds);
+      
+      // Fetch outlets that belong to these territories
+      const accessibleOutlets = await this.outletModel.find({ 
+        organizationId, 
+        territoryId: { $in: descendantIds } 
+      }).select('_id').exec();
+      
+      const accessibleOutletIds = accessibleOutlets.map(o => o._id.toString());
+      query.outletId = { $in: accessibleOutletIds };
+    }
+
+    return this.orderModel.find(query).sort({ createdAt: -1 }).exec();
   }
 
   async create(organizationId: string, userId: string, orderData: Partial<Order>): Promise<Order> {

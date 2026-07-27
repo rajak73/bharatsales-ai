@@ -23,6 +23,7 @@ export interface Outlet {
     outstandingBalance: number;
     assignedDistributorId?: string;
   };
+  territoryId?: string;
   tax: {
     gstin?: string;
     pan?: string;

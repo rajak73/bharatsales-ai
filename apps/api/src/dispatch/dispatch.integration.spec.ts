@@ -46,7 +46,21 @@ describe('Logistics Dispatch & Returns Verification (e2e)', () => {
       expect(token).toBeDefined();
 
       // Find an outlet
-      const outlet = await connection.collection('outlets').findOne({ organizationId: orgId });
+      let outlet = await connection.collection('outlets').findOne({ organizationId: orgId });
+      if (!outlet) {
+        const res = await connection.collection('outlets').insertOne({
+          organizationId: orgId,
+          name: 'Test Outlet',
+          mobile: '9999999999',
+          status: 'Active',
+          location: { address: '123 Test St', city: 'Test City', state: 'TS', pincode: '123456', country: 'India', coordinates: { lat: 0, lng: 0 } },
+          commercial: { creditLimit: 10000, paymentTermsDays: 30, outstandingBalance: 0 },
+          tax: { gstin: '27AAAAA0000A1Z5' },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        outlet = await connection.collection('outlets').findOne({ _id: res.insertedId });
+      }
       expect(outlet).toBeDefined();
       outletId = outlet!._id.toString();
 
@@ -87,7 +101,7 @@ describe('Logistics Dispatch & Returns Verification (e2e)', () => {
         invoiceNumber: `INV-${Date.now()}`,
         orderNumber: `ORD-${Date.now()}`,
         idempotencyKey: `IDEM-${Date.now()}`,
-        status: 'Approved', // Ready for dispatch
+        status: 'Dispatched', // Already dispatched
         paymentStatus: 'Pending',
         createdAt: new Date(),
         updatedAt: new Date()

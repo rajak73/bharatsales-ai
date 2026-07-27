@@ -19,7 +19,7 @@ export class OrdersController {
   @Get()
   async getOrders(@Request() req: any) {
     // req.user is populated by the JwtAuthGuard
-    return this.ordersService.findAll(req.user.orgId);
+    return this.ordersService.findAll(req.user.orgId, req.user);
   }
 
 @RequirePermissions(Resource.Orders, Action.Read)

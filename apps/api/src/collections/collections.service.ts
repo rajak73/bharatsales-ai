@@ -177,32 +177,8 @@ export class CollectionsService {
       const collection = await this.collectionModel.findOne({ _id: id, organizationId }).session(session).exec();
       if (!collection) throw new NotFoundException('Collection not found');
       
-      // If we delete a cleared collection, we should reverse its impact
       if (collection.status === 'Cleared') {
-        await this.outletModel.updateOne(
-          { _id: collection.outletId },
-          { $inc: { 'commercial.outstandingBalance': collection.amount } },
-          { session }
-        );
-
-        if (collection.allocations && collection.allocations.length > 0) {
-          for (const alloc of collection.allocations) {
-            const invoice = await this.invoiceModel.findById(alloc.invoiceId).session(session);
-            if (invoice) {
-              invoice.paidAmount -= alloc.amount;
-              if (invoice.paidAmount < 0) invoice.paidAmount = 0;
-              
-              if (invoice.paidAmount >= invoice.totalAmount) {
-                invoice.status = 'Paid';
-              } else if (invoice.paidAmount > 0) {
-                invoice.status = 'Partial';
-              } else {
-                invoice.status = 'Unpaid';
-              }
-              await invoice.save({ session });
-            }
-          }
-        }
+        throw new BadRequestException('Cannot hard delete a Cleared collection. Use reversal entry instead to maintain immutable ledger compliance.');
       }
 
       await this.collectionModel.deleteOne({ _id: id, organizationId }).session(session).exec();

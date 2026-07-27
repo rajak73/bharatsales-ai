@@ -12,11 +12,24 @@ export class AttendanceService {
   ) {}
 
   async startDay(userId: string, organizationId: string, data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string; isMock?: boolean; photoUrl?: string }) {
-    // Check if there is already an active session for today
-    const existing = await this.attendanceModel.findOne({ user: userId, status: 'Active' });
+    const existing = await this.attendanceModel.findOne({ user: userId, status: { $in: ['Active', 'On_Break'] } });
     if (existing) {
-      // Return the existing one (idempotent behavior requested in BRD)
       return existing;
+    }
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const completedToday = await this.attendanceModel.findOne({
+      user: userId,
+      status: 'Completed',
+      startTime: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    if (completedToday) {
+      throw new BadRequestException('You have already completed your day today. Cannot start a new day.');
     }
 
     if (data.isMock) {
@@ -71,7 +84,7 @@ export class AttendanceService {
   }
 
   async endDay(userId: string, data: { lat: number; lng: number; accuracy: number }) {
-    const session = await this.attendanceModel.findOne({ user: userId, status: 'Active' });
+    const session = await this.attendanceModel.findOne({ user: userId, status: { $in: ['Active', 'On_Break'] } });
     if (!session) {
       throw new NotFoundException('No active attendance session found');
     }
@@ -91,7 +104,25 @@ export class AttendanceService {
   }
 
   async getCurrentSession(userId: string) {
-    const session = await this.attendanceModel.findOne({ user: userId, status: 'Active' });
+    const session = await this.attendanceModel.findOne({ user: userId, status: { $in: ['Active', 'On_Break'] } });
     return session || null;
+  }
+
+  async takeBreak(userId: string) {
+    const session = await this.attendanceModel.findOne({ user: userId, status: 'Active' });
+    if (!session) {
+      throw new BadRequestException('No active session found to take a break from.');
+    }
+    session.status = 'On_Break';
+    return session.save();
+  }
+
+  async resumeDay(userId: string) {
+    const session = await this.attendanceModel.findOne({ user: userId, status: 'On_Break' });
+    if (!session) {
+      throw new BadRequestException('You are not currently on a break.');
+    }
+    session.status = 'Active';
+    return session.save();
   }
 }

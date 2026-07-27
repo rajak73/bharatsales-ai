@@ -17,9 +17,7 @@ export class OutletsController {
   @RequirePermissions(Resource.Outlets, Action.Read)
   @Get()
   async getOutlets(@Request() req: any) {
-    // The orgId is injected into req.user by the JwtAuthGuard
-    const orgId = req.user.orgId;
-    return this.outletsService.findAllByOrgId(orgId);
+    return this.outletsService.findAllByOrgId(req.user.orgId, req.user);
   }
 
   @Get(':id/360')

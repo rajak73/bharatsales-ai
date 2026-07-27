@@ -10,6 +10,7 @@ import { ProductSchema } from '../schemas/product.schema';
 import { InventoryModule } from '../inventory/inventory.module';
 
 import { ApprovalsModule } from '../approvals/approvals.module';
+import { HierarchyModule } from '../hierarchy/hierarchy.module';
 
 @Module({
   imports: [
@@ -21,7 +22,8 @@ import { ApprovalsModule } from '../approvals/approvals.module';
       { name: 'Product', schema: ProductSchema }
     ]),
     InventoryModule,
-    ApprovalsModule
+    ApprovalsModule,
+    HierarchyModule
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

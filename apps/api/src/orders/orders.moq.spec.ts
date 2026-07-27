@@ -4,6 +4,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { InventoryService } from '../inventory/inventory.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { BadRequestException } from '@nestjs/common';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 describe('OrdersService - MOQ Validation', () => {
   let service: OrdersService;
@@ -18,6 +19,7 @@ describe('OrdersService - MOQ Validation', () => {
   };
 
   const mockInventoryService = {};
+  const mockApprovalsService = {};
   const mockOutletModel = { findById: jest.fn() };
   const mockConnection = {
     startSession: jest.fn().mockResolvedValue({
@@ -39,7 +41,8 @@ describe('OrdersService - MOQ Validation', () => {
         { provide: getModelToken('Distributor'), useValue: {} },
         { provide: InventoryService, useValue: mockInventoryService },
         { provide: 'ModuleRef', useValue: {} },
-        { provide: ApprovalsService, useValue: {} },
+        { provide: ApprovalsService, useValue: mockApprovalsService },
+        { provide: HierarchyService, useValue: { getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't2']) } },
         { provide: 'DatabaseConnection', useValue: mockConnection }
       ],
     }).compile();
