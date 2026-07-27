@@ -7,6 +7,7 @@ import { DispatchService } from '../dispatch/dispatch.service';
 import { BadRequestException } from '@nestjs/common';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { ModuleRef } from '@nestjs/core';
 
 describe('OrdersService', () => {
   let service: OrdersService;
