@@ -39,7 +39,7 @@ export default function LiveMapPage() {
     try {
       if (showLoading) setLoading(true);
       const reps = await LiveMapService.getLiveReps();
-      setLiveReps(reps || []);
+      setLiveReps(Array.isArray(reps) ? reps : []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {

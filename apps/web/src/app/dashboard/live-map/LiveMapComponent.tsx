@@ -27,16 +27,26 @@ export default function LiveMapComponent({ reps }: { reps: LiveRep[] }) {
 
   const getCoordinates = (rep: LiveRep): [number, number] | null => {
     if (!rep.location) return null;
-    const parts = rep.location.split(',');
-    if (parts.length === 2) {
-      const lat = parseFloat(parts[0]);
-      const lng = parseFloat(parts[1]);
-      if (!isNaN(lat) && !isNaN(lng)) return [lat, lng];
+    
+    // Handle both string and object location formats safely
+    if (typeof rep.location === 'string') {
+      const parts = rep.location.split(',');
+      if (parts.length === 2) {
+        const lat = parseFloat(parts[0]);
+        const lng = parseFloat(parts[1]);
+        if (!isNaN(lat) && !isNaN(lng)) return [lat, lng];
+      }
+    } else if (typeof rep.location === 'object') {
+      const loc = rep.location as any;
+      if (loc.lat !== undefined && loc.lng !== undefined) {
+        return [parseFloat(loc.lat), parseFloat(loc.lng)];
+      }
     }
     return null;
   };
 
-  const firstValidRepCoords = reps.map(getCoordinates).find(coords => coords !== null);
+  const safeReps = Array.isArray(reps) ? reps : [];
+  const firstValidRepCoords = safeReps.map(getCoordinates).find(coords => coords !== null);
 
   return (
     <MapContainer 
@@ -48,7 +58,7 @@ export default function LiveMapComponent({ reps }: { reps: LiveRep[] }) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {reps.map((rep) => {
+      {safeReps.map((rep) => {
         const coords = getCoordinates(rep);
         if (!coords) return null;
         
