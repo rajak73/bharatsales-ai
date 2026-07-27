@@ -6,7 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   define: {
     'process.env': {
-      VITE_API_URL: process.env.VITE_API_URL || 'http://localhost:6002'
+      VITE_API_URL: process.env.VITE_API_URL || 'https://bharatsales-ai.onrender.com'
     }
   },
   plugins: [
