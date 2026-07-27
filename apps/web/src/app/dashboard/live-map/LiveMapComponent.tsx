@@ -6,20 +6,9 @@ import L from 'leaflet';
 import { LiveRep } from '@bharatsales/shared-types';
 import { useEffect } from 'react';
 
-// Fix for default marker icons in Leaflet with webpack/nextjs
-let DefaultIcon: L.Icon | undefined;
-if (typeof window !== 'undefined') {
-  DefaultIcon = new L.Icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    tooltipAnchor: [16, -28],
-    shadowSize: [41, 41]
-  });
-}
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-defaulticon-compatibility';
+import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 
 export default function LiveMapComponent({ reps }: { reps: LiveRep[] }) {
   // Center map on India
@@ -64,7 +53,7 @@ export default function LiveMapComponent({ reps }: { reps: LiveRep[] }) {
         if (!coords) return null;
         
         return (
-          <Marker key={rep.id} position={coords} icon={DefaultIcon}>
+          <Marker key={rep.id} position={coords}>
             <Popup>
               <div>
                 <h3 className="font-bold text-gray-900">{rep.name}</h3>
