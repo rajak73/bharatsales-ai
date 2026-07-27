@@ -58,7 +58,7 @@ describe('VisitsService', () => {
       });
 
       await expect(
-        service.checkIn('user1', 'org1', { outletId: 'outlet1', lat: 1, lng: 1, accuracy: 10, deviceTimestamp: new Date().toISOString() })
+        service.checkIn('user1', 'org1', { outletId: '507f1f77bcf86cd799439011', lat: 1, lng: 1, accuracy: 10, deviceTimestamp: new Date().toISOString() })
       ).rejects.toThrow('A shopfront photo is mandatory for check-in.');
     });
 
@@ -70,7 +70,7 @@ describe('VisitsService', () => {
         })
       });
 
-      const result = await service.checkIn('user1', 'org1', { outletId: 'outlet1', lat: 1, lng: 1, accuracy: 10, deviceTimestamp: new Date().toISOString(), photoUrl: 'http://photo' });
+      const result = await service.checkIn('user1', 'org1', { outletId: '507f1f77bcf86cd799439011', lat: 1, lng: 1, accuracy: 10, deviceTimestamp: new Date().toISOString(), photoUrl: 'http://photo' });
       expect(result.photoUrl).toBe('http://photo');
     });
   });
