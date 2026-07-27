@@ -4,6 +4,17 @@ import { useState, useEffect } from 'react';
 import { LiveMapService } from '@bharatsales/api-client';
 import { LiveRep } from '@bharatsales/shared-types';
 import { Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const LiveMap = dynamic(() => import('./LiveMapComponent'), {
+  ssr: false,
+  loading: () => (
+    <div className="text-center w-full flex flex-col items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-4" />
+      <h3 className="text-lg font-bold text-gray-900">Loading Live Map...</h3>
+    </div>
+  )
+});
 
 export default function LiveMapPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -73,19 +84,9 @@ export default function LiveMapPage() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Map Placeholder */}
-        <div className="lg:col-span-2 card min-h-[500px] flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50">
-          <div className="text-center">
-            <div className="text-6xl mb-4">🗺️</div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Live Map View</h3>
-            <p className="text-gray-500 text-sm max-w-sm">Interactive map showing real-time locations of all active field representatives with route tracking.</p>
-            <div className="mt-4 flex justify-center space-x-4 text-xs text-gray-500">
-              <span className="flex items-center"><span className="w-3 h-3 bg-green-500 rounded-full mr-1"></span>At Outlet</span>
-              <span className="flex items-center"><span className="w-3 h-3 bg-blue-500 rounded-full mr-1"></span>Traveling</span>
-              <span className="flex items-center"><span className="w-3 h-3 bg-yellow-500 rounded-full mr-1"></span>On Break</span>
-              <span className="flex items-center"><span className="w-3 h-3 bg-gray-400 rounded-full mr-1"></span>Offline</span>
-            </div>
-          </div>
+        {/* Real Live Map */}
+        <div className="lg:col-span-2 card min-h-[500px] flex flex-col relative z-0 p-0 overflow-hidden">
+          <LiveMap reps={liveReps} />
         </div>
 
         {/* Team List */}
