@@ -1,6 +1,5 @@
 import './App.css'
 import { useSyncEngine } from './hooks/useSyncEngine'
-import { db } from './database/db'
 import { MobileLayout } from './components/MobileLayout'
 import { HomeScreen } from './screens/HomeScreen'
 import { OutletsScreen } from './screens/OutletsScreen'
