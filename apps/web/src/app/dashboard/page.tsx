@@ -177,14 +177,8 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-          
-          <Button variant="outline" className="w-full mt-4">
-            Manage Team Hierarchy
-          </Button>
         </Card>
-
       </div>
     </div>
   );
 }
-

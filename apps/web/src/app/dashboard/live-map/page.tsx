@@ -86,7 +86,7 @@ export default function LiveMapPage() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Real Live Map */}
         <div className="lg:col-span-2 card min-h-[500px] flex flex-col relative z-0 p-0 overflow-hidden">
-          <LiveMap reps={liveReps} />
+          <LiveMap reps={filteredReps} />
         </div>
 
         {/* Team List */}
