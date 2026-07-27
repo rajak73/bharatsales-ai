@@ -1,6 +1,6 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LiveRep } from '@bharatsales/shared-types';
 import { useEffect } from 'react';
@@ -53,12 +53,15 @@ export default function LiveMapComponent({ reps }: { reps: LiveRep[] }) {
         
         return (
           <Marker key={rep.id} position={coords}>
+            <Tooltip permanent direction="top" offset={[0, -20]} className="font-bold text-xs">
+              {rep.name}
+            </Tooltip>
             <Popup>
               <div>
                 <h3 className="font-bold text-gray-900">{rep.name}</h3>
                 <p className="text-sm text-gray-600">Status: <b>{rep.status}</b></p>
                 <p className="text-sm text-gray-600">At: {rep.outlet}</p>
-                <p className="text-xs text-gray-400">Last updated: {rep.lastUpdate}</p>
+                <p className="text-sm text-gray-500">Updated: {rep.lastUpdate}</p>
               </div>
             </Popup>
           </Marker>
