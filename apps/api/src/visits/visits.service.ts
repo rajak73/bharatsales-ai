@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Visit } from '../schemas/visit.schema';
 import { Outlet } from '../schemas/outlet.schema';
 
@@ -35,6 +35,9 @@ export class VisitsService {
         return existingVisit; // Idempotent
       }
       throw new BadRequestException('You already have an active visit at another outlet.');
+    }
+    if (!Types.ObjectId.isValid(data.outletId)) {
+      throw new BadRequestException('Invalid outlet ID format');
     }
 
     const outlet = await this.outletModel.findById(data.outletId).lean();

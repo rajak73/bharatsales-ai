@@ -26,7 +26,11 @@ export class OutletsService {
         return []; // Non-admin with no territory sees nothing
       }
       const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, user.territoryIds);
-      query.territoryId = { $in: descendantIds };
+      query.$or = [
+        { territoryId: { $in: descendantIds } },
+        { territoryId: { $exists: false } },
+        { territoryId: null }
+      ];
     }
 
     return this.outletModel.find(query).exec();

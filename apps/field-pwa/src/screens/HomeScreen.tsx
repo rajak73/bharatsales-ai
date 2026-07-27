@@ -2,6 +2,8 @@ import { Bell, Store, CheckCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TargetsService } from '@bharatsales/api-client';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../database/db';
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -50,40 +52,15 @@ export function HomeScreen() {
     totalShops: 0,
   });
 
-  const smartBeatOutlets = [
-    {
-      id: '1',
-      name: 'Sharma Provision Store',
-      location: 'Sector 12',
-      status: 'visited',
-      visitedAt: '9:15 AM',
-      amount: 8500,
-      highValue: false,
-    },
-    {
-      id: '2',
-      name: 'Rahul General Traders',
-      location: 'Sector 14, Karol Bagh',
-      status: 'pending',
-      potential: 18500,
-      highValue: true,
-    },
-    {
-      id: '3',
-      name: 'Pooja Stationery',
-      location: 'Sector 18',
-      status: 'skipped', // or pending visited
-      visitedAt: '9:45 AM',
-      highValue: false,
-    },
-    {
-      id: '4',
-      name: 'Jai Hind Sweets',
-      location: 'Upcoming',
-      status: 'upcoming',
-      highValue: false,
-    }
-  ];
+  const allOutlets = useLiveQuery(() => db.outlets.toArray(), []) ?? [];
+  const beatSchedules = useLiveQuery(() => db.beatSchedules.toArray(), []) ?? [];
+  const todayBeat = beatSchedules[0];
+
+  let smartBeatOutlets: any[] = allOutlets.map(o => ({ ...o, visitStatus: 'upcoming', locationText: o.location?.address || 'Unknown' }));
+  if (todayBeat && todayBeat.beat && typeof todayBeat.beat !== 'string') {
+    const routeOutletIds = (todayBeat.beat as any).outlets.map((o: any) => o._id || o.id);
+    smartBeatOutlets = allOutlets.filter(o => routeOutletIds.includes(o.id)).map(o => ({ ...o, visitStatus: 'upcoming', locationText: o.location?.address || 'Unknown' }));
+  }
 
   return (
     <div className="bg-slate-50 min-h-screen font-sans pb-24">
@@ -165,9 +142,9 @@ export function HomeScreen() {
                 
                 <div className="flex items-start gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    outlet.status === 'visited' ? 'bg-green-100 text-green-600' :
-                    outlet.status === 'pending' ? 'bg-[#E0E7FF] text-[#2D3A8C]' :
-                    outlet.status === 'skipped' ? 'bg-red-50 text-red-500' :
+                    outlet.visitStatus === 'visited' ? 'bg-green-100 text-green-600' :
+                    outlet.visitStatus === 'pending' ? 'bg-[#E0E7FF] text-[#2D3A8C]' :
+                    outlet.visitStatus === 'skipped' ? 'bg-red-50 text-red-500' :
                     'bg-yellow-50 text-yellow-600'
                   }`}>
                     <Store size={20} />
@@ -176,24 +153,24 @@ export function HomeScreen() {
                   <div className="flex-1 min-w-0 pr-16">
                     <h3 className="font-bold text-[#1E293B] truncate pr-2">{outlet.name}</h3>
                     
-                    {outlet.status === 'visited' && (
+                    {outlet.visitStatus === 'visited' && (
                       <>
                         <div className="flex items-center gap-2 mt-1">
                           <p className="text-xs text-[#64748B]">Visited {outlet.visitedAt}</p>
                           <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                         </div>
                         <p className="text-sm font-bold text-[#1E293B] mt-1 text-right absolute right-4 bottom-4">
-                          {formatCurrency(outlet.amount!)}
+                          {formatCurrency(outlet.amount || 0)}
                         </p>
                       </>
                     )}
 
-                    {outlet.status === 'pending' && (
+                    {outlet.visitStatus === 'pending' && (
                       <>
-                        <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.location}</p>
+                        <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.locationText}</p>
                         <p className="text-xs text-[#64748B] mt-1">
                           Pending Order<br />
-                          Potential: <span className="font-bold text-[#1E293B]">{formatCurrency(outlet.potential!)}</span>
+                          Potential: <span className="font-bold text-[#1E293B]">{formatCurrency(outlet.potential || 0)}</span>
                         </p>
                         <button onClick={() => navigate('/visit', { state: { outlet } })} className="mt-3 bg-[#E0E7FF] text-[#2D3A8C] font-bold text-xs px-4 py-2 rounded-lg hover:bg-[#C7D2FE] transition-colors">
                           Visit Now
@@ -201,19 +178,22 @@ export function HomeScreen() {
                       </>
                     )}
 
-                    {outlet.status === 'skipped' && (
+                    {outlet.visitStatus === 'skipped' && (
                       <>
                         <p className="text-xs font-bold text-[#64748B] absolute right-4 top-4">Pending</p>
                         <p className="text-xs text-[#64748B] mt-0.5">Visited {outlet.visitedAt}</p>
-                        <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.location}</p>
+                        <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.locationText}</p>
                       </>
                     )}
 
-                    {outlet.status === 'upcoming' && (
+                    {outlet.visitStatus === 'upcoming' || (!outlet.visitStatus && outlet.id) ? (
                       <>
-                        <p className="text-xs font-bold text-[#64748B] absolute right-4 top-4">Upcoming</p>
+                        <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.locationText}</p>
+                        <button onClick={() => navigate('/visit', { state: { outlet } })} className="mt-3 bg-[#E0E7FF] text-[#2D3A8C] font-bold text-xs px-4 py-2 rounded-lg hover:bg-[#C7D2FE] transition-colors">
+                          Visit Now
+                        </button>
                       </>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
