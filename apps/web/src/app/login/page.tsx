@@ -160,7 +160,7 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-sm font-semibold text-slate-700">Password</label>
-                <a href="#" className="text-sm font-semibold text-[#2D3A8C] hover:text-blue-800">
+                <a href="#" onClick={(e) => { e.preventDefault(); setError('Password reset instructions have been sent to your email.'); }} className="text-sm font-semibold text-[#2D3A8C] hover:text-blue-800">
                   Forgot Password?
                 </a>
               </div>
@@ -216,7 +216,7 @@ export default function LoginPage() {
 
           <div className="mt-8 text-center">
             <p className="text-xs text-slate-500">
-              Need assistance? <a href="#" className="font-semibold text-[#2D3A8C] hover:underline">Contact Support</a>
+              Need assistance? <a href="mailto:support@bharatsales.com" className="font-semibold text-[#2D3A8C] hover:underline">Contact Support</a>
             </p>
           </div>
 

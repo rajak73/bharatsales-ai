@@ -120,7 +120,7 @@ export function LoginScreen() {
           </div>
 
           <div className="flex justify-end pt-1">
-            <a href="#" className="text-sm font-semibold text-[#2D3A8C] hover:text-[#1e2761]">
+            <a href="#" onClick={(e) => { e.preventDefault(); setError('Please contact your Company Administrator to reset your password.'); }} className="text-sm font-semibold text-[#2D3A8C] hover:text-[#1e2761]">
               Forgot Password?
             </a>
           </div>
