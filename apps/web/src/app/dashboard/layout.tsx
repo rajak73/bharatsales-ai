@@ -25,8 +25,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // Decode JWT payload without external library
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const padLength = (4 - (base64.length % 4)) % 4;
+      const paddedBase64 = base64 + '='.repeat(padLength);
       const jsonPayload = decodeURIComponent(
-        atob(base64).split('').map(function(c) {
+        atob(paddedBase64).split('').map(function(c) {
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join('')
       );
