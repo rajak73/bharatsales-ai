@@ -14,6 +14,8 @@ export class ReturnsService {
     @InjectModel(ReturnOrder.name) private returnModel: Model<ReturnOrder>,
     @InjectModel('Outlet') private outletModel: Model<Outlet>,
     @InjectModel('Invoice') private invoiceModel: Model<Invoice>,
+    @InjectModel('Order') private orderModel: Model<any>,
+    @InjectModel('Product') private productModel: Model<any>,
     private inventoryService: InventoryService,
     private financeService: FinanceService
   ) {}
@@ -33,12 +35,35 @@ export class ReturnsService {
       throw new NotFoundException('Outlet not found');
     }
 
+    let calculatedRefundAmount = 0;
+    
     if (data.orderId) {
-      const order = await this.invoiceModel.findById(data.orderId); // fallback or find order
+      const order = await this.orderModel.findById(data.orderId);
+      if (order && data.items) {
+        for (const returnItem of data.items) {
+          const originalItem = order.items.find((i: any) => i.productId === returnItem.product || i.productId?.toString() === returnItem.product);
+          if (originalItem) {
+            calculatedRefundAmount += (originalItem.unitPrice * returnItem.qty);
+          } else {
+             // Fallback to fetch product
+            const product = await this.productModel.findById(returnItem.product);
+            if (product) {
+              calculatedRefundAmount += (product.pricing.basePrice * returnItem.qty);
+            }
+          }
+        }
+      }
+    } else if (data.items) {
+        for (const returnItem of data.items) {
+            const product = await this.productModel.findById(returnItem.product);
+            if (product) {
+              calculatedRefundAmount += (product.pricing.basePrice * returnItem.qty);
+            }
+        }
     }
 
-    // Ensure refundAmount is calculated/present
-    const refundAmount = Number(data.value) || 0;
+    // Override insecure client-provided value with secure backend calculation
+    data.value = calculatedRefundAmount.toString();
 
     const status = data.status || 'Draft';
     if (!['Draft', 'Submitted'].includes(status)) {
@@ -80,8 +105,7 @@ export class ReturnsService {
     };
 
     if (validTransitions[returnOrder.status] && !validTransitions[returnOrder.status].includes(status)) {
-      // For testing flexibility allow forceful transitions by admins, but generally enforce
-      this.logger.warn(`Invalid transition from ${returnOrder.status} to ${status}`);
+      throw new BadRequestException(`Invalid return state transition from ${returnOrder.status} to ${status}`);
     }
 
     const previousStatus = returnOrder.status;

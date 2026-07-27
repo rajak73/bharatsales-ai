@@ -122,9 +122,9 @@ export class OrdersService {
       if (isInterState) {
         igstAmount = gstAmount;
       } else {
-        // Round half up to avoid precision issues
-        cgstAmount = parseFloat((gstAmount / 2).toFixed(2));
-        sgstAmount = parseFloat((gstAmount / 2).toFixed(2));
+        // Fix precision issues so cgst + sgst perfectly equals gstAmount
+        cgstAmount = Math.round((gstAmount / 2) * 100) / 100;
+        sgstAmount = Math.round((gstAmount - cgstAmount) * 100) / 100;
       }
 
       return {
@@ -160,9 +160,13 @@ export class OrdersService {
     const unbilledOrderExposure = openOrders.reduce((sum, ord) => sum + ord.totals.grandTotal, 0);
     const projectedExposure = outlet.commercial.outstandingBalance + unbilledOrderExposure + totals.grandTotal;
 
-    let initialStatus = 'Submitted';
+    let initialStatus = orderData.status || 'Submitted';
     
-    if (requiresApproval) {
+    // Draft orders skip credit and stock checks completely until submitted
+    if (initialStatus === 'Draft') {
+      this.logger.log(`Order saved as Draft for outlet ${outlet._id}`);
+    } else {
+      if (requiresApproval) {
       initialStatus = 'Pending_Approval';
       this.logger.warn(`Order placed on Pending_Approval. Reason: ${approvalReason}`);
     } else if (projectedExposure > outlet.commercial.creditLimit) {
@@ -183,6 +187,7 @@ export class OrdersService {
         this.logger.warn(`Order placed on Hold_Stock due to insufficient inventory for one or more items.`);
       }
     }
+    } // Missing brace added
 
     const newOrder = new this.orderModel({
       ...orderData,
@@ -194,8 +199,11 @@ export class OrdersService {
       status: initialStatus,
     });
 
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
     try {
-      const savedOrder = await newOrder.save();
+      const savedOrder = await newOrder.save({ session });
 
       if (initialStatus === 'Pending_Approval') {
         await this.approvalsService.createApproval(organizationId, {
@@ -209,14 +217,18 @@ export class OrdersService {
         });
       }
 
+      await session.commitTransaction();
       return savedOrder;
     } catch (error: any) {
+      await session.abortTransaction();
       // Handle race condition on idempotency key
       if (error.code === 11000 && error.keyPattern?.idempotencyKey) {
         this.logger.log(`Idempotent return (race condition) for order ${orderData.idempotencyKey}`);
         return this.orderModel.findOne({ organizationId, idempotencyKey: orderData.idempotencyKey }) as any;
       }
       throw error;
+    } finally {
+      session.endSession();
     }
   }
 
@@ -231,6 +243,28 @@ export class OrdersService {
     const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
     if (!order) {
       throw new BadRequestException(`Order ${orderId} not found`);
+    }
+
+    const validTransitions: Record<string, string[]> = {
+      'Draft': ['Submitted', 'Cancelled'],
+      'Submitted': ['Pending_Approval', 'Hold_Credit', 'Hold_Stock', 'Approved', 'Rejected', 'Cancelled'],
+      'Pending_Approval': ['Approved', 'Rejected', 'Cancelled'],
+      'Hold_Credit': ['Approved', 'Rejected', 'Cancelled'],
+      'Hold_Stock': ['Approved', 'Rejected', 'Cancelled'],
+      'Approved': ['Allocated', 'Dispatched', 'Cancelled'],
+      'Allocated': ['Dispatched', 'Cancelled'],
+      'Dispatched': ['Delivered', 'Partial_Delivery', 'Damaged_Delivery', 'Cancelled'],
+      'Delivered': ['Returned'],
+      'Partial_Delivery': ['Returned'],
+      'Damaged_Delivery': ['Returned'],
+      'Returned': ['Closed'],
+      'Rejected': [],
+      'Cancelled': [],
+      'Closed': []
+    };
+
+    if (validTransitions[order.status as string] && !validTransitions[order.status as string].includes(status as string)) {
+      throw new BadRequestException(`Invalid order state transition from ${order.status} to ${status}`);
     }
 
     order.status = status;
