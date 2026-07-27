@@ -41,6 +41,13 @@ export MONGODB_URI=mongodb://localhost:27017/bharatsales
 pnpm run seed
 ```
 
+### Test Accounts (Default Password: `password123`)
+After seeding, you can log in with the following default accounts to test different permission scopes:
+- **Global Super Admin:** `superadmin@bharatsales.com` (System level)
+- **Company Admin:** `admin@bharatfoods.com` (Tenant level)
+- **Area Sales Manager:** `asm@bharatfoods.com` (Manager hierarchy level)
+- **Sales Representative:** `rep@bharatfoods.com` (Field worker level)
+
 ### Accessing the Platform
 - **Web Dashboard:** [http://localhost:6003](http://localhost:6003)
 - **API Endpoint:**  [http://localhost:6002](http://localhost:6002)
