@@ -7,6 +7,9 @@ export const AuthService = {
       if (typeof window !== 'undefined') {
         localStorage.setItem('bharatsales_token', response.data.access_token);
         localStorage.setItem('bharatsales_refresh_token', response.data.refresh_token);
+        if (response.data.user) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
       }
     }
     return response.data;
@@ -27,6 +30,7 @@ export const AuthService = {
       }
       localStorage.removeItem('bharatsales_token');
       localStorage.removeItem('bharatsales_refresh_token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
   },
