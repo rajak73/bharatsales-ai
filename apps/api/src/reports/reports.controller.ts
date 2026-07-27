@@ -27,7 +27,7 @@ export class ReportsController {
     return this.reportsService.getReportStats(req.user.orgId);
   }
 
-@RequirePermissions(Resource.Reports, Action.Create)
+@RequirePermissions(Resource.Reports, Action.Read)
   @Post('run')
   runReport(@Request() req: any, @Body() payload: any) {
     return this.reportsService.runReport(req.user.orgId, payload);
