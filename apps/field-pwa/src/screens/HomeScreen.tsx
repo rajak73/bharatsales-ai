@@ -1,8 +1,10 @@
 import { Bell, Store, CheckCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TargetsService } from '@bharatsales/api-client';
 
 export function HomeScreen() {
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchTarget = async () => {
@@ -193,7 +195,7 @@ export function HomeScreen() {
                           Pending Order<br />
                           Potential: <span className="font-bold text-[#1E293B]">{formatCurrency(outlet.potential!)}</span>
                         </p>
-                        <button className="mt-3 bg-[#E0E7FF] text-[#2D3A8C] font-bold text-xs px-4 py-2 rounded-lg hover:bg-[#C7D2FE] transition-colors">
+                        <button onClick={() => navigate('/visit', { state: { outlet } })} className="mt-3 bg-[#E0E7FF] text-[#2D3A8C] font-bold text-xs px-4 py-2 rounded-lg hover:bg-[#C7D2FE] transition-colors">
                           Visit Now
                         </button>
                       </>

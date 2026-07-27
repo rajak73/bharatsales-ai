@@ -170,6 +170,7 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
     [Resource.Schemes]: [Action.Read],
     [Resource.PriceLists]: [Action.Read],
     [Resource.TaxRates]: [Action.Read],
+    [Resource.Distributors]: [Action.Read],
   },
   'Distributor Owner': {
     [Resource.Inventory]: [Action.Create, Action.Read, Action.Export],

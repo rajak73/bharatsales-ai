@@ -21,15 +21,7 @@ function ProfileScreen() {
   const { pendingCount, forceSync } = useSyncEngine();
   const { logout } = useAuth();
   
-  const handleAddFakeAction = async () => {
-    await db.syncQueue.add({
-      id: Date.now(),
-      action: 'UPDATE_OUTLET',
-      status: 'PENDING',
-      createdAt: Date.now(),
-      payload: { name: 'Fake Offline Outlet', location: { latitude: 0, longitude: 0 } }
-    });
-  };
+
 
   return (
     <div className="p-4 space-y-4">
@@ -55,13 +47,6 @@ function ProfileScreen() {
             className="w-full bg-primary-50 text-primary-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-100"
           >
             Force Sync Now
-          </button>
-          <button
-            type="button"
-            onClick={handleAddFakeAction}
-            className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200"
-          >
-            Add Fake Action (For Testing)
           </button>
         </div>
       </div>
