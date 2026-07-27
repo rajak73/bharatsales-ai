@@ -4,17 +4,24 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthService } from '@bharatsales/api-client';
 import { 
-  Store, 
-  ShoppingCart, 
-  IndianRupee, 
-  TrendingUp, 
-  Brain, 
-  ShieldCheck, 
-  Eye, 
-  EyeOff, 
-  ArrowRight,
-  QrCode,
+  Store as StoreBase, 
+  ShoppingCart as ShoppingCartBase, 
+  TrendingUp as TrendingUpBase, 
+  ShieldCheck as ShieldCheckBase, 
+  Eye as EyeBase, 
+  EyeOff as EyeOffBase, 
+  ArrowRight as ArrowRightBase,
+  QrCode as QrCodeBase,
 } from 'lucide-react';
+
+const Store = StoreBase as any;
+const ShoppingCart = ShoppingCartBase as any;
+const TrendingUp = TrendingUpBase as any;
+const ShieldCheck = ShieldCheckBase as any;
+const Eye = EyeBase as any;
+const EyeOff = EyeOffBase as any;
+const ArrowRight = ArrowRightBase as any;
+const QrCode = QrCodeBase as any;
 import Image from 'next/image';
 
 export default function LoginPage() {
