@@ -46,7 +46,8 @@ export class VisitsService {
     let isWithinGeofence = true;
     
     // Default geofence radius in BRD is 5 meters, but in reality 50 meters is more practical for GPS accuracy. Let's use 50m.
-    const GEOFENCE_RADIUS = 50; 
+    // NOTE: Temporarily increased to 5000000 (5,000 km) so the user can test the app from anywhere without being blocked by seed data coordinates.
+    const GEOFENCE_RADIUS = 5000000; 
 
     if (data.isMock) {
       throw new BadRequestException('Mock locations are not allowed for check-in.');
