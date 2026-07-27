@@ -25,19 +25,35 @@ export default function LiveMapComponent({ reps }: { reps: LiveRep[] }) {
   const defaultCenter: [number, number] = [20.5937, 78.9629];
   const zoom = 5;
 
+  const getCoordinates = (rep: LiveRep): [number, number] | null => {
+    if (!rep.location) return null;
+    const parts = rep.location.split(',');
+    if (parts.length === 2) {
+      const lat = parseFloat(parts[0]);
+      const lng = parseFloat(parts[1]);
+      if (!isNaN(lat) && !isNaN(lng)) return [lat, lng];
+    }
+    return null;
+  };
+
+  const firstValidRepCoords = reps.map(getCoordinates).find(coords => coords !== null);
+
   return (
     <MapContainer 
-      center={reps.length > 0 && reps[0].location ? [reps[0].location.lat, reps[0].location.lng] : defaultCenter} 
-      zoom={reps.length > 0 ? 12 : zoom} 
+      center={firstValidRepCoords || defaultCenter} 
+      zoom={firstValidRepCoords ? 12 : zoom} 
       style={{ height: '100%', width: '100%', borderRadius: '1rem', minHeight: '500px' }}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {reps.map((rep) => (
-        rep.location && (
-          <Marker key={rep.id} position={[rep.location.lat, rep.location.lng]}>
+      {reps.map((rep) => {
+        const coords = getCoordinates(rep);
+        if (!coords) return null;
+        
+        return (
+          <Marker key={rep.id} position={coords}>
             <Popup>
               <div>
                 <h3 className="font-bold text-gray-900">{rep.name}</h3>
@@ -47,8 +63,8 @@ export default function LiveMapComponent({ reps }: { reps: LiveRep[] }) {
               </div>
             </Popup>
           </Marker>
-        )
-      ))}
+        );
+      })}
     </MapContainer>
   );
 }

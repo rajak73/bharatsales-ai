@@ -22,8 +22,31 @@ export default function Outlet360Page() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Hardcoding outletId for demonstration (should come from route params ideally)
-      const outletId = '669527ec3c306df9a1bfa11b'; // Using a valid ObjectID format or whatever seed data uses
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      let outletId = urlParams.get('id');
+
+      if (!outletId) {
+        // Fallback: fetch all outlets and pick the first one
+        // Using any to bypass TS for the generic API call structure since we just need one ID
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://bharatsales-ai.onrender.com'}/outlets`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          }
+        });
+        if (response.ok) {
+          const allOutlets = await response.json();
+          if (allOutlets && allOutlets.length > 0) {
+            outletId = allOutlets[0].id || allOutlets[0]._id;
+          }
+        }
+      }
+
+      if (!outletId) {
+        setLoading(false);
+        return; // outlet will remain null -> "Outlet not found"
+      }
+      
       const data = await Outlet360Service.getOutlet360(outletId);
       
       setOutlet(data.outlet);
