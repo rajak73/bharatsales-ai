@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { OrdersService, InvoicesService } from '@bharatsales/api-client';
+import { OrdersService } from '@bharatsales/api-client';
 import { Order, OrderLineItem } from '@bharatsales/shared-types';
 import { Loader2 as _Loader2, ShoppingCart as _ShoppingCart, Search as _Search, FileText as _FileText, ChevronRight as _ChevronRight, X as _X, Check as _Check } from 'lucide-react';
 const Loader2 = _Loader2 as any;
@@ -79,16 +79,7 @@ export default function OrdersPage() {
     }
   };
 
-  const handleGenerateInvoice = async (orderId: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    try {
-      await InvoicesService.generateInvoice(orderId);
-      alert('Invoice generated successfully!');
-    } catch (error) {
-      console.error('Failed to generate invoice:', error);
-      alert('Failed to generate invoice. It may have already been generated.');
-    }
-  };
+
 
   const filteredOrders = orders.filter(order => 
     order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -305,14 +296,7 @@ export default function OrdersPage() {
                       Mark Dispatched
                     </button>
                   )}
-                  {(selectedOrder.status === 'Dispatched' || selectedOrder.status === 'Delivered') && (
-                    <button 
-                      onClick={() => handleGenerateInvoice(selectedOrder.id!)}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
-                    >
-                      Generate Invoice
-                    </button>
-                  )}
+
                 </div>
               </div>
 

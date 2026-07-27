@@ -1,65 +1,86 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { 
   LayoutDashboard, Users, MapPin, Target, Store,
   ShoppingCart, CheckSquare, Package, Box, Factory,
   Truck, Percent, Tags, Gift, ArrowDownToLine,
   Bell, Link as LinkIcon, UserCog, Smartphone, CreditCard,
   Sparkles, CalendarClock, Settings, ShieldCheck, Repeat, Receipt, Network,
-  BarChart3, ShieldAlert, BookOpen, Server
+  BarChart3, ShieldAlert, BookOpen, Server, ChevronDown, ChevronRight
 } from 'lucide-react';
 
 const ALL_ROLES = ['Super Admin', 'Company Admin', 'Area Manager', 'Sales Representative'];
 const ADMIN_ROLES = ['Super Admin', 'Company Admin'];
 
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ALL_ROLES },
-  { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
-  { icon: Users, label: 'Team', href: '/dashboard/team', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
-  { icon: MapPin, label: 'Live Map', href: '/dashboard/live-map', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
-  { icon: Target, label: 'Beats', href: '/dashboard/beats', roles: ALL_ROLES },
-  { icon: Store, label: 'Outlets', href: '/dashboard/outlets', roles: ALL_ROLES },
-  { icon: Store, label: 'Outlet 360', href: '/dashboard/outlet-360', roles: ALL_ROLES },
-  { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders', roles: ALL_ROLES },
-  { icon: CheckSquare, label: 'Approvals', href: '/dashboard/approvals', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
-  { icon: Package, label: 'Products', href: '/dashboard/products', roles: ADMIN_ROLES },
-  { icon: Box, label: 'Inventory', href: '/dashboard/inventory', roles: ADMIN_ROLES },
-  { icon: Factory, label: 'Warehouses', href: '/dashboard/warehouses', roles: ADMIN_ROLES },
-  { icon: Truck, label: 'Dispatches', href: '/dashboard/dispatches', roles: ADMIN_ROLES },
-  { icon: Percent, label: 'Tax Rates', href: '/dashboard/tax-rates', roles: ADMIN_ROLES },
-  { icon: Tags, label: 'Price Lists', href: '/dashboard/price-lists', roles: ADMIN_ROLES },
-  { icon: Gift, label: 'Schemes', href: '/dashboard/schemes', roles: ADMIN_ROLES },
-  { icon: Factory, label: 'Distributors', href: '/dashboard/distributors', roles: ALL_ROLES },
-  { icon: Receipt, label: 'Collections', href: '/dashboard/collections', roles: ALL_ROLES },
-  { icon: Target, label: 'Targets', href: '/dashboard/targets', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
-  { icon: Percent, label: 'Incentives', href: '/dashboard/incentives', roles: ALL_ROLES },
-  { icon: Repeat, label: 'Returns', href: '/dashboard/returns', roles: ALL_ROLES },
-  { icon: ShieldAlert, label: 'Claims', href: '/dashboard/claims', roles: ALL_ROLES },
-  { icon: BookOpen, label: 'Ledger', href: '/dashboard/ledger', roles: ALL_ROLES },
-  { icon: Receipt, label: 'Expenses', href: '/dashboard/expenses', roles: ALL_ROLES },
-  { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
-  { icon: LayoutDashboard, label: 'Exports', href: '/dashboard/exports', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
-  { icon: ArrowDownToLine, label: 'Imports', href: '/dashboard/imports', roles: ADMIN_ROLES },
-  { icon: Bell, label: 'Notifications', href: '/dashboard/notifications', roles: ALL_ROLES },
-  { icon: LinkIcon, label: 'Integrations', href: '/dashboard/integrations', roles: ADMIN_ROLES },
-  { icon: UserCog, label: 'Roles', href: '/dashboard/roles', roles: ADMIN_ROLES },
-  { icon: Smartphone, label: 'Devices', href: '/dashboard/devices', roles: ADMIN_ROLES },
-  { icon: CreditCard, label: 'Subscription', href: '/dashboard/subscription', roles: ['Super Admin'] },
-  { icon: Sparkles, label: 'AI Features', href: '/dashboard/ai-features', roles: ADMIN_ROLES },
-  { icon: CalendarClock, label: 'Scheduled Reports', href: '/dashboard/scheduled-reports', roles: ADMIN_ROLES },
-  { icon: Settings, label: 'Settings', href: '/dashboard/settings', roles: ADMIN_ROLES },
-  { icon: Network, label: 'Hierarchy', href: '/dashboard/hierarchy', roles: ADMIN_ROLES },
+const navGroups = [
+  {
+    title: 'Overview',
+    items: [
+      { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ALL_ROLES },
+      { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
+      { icon: MapPin, label: 'Live Map', href: '/dashboard/live-map', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
+      { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
+      { icon: Users, label: 'Team', href: '/dashboard/team', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
+    ]
+  },
+  {
+    title: 'Sales Operations',
+    items: [
+      { icon: Target, label: 'Beats', href: '/dashboard/beats', roles: ALL_ROLES },
+      { icon: Store, label: 'Outlets', href: '/dashboard/outlets', roles: ALL_ROLES },
+      { icon: Store, label: 'Outlet 360', href: '/dashboard/outlet-360', roles: ALL_ROLES },
+      { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders', roles: ALL_ROLES },
+      { icon: CheckSquare, label: 'Approvals', href: '/dashboard/approvals', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
+      { icon: Receipt, label: 'Collections', href: '/dashboard/collections', roles: ALL_ROLES },
+      { icon: Target, label: 'Targets', href: '/dashboard/targets', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
+      { icon: Percent, label: 'Incentives', href: '/dashboard/incentives', roles: ALL_ROLES },
+      { icon: Repeat, label: 'Returns', href: '/dashboard/returns', roles: ALL_ROLES },
+    ]
+  },
+  {
+    title: 'Inventory & Logistics',
+    items: [
+      { icon: Package, label: 'Products', href: '/dashboard/products', roles: ADMIN_ROLES },
+      { icon: Box, label: 'Inventory', href: '/dashboard/inventory', roles: ADMIN_ROLES },
+      { icon: Factory, label: 'Distributors', href: '/dashboard/distributors', roles: ALL_ROLES },
+    ]
+  },
+  {
+    title: 'Settings & Admin',
+    items: [
+      { icon: Bell, label: 'Notifications', href: '/dashboard/notifications', roles: ALL_ROLES },
+      { icon: UserCog, label: 'Roles', href: '/dashboard/roles', roles: ADMIN_ROLES },
+      { icon: Network, label: 'Hierarchy', href: '/dashboard/hierarchy', roles: ADMIN_ROLES },
+      { icon: Settings, label: 'Settings', href: '/dashboard/settings', roles: ADMIN_ROLES },
+    ]
+  }
 ];
 
 export function Sidebar({ open, user }: { open: boolean, user?: { role: string } }) {
   const pathname = usePathname();
   const userRole = user?.role || 'Sales Representative';
 
-  const visibleNavItems = navItems.filter(item => item.roles.includes(userRole));
+  // Open groups that contain the currently active link
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initialState: Record<string, boolean> = {};
+    navGroups.forEach(group => {
+      initialState[group.title] = group.items.some(item => item.href === pathname);
+      // If we can't find an active one, default to first group open
+      if (!Object.values(initialState).some(Boolean) && group.title === 'Overview') {
+        initialState[group.title] = true;
+      }
+    });
+    return initialState;
+  });
+
+  const toggleGroup = (title: string) => {
+    setOpenGroups(prev => ({ ...prev, [title]: !prev[title] }));
+  };
 
   return (
-    <aside className={`${open ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 fixed h-full transition-all duration-300 z-40 overflow-y-auto flex flex-col`}>
-      <div className="p-4 border-b border-gray-100 flex-shrink-0 sticky top-0 bg-white z-10">
+    <aside className={`${open ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 fixed h-full transition-all duration-300 z-40 flex flex-col`}>
+      <div className="p-4 border-b border-gray-100 flex-shrink-0 bg-white">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-saffron-500 rounded-lg flex items-center justify-center flex-shrink-0">
             <span className="text-white font-bold text-sm">BS</span>
@@ -68,35 +89,63 @@ export function Sidebar({ open, user }: { open: boolean, user?: { role: string }
         </div>
       </div>
       
-      <nav className="p-2 space-y-0.5 flex-1">
-        {visibleNavItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
+      <nav className="p-3 overflow-y-auto flex-1 space-y-4 custom-scrollbar">
+        {navGroups.map((group) => {
+          const visibleItems = group.items.filter(item => item.roles.includes(userRole));
+          
+          if (visibleItems.length === 0) return null;
+
+          const isGroupOpen = openGroups[group.title] || !open;
+
           return (
-            <Link 
-              key={item.href} 
-              href={item.href} 
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors group text-sm ${isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
-              title={!open ? item.label : undefined}
-            >
-              <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
-              {open && <span className="truncate">{item.label}</span>}
-            </Link>
-          )
+            <div key={group.title} className="space-y-1">
+              {open && (
+                <button 
+                  onClick={() => toggleGroup(group.title)}
+                  className="w-full flex items-center justify-between px-2 py-1 mb-1 group"
+                >
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
+                    {group.title}
+                  </span>
+                  {isGroupOpen ? (
+                    <ChevronDown size={14} className="text-gray-400 group-hover:text-gray-600" />
+                  ) : (
+                    <ChevronRight size={14} className="text-gray-400 group-hover:text-gray-600" />
+                  )}
+                </button>
+              )}
+              
+              {isGroupOpen && (
+                <div className="space-y-0.5">
+                  {visibleItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link 
+                        key={item.href} 
+                        href={item.href} 
+                        className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors group text-sm ${isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                        title={!open ? item.label : undefined}
+                      >
+                        <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                        {open && <span className="truncate">{item.label}</span>}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          );
         })}
       </nav>
 
-      <div className="p-3 border-t border-gray-100 bg-gray-50 space-y-1 flex-shrink-0">
+      <div className="p-3 border-t border-gray-100 bg-gray-50 flex-shrink-0 space-y-1">
         {userRole === 'Super Admin' && (
           <Link href="/dashboard/superadmin" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Super Admin' : undefined}>
             <Server className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
             {open && <span className="font-medium truncate">Super Admin</span>}
           </Link>
         )}
-        <Link href="/dashboard/distributors" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Distributor' : undefined}>
-          <Factory className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
-          {open && <span className="font-medium truncate">Distributor</span>}
-        </Link>
         <Link href="/field-pwa" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Field PWA' : undefined}>
           <Smartphone className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
           {open && <span className="font-medium truncate">Field PWA</span>}

@@ -33,13 +33,7 @@ export default function DistributorsPage() {
           }));
           setAllDistributors(mappedData);
         } else {
-          // Fallback to mock data to perfectly match the light mode screenshot if no data
-          setAllDistributors([
-            { id: '1', name: 'Global Traders', location: { state: 'Delhi North' }, status: 'Active', inventoryHealth: 92, orderFulfillment: 88, pendingOrders: 12 },
-            { id: '2', name: 'Apex Distributors', location: { state: 'Gurgaon' }, status: 'Active', inventoryHealth: 78, orderFulfillment: 94, pendingOrders: 5 },
-            { id: '3', name: 'Sunrise Agencies', location: { state: 'Noida' }, status: 'Active', inventoryHealth: 95, orderFulfillment: 91, pendingOrders: 8 },
-            { id: '4', name: 'Metro Wholesale', location: { state: 'South Delhi' }, status: 'Review', inventoryHealth: 65, orderFulfillment: 72, pendingOrders: 24 }
-          ]);
+          setAllDistributors([]);
         }
       } catch (error) {
         console.error('Failed to fetch distributors', error);

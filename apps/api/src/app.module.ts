@@ -16,14 +16,9 @@ import { AttendanceModule } from './attendance/attendance.module';
 import { VisitsModule } from './visits/visits.module';
 import { FinanceModule } from './finance/finance.module';
 import { PerformanceModule } from './performance/performance.module';
-import { AiFeaturesModule } from './ai-features/ai-features.module';
-import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { DistributorsModule } from './distributors/distributors.module';
-import { WarehousesModule } from './warehouses/warehouses.module';
-import { ImportsModule } from './imports/imports.module';
 import { InventoryModule } from './inventory/inventory.module';
-import { DispatchModule } from './dispatch/dispatch.module';
 import { ReturnsModule } from './returns/returns.module';
 import { LiveMapModule } from './live-map/live-map.module';
 import { Outlet360Module } from './outlet-360/outlet-360.module';
@@ -34,20 +29,12 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { SettingsModule } from './settings/settings.module';
 import { HierarchyModule } from './hierarchy/hierarchy.module';
 import { UsersModule } from './users/users.module';
-import { SchemesModule } from './schemes/schemes.module';
-import { IntegrationsModule } from './integrations/integrations.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
-import { ExpensesModule } from './expenses/expenses.module';
-import { PriceListsModule } from './price-lists/price-lists.module';
-import { TaxRatesModule } from './tax-rates/tax-rates.module';
 import { CollectionsModule } from './collections/collections.module';
 import { SyncModule } from './sync/sync.module';
-import { ClaimsModule } from './claims/claims.module';
 import { SuperadminModule } from './superadmin/superadmin.module';
-import { ExportsModule } from './exports/exports.module';
-import { DevicesModule } from './devices/devices.module';
 import { BullModule } from '@nestjs/bull';
 
 @Module({
@@ -107,15 +94,10 @@ import { BullModule } from '@nestjs/bull';
     VisitsModule,
     FinanceModule,
     PerformanceModule,
-    AiFeaturesModule,
-    SubscriptionsModule,
     HealthModule,
     NotificationsModule,
     DistributorsModule,
-    WarehousesModule,
-    ImportsModule,
     InventoryModule,
-    DispatchModule,
     ReturnsModule,
     LiveMapModule,
     Outlet360Module,
@@ -125,21 +107,13 @@ import { BullModule } from '@nestjs/bull';
     SettingsModule,
     HierarchyModule,
     UsersModule,
-    SchemesModule,
-    IntegrationsModule,
     ApprovalsModule,
     AnalyticsModule,
     ReportsModule,
     OnboardingModule,
-    ExpensesModule,
-    PriceListsModule,
-    TaxRatesModule,
     CollectionsModule,
     SyncModule,
-    ClaimsModule,
     SuperadminModule,
-    ExportsModule,
-    DevicesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

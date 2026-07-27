@@ -2,7 +2,6 @@ import { Injectable, BadRequestException, NotFoundException, Logger } from '@nes
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
 import { Invoice, PaymentCollection, Outlet, Order } from '@bharatsales/shared-types';
-import { TallyAdapter } from '../integrations/adapters/tally.adapter';
 
 @Injectable()
 export class FinanceService {
@@ -14,7 +13,6 @@ export class FinanceService {
     @InjectModel('Outlet') private outletModel: Model<Outlet>,
     @InjectModel('Order') private orderModel: Model<Order>,
     @InjectConnection() private connection: Connection,
-    private tallyAdapter: TallyAdapter,
   ) {}
 
   async getInvoices(organizationId: string): Promise<Invoice[]> {
@@ -76,13 +74,6 @@ export class FinanceService {
       { session }
     );
 
-    // Export to Tally (Fire and Forget)
-    const outlet = await this.outletModel.findById(order.outletId).session(session);
-    if (outlet) {
-      this.tallyAdapter.exportInvoiceToTally(savedInvoice, outlet.name).catch(err => {
-        this.logger.error('Failed to sync to Tally', err);
-      });
-    }
 
     return savedInvoice;
   }

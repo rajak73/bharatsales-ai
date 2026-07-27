@@ -37,7 +37,7 @@ export function CartScreen() {
     const usedSchemes: Scheme[] = [];
 
     const isInterState = assignedDistributor && selectedOutlet && assignedDistributor.location?.state !== selectedOutlet.location?.state;
-    const deliveryCharges = 80.00; // Mocking delivery charges as per screenshot
+    const deliveryCharges = 0; // In production, this would be fetched from tenant settings or calculated based on distance
 
     // 1. Process cart items and apply schemes
     for (const cartItem of cart) {

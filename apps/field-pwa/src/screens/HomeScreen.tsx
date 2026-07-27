@@ -1,5 +1,5 @@
 import { Bell, Store, CheckCircle } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { TargetsService } from '@bharatsales/api-client';
 
 export function HomeScreen() {
@@ -20,9 +20,13 @@ export function HomeScreen() {
         }
 
         const myTarget = targets.find(t => t.entityType === 'User' && t.entityId === userId && t.period === 'Daily');
-        if (myTarget) {
-          // If we want to use the real target later, we would set state here.
-          // For now we use the mock UI target.
+          setTargetData({
+            goal: myTarget.targetValue || 0,
+            achieved: myTarget.achievedValue || 0,
+            percentage: myTarget.targetValue ? Math.round(((myTarget.achievedValue || 0) / myTarget.targetValue) * 100) : 0,
+            shopsVisited: 0,
+            totalShops: 0,
+          });
         }
       } catch (err) {
         console.error('Failed to fetch target', err);
@@ -35,14 +39,13 @@ export function HomeScreen() {
     return '₹' + amount.toLocaleString('en-IN');
   };
 
-  // Mock data to match the UI screenshot exactly
-  const mockTarget = {
-    goal: 65000,
-    achieved: 41600,
-    percentage: 64,
-    shopsVisited: 8,
-    totalShops: 15,
-  };
+  const [targetData, setTargetData] = useState({
+    goal: 0,
+    achieved: 0,
+    percentage: 0,
+    shopsVisited: 0,
+    totalShops: 0,
+  });
 
   const smartBeatOutlets = [
     {
@@ -116,27 +119,27 @@ export function HomeScreen() {
           <div className="flex justify-between items-end mb-2">
             <div>
               <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Goal</p>
-              <p className="text-[#1E293B] font-bold">{formatCurrency(mockTarget.goal)}</p>
+              <p className="text-[#1E293B] font-bold">{formatCurrency(targetData.goal)}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Achieved</p>
-              <p className="text-[#1E293B] font-bold">{formatCurrency(mockTarget.achieved)}</p>
+              <p className="text-[#1E293B] font-bold">{formatCurrency(targetData.achieved)}</p>
             </div>
           </div>
 
           <div className="relative h-6 w-full bg-[#E2E8F0] rounded-full overflow-hidden mb-4 shadow-inner">
             <div 
               className="absolute top-0 left-0 h-full bg-[#2D3A8C] rounded-full transition-all duration-1000 flex items-center justify-end pr-2"
-              style={{ width: `${mockTarget.percentage}%` }}
+              style={{ width: `${targetData.percentage}%` }}
             >
-              <span className="text-white text-xs font-bold">{mockTarget.percentage}%</span>
+              <span className="text-white text-xs font-bold">{targetData.percentage}%</span>
             </div>
           </div>
           
           <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
             <p className="text-xs font-medium text-[#64748B]">Status: <span className="text-green-600 font-bold">On Track! Keep going!</span></p>
             <p className="text-xs font-bold text-[#1E293B] bg-slate-100 px-2.5 py-1 rounded-lg">
-              {mockTarget.shopsVisited}/{mockTarget.totalShops} Shops Visited
+              {targetData.shopsVisited}/{targetData.totalShops} Shops Visited
             </p>
           </div>
         </div>

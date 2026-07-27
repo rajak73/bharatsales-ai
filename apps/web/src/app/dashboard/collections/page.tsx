@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { IndianRupee, Search, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { PaymentCollection, Outlet, Invoice } from '@bharatsales/shared-types';
-import { CollectionsService, OutletsService, InvoicesService } from '@bharatsales/api-client';
+import { CollectionsService, OutletsService } from '@bharatsales/api-client';
 
 export default function CollectionsPage() {
   const [collections, setCollections] = useState<PaymentCollection[]>([]);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+
   const [loading, setLoading] = useState(true);
 
   const [showModal, setShowModal] = useState(false);
@@ -27,14 +27,12 @@ export default function CollectionsPage() {
   const fetchCollections = async () => {
     try {
       setLoading(true);
-      const [colData, outData, invData] = await Promise.all([
+      const [colData, outData] = await Promise.all([
         CollectionsService.getCollections(),
-        OutletsService.getOutlets(),
-        InvoicesService.getInvoices()
+        OutletsService.getOutlets()
       ]);
       setCollections(colData || []);
       setOutlets(outData || []);
-      setInvoices(invData || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -198,19 +196,7 @@ export default function CollectionsPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Invoice (Optional)</label>
-                <select
-                  value={newPayment.invoiceId}
-                  onChange={(e) => setNewPayment({...newPayment, invoiceId: e.target.value})}
-                  className="w-full rounded-lg border-gray-200 border px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="">-- Apply to Balance --</option>
-                  {invoices.filter(i => i.outletId === newPayment.outletId && i.status !== 'Paid').map(i => (
-                    <option key={i.id} value={i.id}>{i.invoiceNumber} - Due: ₹{(i.totalAmount - i.paidAmount).toLocaleString()}</option>
-                  ))}
-                </select>
-              </div>
+
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>

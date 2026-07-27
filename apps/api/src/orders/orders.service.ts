@@ -4,7 +4,6 @@ import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
 import { Order, Outlet, Scheme, Distributor, Product } from '@bharatsales/shared-types';
 import { InventoryService } from '../inventory/inventory.service';
-import { DispatchService } from '../dispatch/dispatch.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 
@@ -25,9 +24,7 @@ export class OrdersService {
     @InjectConnection() private connection: Connection,
   ) {}
 
-  private get dispatchService(): DispatchService {
-    return this.moduleRef.get(DispatchService, { strict: false });
-  }
+
 
   async findAll(organizationId: string, user?: any): Promise<Order[]> {
     const query: any = { organizationId };
@@ -393,7 +390,7 @@ export class OrdersService {
       }
 
       // Create Dispatch record (Dispatch service doesn't use session currently, but should ideally)
-      await this.dispatchService.createDispatchFromOrder(organizationId, orderId, undefined, undefined, session);
+
 
       const updated = await this.updateStatus(organizationId, orderId, 'Dispatched', actorId, 'Dispatched via operations', session);
       await session.commitTransaction();

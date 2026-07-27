@@ -6,7 +6,7 @@ import { InvoiceSchema } from '../schemas/invoice.schema';
 import { CollectionSchema } from '../schemas/collection.schema';
 import { OutletSchema } from '../schemas/outlet.schema';
 import { OrderSchema } from '../schemas/order.schema';
-import { IntegrationsModule } from '../integrations/integrations.module';
+
 
 @Module({
   imports: [
@@ -15,8 +15,7 @@ import { IntegrationsModule } from '../integrations/integrations.module';
       { name: 'Collection', schema: CollectionSchema },
       { name: 'Outlet', schema: OutletSchema },
       { name: 'Order', schema: OrderSchema }
-    ]),
-    IntegrationsModule
+    ])
   ],
   controllers: [FinanceController],
   providers: [FinanceService],

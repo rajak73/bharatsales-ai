@@ -17,9 +17,7 @@ export default function DashboardPage() {
       setUser(parsed);
       fetchDashboardData(parsed.organizationId);
     } else {
-      // Mock user for UI presentation if not logged in
-      setUser({ name: 'Rahul', role: 'Sales Manager', organizationId: '1' });
-      fetchDashboardData('1');
+      window.location.href = '/login';
     }
   }, []);
 
@@ -31,26 +29,21 @@ export default function DashboardPage() {
       if (data && data.salesData && data.kpis) {
         setDashboardData(data);
       } else {
-        // Fallback to mock data for presentation
+        // Fallback to true empty state instead of mock data
         setDashboardData({
           kpis: [
-            // @ts-ignore - Lucide icon types issue in React 19
-            { label: 'Total Revenue', value: '₹1.2M', change: '+12%', up: true, icon: <DollarSign className="w-5 h-5" /> },
             // @ts-ignore
-            { label: 'Total Orders', value: '1,420', change: '+8%', up: true, icon: <ShoppingCart className="w-5 h-5" /> },
+            { label: 'Total Revenue', value: '₹0', change: '0%', up: true, icon: <DollarSign className="w-5 h-5" /> },
             // @ts-ignore
-            { label: 'Active Users', value: '840', change: '-2%', up: false, icon: <Users className="w-5 h-5" /> }
+            { label: 'Total Orders', value: '0', change: '0%', up: true, icon: <ShoppingCart className="w-5 h-5" /> },
+            // @ts-ignore
+            { label: 'Active Users', value: '0', change: '0%', up: false, icon: <Users className="w-5 h-5" /> }
           ],
           salesData: [
-            { day: 'Mon', orders: 120 }, { day: 'Tue', orders: 200 }, { day: 'Wed', orders: 150 },
-            { day: 'Thu', orders: 280 }, { day: 'Fri', orders: 220 }, { day: 'Sat', orders: 340 }, { day: 'Sun', orders: 190 }
+            { day: 'Mon', orders: 0 }, { day: 'Tue', orders: 0 }, { day: 'Wed', orders: 0 },
+            { day: 'Thu', orders: 0 }, { day: 'Fri', orders: 0 }, { day: 'Sat', orders: 0 }, { day: 'Sun', orders: 0 }
           ],
-          teamActivity: [
-            { name: 'Amit Kumar', location: 'Delhi North', status: 'Active Now', avatar: 'AK' },
-            { name: 'Priya Singh', location: 'Gurgaon', status: 'Active 5m ago', avatar: 'PS' },
-            { name: 'Rajesh Sharma', location: 'Noida', status: 'Active 12m ago', avatar: 'RS' },
-            { name: 'Sneha Gupta', location: 'South Delhi', status: 'Offline', avatar: 'SG' }
-          ]
+          teamActivity: []
         });
       }
     } catch (error) {
