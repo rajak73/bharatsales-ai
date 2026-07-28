@@ -49,11 +49,11 @@ describe('AttendanceService', () => {
   });
 
   describe('startDay', () => {
-    it('should throw error if photoUrl is missing', async () => {
+    it('should NOT throw error if photoUrl is missing (relaxed requirement)', async () => {
       mockAttendanceModel.findOne.mockResolvedValue(null);
-      await expect(
-        service.startDay('user1', 'org1', { lat: 1, lng: 1, accuracy: 10, deviceTimestamp: new Date().toISOString() })
-      ).rejects.toThrow('A selfie photo is mandatory for starting the day.');
+      const result = await service.startDay('user1', 'org1', { lat: 1, lng: 1, accuracy: 10, deviceTimestamp: new Date().toISOString() });
+      expect(result).toBeDefined();
+      expect(result.photoUrl).toBeUndefined();
     });
 
     it('should succeed if photoUrl is present', async () => {

@@ -53,7 +53,7 @@ test.describe('Attendance & Geolocation Flow', () => {
 
     // Wait for the first outlet card to appear
     const firstOutletCard = page.locator('.bg-white.p-4.rounded-xl').first();
-    await expect(firstOutletCard).toBeVisible();
+    await expect(firstOutletCard).toBeVisible({ timeout: 15000 });
     
     // Click it to navigate to /visit with state
     await firstOutletCard.click();

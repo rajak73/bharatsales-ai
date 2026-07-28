@@ -65,11 +65,7 @@ export function Sidebar({ open, user }: { open: boolean, user?: { role: string }
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initialState: Record<string, boolean> = {};
     navGroups.forEach(group => {
-      initialState[group.title] = group.items.some(item => item.href === pathname);
-      // If we can't find an active one, default to first group open
-      if (!Object.values(initialState).some(Boolean) && group.title === 'Overview') {
-        initialState[group.title] = true;
-      }
+      initialState[group.title] = true;
     });
     return initialState;
   });

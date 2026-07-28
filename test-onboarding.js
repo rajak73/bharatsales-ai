@@ -1,4 +1,4 @@
-const fetch = require('node-fetch') || global.fetch; // just in case
+// Using global fetch natively available in Node 18+
 async function run() {
   try {
     const loginRes = await fetch('http://localhost:6002/auth/login', {

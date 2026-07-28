@@ -69,7 +69,7 @@ export default function LiveMapPage() {
       )}
 
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900">Live Team Tracking</h1><p className="text-gray-500">Real-time field team locations • {liveReps.length} reps active</p></div>
+        <div><h1 className="text-2xl font-bold text-gray-900">Live Team Tracking</h1><p className="text-gray-500">Live Map View • Real-time field team locations • {liveReps.length} reps active</p></div>
         <div className="flex items-center space-x-3">
           <span className="flex items-center space-x-2 text-sm text-green-600"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span><span>{liveReps.length} reps active</span></span>
           <button onClick={handleRefresh} className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">🔄 Refresh</button>

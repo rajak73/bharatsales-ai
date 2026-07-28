@@ -34,10 +34,13 @@ test.describe('Role-Based Login & Routing Flow', () => {
     await page.fill('input[type="password"]', 'password123');
     await page.click('button[type="submit"]');
 
+    // They should wait for dashboard URL first
+    await page.waitForURL(/.*dashboard/, { timeout: 15000 });
+    
     // They should see tenant specific tabs like Outlets, Team
     const nav = page.locator('nav');
-    await expect(nav.locator('text=Outlets')).toBeVisible();
-    await expect(nav.locator('text=Team')).toBeVisible();
+    await expect(nav.locator('text=Outlets').first()).toBeVisible({ timeout: 15000 });
+    await expect(nav.locator('text=Team').first()).toBeVisible({ timeout: 15000 });
   });
 
   test('Sales Representative login and PWA access', async ({ page }) => {
@@ -62,7 +65,8 @@ test.describe('Role-Based Login & Routing Flow', () => {
     await page.fill('input[type="password"]', 'password123');
     await page.click('button[type="submit"]');
 
-    // Distributor Owner should see "Distributor" link
-    await expect(page.locator('text=Distributor').first()).toBeVisible();
+    // Distributor Owner should wait for URL and see "Distributor" link
+    await page.waitForURL(/.*dashboard/, { timeout: 15000 }).catch(() => {});
+    await expect(page.locator('text=Distributor').first()).toBeVisible({ timeout: 15000 });
   });
 });

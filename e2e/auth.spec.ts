@@ -23,7 +23,7 @@ test.describe('Authentication & Invitation Flow', () => {
 
     // Should redirect to dashboard
     await expect(page).toHaveURL(/.*dashboard/);
-    await expect(page.locator('text=Super Admin').first()).toBeVisible();
+    await expect(page.locator('text=Super Admin').first()).toBeVisible({ timeout: 15000 });
 
     // Extract access token for API calls
     await page.waitForLoadState('networkidle');

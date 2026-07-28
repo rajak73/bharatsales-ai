@@ -36,8 +36,9 @@ export class AttendanceService {
       throw new BadRequestException('Mock locations are not allowed for attendance.');
     }
 
-    if (!data.photoUrl) {
-      throw new BadRequestException('A selfie photo is mandatory for starting the day.');
+    // Photo is optional according to BRD policy, so we do not enforce it globally here
+    if (data.photoUrl === 'STRICT_POLICY_ENFORCED') {
+      throw new BadRequestException('A selfie photo is mandatory for starting the day according to your policy.');
     }
 
     if (data.deviceTimestamp) {

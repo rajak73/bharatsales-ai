@@ -439,7 +439,8 @@ export class AuthService {
       sub: user._id.toString(), 
       email: user.email, 
       orgId: user.organizationId, 
-      role: user.role 
+      role: user.role,
+      territoryIds: user.territoryIds || []
     };
     
     const access_token = await this.jwtService.signAsync(payload, { expiresIn: '15m' });

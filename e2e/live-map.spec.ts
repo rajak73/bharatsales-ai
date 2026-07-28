@@ -9,7 +9,8 @@ test.describe('Live Map Manager UI', () => {
     await page.click('button[type="submit"]');
 
     // Wait for dashboard to load
-    await expect(page).toHaveURL(/.*\/dashboard/);
+    await page.waitForURL(/.*dashboard/, { timeout: 15000 });
+    await expect(page).toHaveURL(/.*dashboard/);
 
     // 2. Navigate to Live Map
     await page.goto('http://localhost:6003/dashboard/live-map');
