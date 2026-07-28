@@ -142,10 +142,10 @@ export function Sidebar({ open, user }: { open: boolean, user?: { role: string }
             {open && <span className="font-medium truncate">Super Admin</span>}
           </Link>
         )}
-        <Link href="/field-pwa" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Field PWA' : undefined}>
+        <a href={process.env.NEXT_PUBLIC_FIELD_PWA_URL || 'http://localhost:6001'} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Field PWA' : undefined}>
           <Smartphone className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
           {open && <span className="font-medium truncate">Field PWA</span>}
-        </Link>
+        </a>
       </div>
     </aside>
   );

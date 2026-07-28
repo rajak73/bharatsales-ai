@@ -3,12 +3,13 @@ import { db } from '../database/db';
 import { MapPin, Search, ChevronRight, Route } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// unused import removed
+import { useAttendance } from '../contexts/AttendanceContext';
 
 export function OutletsScreen() {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'all' | 'route'>('route');
   const navigate = useNavigate();
+  const { activeSession } = useAttendance();
   
   const outlets = useLiveQuery(() => db.outlets.toArray(), []) ?? [];
   const beatSchedules = useLiveQuery(() => db.beatSchedules.toArray(), []) ?? [];
@@ -63,7 +64,21 @@ export function OutletsScreen() {
         />
       </div>
 
-      {displayOutlets.length === 0 ? (
+      {!activeSession ? (
+        <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm font-medium border border-yellow-200 shadow-sm flex items-start gap-3 mt-4">
+          <div className="mt-0.5">⚠️</div>
+          <div>
+            <p className="font-bold mb-1">You are Off Duty</p>
+            <p>Please mark your Daily Attendance in the Profile tab to view assigned outlets.</p>
+            <button 
+              onClick={() => navigate('/profile')} 
+              className="mt-3 bg-yellow-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm"
+            >
+              Go to Profile
+            </button>
+          </div>
+        </div>
+      ) : displayOutlets.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
           <Route className="mx-auto h-12 w-12 text-gray-300 mb-2" />
           <h3 className="text-sm font-semibold text-gray-900">No route assigned</h3>

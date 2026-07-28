@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TargetsService } from '@bharatsales/api-client';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../database/db';
+import { db } from '../database/db';import { useAttendance } from '../contexts/AttendanceContext';
 
 export function HomeScreen() {
   const navigate = useNavigate();
+  const { activeSession } = useAttendance();
 
   useEffect(() => {
     const fetchTarget = async () => {
@@ -129,16 +130,31 @@ export function HomeScreen() {
           <h2 className="text-[#1E293B] text-xl font-bold">Smart Beat</h2>
           <p className="text-[#64748B] text-sm mt-1 mb-4">Retail shops on today's route</p>
 
-          <div className="space-y-3">
-            {smartBeatOutlets.map((outlet) => (
-              <div key={outlet.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative overflow-hidden">
-                
-                {/* High Value Badge */}
-                {outlet.highValue && (
-                  <div className="absolute top-3 right-3 bg-[#1E293B] text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow-sm">
-                    ⭐ High Value
-                  </div>
-                )}
+          {!activeSession ? (
+            <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm font-medium border border-yellow-200 shadow-sm flex items-start gap-3">
+              <div className="mt-0.5">⚠️</div>
+              <div>
+                <p className="font-bold mb-1">You are Off Duty</p>
+                <p>Please mark your Daily Attendance in the Profile tab to view your Smart Beat and start visiting outlets.</p>
+                <button 
+                  onClick={() => navigate('/profile')} 
+                  className="mt-3 bg-yellow-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm"
+                >
+                  Go to Profile
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {smartBeatOutlets.map((outlet) => (
+                <div key={outlet.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative overflow-hidden">
+                  
+                  {/* High Value Badge */}
+                  {outlet.highValue && (
+                    <div className="absolute top-3 right-3 bg-[#1E293B] text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow-sm">
+                      ⭐ High Value
+                    </div>
+                  )}
                 
                 <div className="flex items-start gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
@@ -198,7 +214,8 @@ export function HomeScreen() {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

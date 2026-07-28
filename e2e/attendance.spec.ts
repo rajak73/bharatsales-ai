@@ -38,7 +38,19 @@ test.describe('Attendance & Geolocation Flow', () => {
 
     const startDayButton = page.locator('button:has-text("Start Day")');
     await expect(startDayButton).toBeVisible();
-    await startDayButton.click();
+
+    // Verify Off Duty blocks Smart Beat and Outlets list
+    await page.goto('http://localhost:6001/');
+    await expect(page.locator('text=You are Off Duty')).toBeVisible();
+    await expect(page.locator('text=Please mark your Daily Attendance')).toBeVisible();
+
+    await page.goto('http://localhost:6001/outlets');
+    await expect(page.locator('text=You are Off Duty')).toBeVisible();
+
+    // Back to attendance to start day
+    await page.goto('http://localhost:6001/attendance');
+    await expect(page.locator('button:has-text("Start Day")')).toBeVisible();
+    await page.locator('button:has-text("Start Day")').click();
 
     // Verify Day Started
     await expect(page.locator('text=You are On Duty')).toBeVisible();

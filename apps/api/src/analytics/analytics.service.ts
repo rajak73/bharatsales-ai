@@ -101,13 +101,14 @@ export class AnalyticsService {
     const activeUsers = await this.userModel.find({ organizationId, status: 'Active' }).limit(5);
     const teamActivity = await Promise.all(activeUsers.map(async u => {
       const uVisits = await this.visitModel.countDocuments({ organizationId, user: u._id, createdAt: { $gte: today.toISOString() } });
-      const uOrders = await this.orderModel.find({ organizationId, userId: u._id, createdAt: { $gte: today.toISOString() } });
+      const uOrders = await this.orderModel.find({ organizationId, createdByUserId: u._id, createdAt: { $gte: today.toISOString() } });
       const uOrderTotal = uOrders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
       return {
         name: u.name,
+        avatar: u.name.charAt(0),
         visits: uVisits,
         orders: `₹${uOrderTotal.toLocaleString()}`,
-        status: 'Working',
+        status: 'Active Now',
         location: (u as any).zone || 'Zone A'
       };
     }));
