@@ -21,7 +21,7 @@ export class InventoryController {
     return this.inventoryService.getInventory(req.user.orgId);
   }
 
-@RequirePermissions(Resource.Inventory, Action.Create)
+@RequirePermissions(Resource.Inventory, Action.Update)
   @Post('adjust')
   async adjustStock(
     @Request() req: any,

@@ -3,7 +3,7 @@ import { SuperadminService } from './superadmin.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { Tenant } from '../schemas/tenant.schema';
 
-@Controller('api/v1/superadmin')
+@Controller('superadmin')
 @UseGuards(JwtAuthGuard)
 export class SuperadminController {
   constructor(private readonly superadminService: SuperadminService) {}

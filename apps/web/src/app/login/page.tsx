@@ -52,7 +52,7 @@ export default function LoginPage() {
       });
       
       // Redirect on success
-      window.location.href = '/dashboard';
+      router.push('/dashboard');
     } catch (err: any) {
       console.error('LOGIN ERROR:', err); 
       setError(err.message || 'Invalid email or password. Please try again.');

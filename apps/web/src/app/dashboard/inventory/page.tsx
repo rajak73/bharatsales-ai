@@ -236,8 +236,9 @@ export default function InventoryPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Product *</label>
+                <label htmlFor="product-select" className="block text-sm font-medium text-gray-700 mb-1">Product *</label>
                 <select
+                  id="product-select"
                   className="input-field"
                   value={newAdjustment.product}
                   onChange={(e) => setNewAdjustment({ ...newAdjustment, product: e.target.value })}
@@ -249,8 +250,9 @@ export default function InventoryPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Batch *</label>
+                <label htmlFor="batch-select" className="block text-sm font-medium text-gray-700 mb-1">Batch *</label>
                 <select
+                  id="batch-select"
                   className="input-field"
                   value={newAdjustment.batch}
                   onChange={(e) => setNewAdjustment({ ...newAdjustment, batch: e.target.value })}
@@ -262,8 +264,9 @@ export default function InventoryPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                <label htmlFor="type-select" className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
                 <select
+                  id="type-select"
                   className="input-field"
                   value={newAdjustment.type}
                   onChange={(e) => setNewAdjustment({ ...newAdjustment, type: e.target.value })}
@@ -271,14 +274,16 @@ export default function InventoryPage() {
                   <option value="">Select type</option>
                   <option>Damage</option>
                   <option>Expiry</option>
-                  <option>Correction</option>
+                  <option>Correction (Positive)</option>
+                  <option>Correction (Negative)</option>
                   <option>Transfer In</option>
                   <option>Transfer Out</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
+                <label htmlFor="quantity-input" className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
                 <input
+                  id="quantity-input"
                   type="number"
                   className="input-field"
                   placeholder="Enter quantity"

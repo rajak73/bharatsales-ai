@@ -1,7 +1,7 @@
 import axios from 'axios';
 declare var process: any;
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || 'https://bharatsales-ai.onrender.com';
+const baseURL = 'http://127.0.0.1:6002';
 
 export const apiClient = axios.create({
   baseURL,

@@ -175,7 +175,7 @@ export class OrdersService {
       status: { $in: ['Pending', 'Submitted', 'Approved', 'Dispatched'] }
     });
 
-    const unbilledOrderExposure = openOrders.reduce((sum, ord) => sum + ord.totals.grandTotal, 0);
+    const unbilledOrderExposure = openOrders.reduce((sum, ord) => sum + (ord.totals?.grandTotal || (ord as any).total || 0), 0);
     const projectedExposure = outlet.commercial.outstandingBalance + unbilledOrderExposure + totals.grandTotal;
 
     let initialStatus = orderData.status || 'Submitted';

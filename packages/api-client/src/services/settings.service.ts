@@ -8,7 +8,7 @@ export class SettingsService {
   }
 
   static async updateSettings(updates: Partial<Settings>): Promise<Settings> {
-    const response = await apiClient.patch<Settings>('/settings', updates);
+    const response = await apiClient.put<Settings>('/settings', updates);
     return response.data;
   }
 }

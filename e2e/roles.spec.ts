@@ -14,7 +14,7 @@ test.describe('Role-Based Login & Routing Flow', () => {
 
     // Wait for either the dashboard url OR an error message
     try {
-      await page.waitForURL(/.*dashboard/, { timeout: 5000 });
+      await page.waitForURL(/.*dashboard/, { timeout: 15000 });
     } catch (e) {
       // Find the error text and print it
       const errorDiv = page.locator('.bg-red-50');

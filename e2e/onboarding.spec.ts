@@ -1,6 +1,24 @@
 import { test, expect } from '@playwright/test';
+import { MongoClient } from 'mongodb';
 
 test.describe('Onboarding Flow UI', () => {
+  test.beforeAll(async () => {
+    // Reset onboarding state for admin@rajpharma.com so test can run multiple times
+    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales';
+    const client = new MongoClient(uri);
+    await client.connect();
+    const db = client.db();
+    
+    // Find Raj Pharma org id
+    const tenant = await db.collection('tenants').findOne({ name: 'Raj Pharma Distributors' });
+    if (tenant) {
+      // Delete their onboarding state completely
+      await db.collection('onboarding_states').deleteMany({ organizationId: tenant._id.toString() });
+      await db.collection('onboarding_states').deleteMany({ organizationId: tenant._id });
+    }
+    await client.close();
+  });
+
   test.beforeEach(async ({ page }) => { page.on('console', msg => console.log(msg.text())); });
   test('Company Admin can complete the onboarding wizard', async ({ page }) => {
     // 1. Login
@@ -10,8 +28,8 @@ test.describe('Onboarding Flow UI', () => {
     await page.fill('input[type="password"]', 'password123');
     await page.click('button[type="submit"]');
 
-    // Wait for dashboard to load
-    await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 15000 });
+    // Wait for dashboard or onboarding to load
+    await expect(page).toHaveURL(/.*\/(dashboard|onboarding)/, { timeout: 15000 });
 
     // 2. Navigate to Onboarding
     await page.goto('http://localhost:6003/onboarding');

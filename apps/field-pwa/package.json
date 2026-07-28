@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 6001",
+    "dev": "vite --port 6001 --strictPort",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview --port 6001"
+    "preview": "vite preview --port 6001 --strictPort"
   },
   "dependencies": {
     "@bharatsales/api-client": "workspace:*",

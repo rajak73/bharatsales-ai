@@ -274,15 +274,17 @@ async function bootstrap() {
     });
     products.push(prodRes.insertedId.toString());
 
-    await db.collection('inventory_batches').insertOne({
+    await db.collection('inventory').insertOne({
       organizationId: org1Id,
       productId: prodRes.insertedId.toString(),
+      productName: `Premium Product ${i}`,
+      sku: `SKU-PROD-${String(i).padStart(2, '0')}`,
       warehouseId: 'WH-01',
-      batchNumber: `BATCH2026-${i}`,
-      quantity: 1000 + (i * 50),
-      mfgDate: new Date('2026-01-01'),
-      expDate: new Date('2027-01-01'),
-      status: 'Available',
+      batch: `BATCH2026-${i}`,
+      stock: 1000 + (i * 50),
+      reservedStock: 0,
+      expiry: '2027-01-01',
+      status: 'Active',
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -330,20 +332,22 @@ async function bootstrap() {
     subtotal: 2400,
     taxTotal: 432,
     total: 2832,
-    status: 'Delivered',
+    status: 'Approved',
     createdAt: new Date(Date.now() - 86400000),
     updatedAt: new Date(Date.now() - 86400000)
   });
 
-  await db.collection('inventory_batches').insertOne({
+  await db.collection('inventory').insertOne({
     organizationId: org1Id,
     productId: productId,
+    productName: 'Premium Product 1',
+    sku: 'SKU-PROD-01',
     warehouseId: 'WH-01',
-    batchNumber: 'BATCH2026A',
-    quantity: 1000,
-    mfgDate: new Date('2026-01-01'),
-    expDate: new Date('2027-01-01'),
-    status: 'Available',
+    batch: 'BATCH2026A',
+    stock: 1000,
+    reservedStock: 0,
+    expiry: '2027-01-01',
+    status: 'Active',
     createdAt: new Date(),
     updatedAt: new Date()
   });

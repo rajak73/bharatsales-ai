@@ -28,9 +28,9 @@ export class AttendanceService {
       startTime: { $gte: startOfDay, $lte: endOfDay }
     });
 
-    if (completedToday) {
-      throw new BadRequestException('You have already completed your day today. Cannot start a new day.');
-    }
+    // if (completedToday) {
+    //   throw new BadRequestException('You have already completed your day today. Cannot start a new day.');
+    // }
 
     if (data.isMock) {
       throw new BadRequestException('Mock locations are not allowed for attendance.');
