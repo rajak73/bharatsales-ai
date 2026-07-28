@@ -1,7 +1,20 @@
 import axios from 'axios';
 declare var process: any;
 
-const baseURL = 'http://127.0.0.1:6002';
+// Safely get the base URL depending on the bundler (Next.js vs Vite)
+const getBaseUrl = () => {
+  if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+    // @ts-ignore
+    return import.meta.env.VITE_API_URL;
+  }
+  return 'http://127.0.0.1:6002'; // Fallback for local development
+};
+
+const baseURL = getBaseUrl();
 
 export const apiClient = axios.create({
   baseURL,
