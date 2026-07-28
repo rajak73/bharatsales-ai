@@ -5,6 +5,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { BadRequestException } from '@nestjs/common';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { AttendanceService } from '../attendance/attendance.service';
 
 describe('OrdersService - MOQ Validation', () => {
   let service: OrdersService;
@@ -43,6 +44,7 @@ describe('OrdersService - MOQ Validation', () => {
         { provide: 'ModuleRef', useValue: {} },
         { provide: ApprovalsService, useValue: mockApprovalsService },
         { provide: HierarchyService, useValue: { getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't2']) } },
+        { provide: AttendanceService, useValue: { getActiveSession: jest.fn().mockResolvedValue({ status: 'ON_DUTY' }) } },
         { provide: 'DatabaseConnection', useValue: mockConnection }
       ],
     }).compile();

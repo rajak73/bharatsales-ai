@@ -29,6 +29,10 @@ describe('HierarchyService', () => {
           provide: getModelToken('HierarchyNode'),
           useValue: mockHierarchyModel,
         },
+        {
+          provide: getModelToken('User'),
+          useValue: { findById: jest.fn() },
+        },
       ],
     }).compile();
 

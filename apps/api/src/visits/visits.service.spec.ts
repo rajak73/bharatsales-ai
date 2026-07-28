@@ -33,6 +33,10 @@ describe('VisitsService', () => {
           provide: getModelToken('Outlet'),
           useValue: mockOutletModel,
         },
+        {
+          provide: getModelToken('Order'),
+          useValue: { findOne: jest.fn() },
+        },
       ],
     }).compile();
 

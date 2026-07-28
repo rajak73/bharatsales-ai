@@ -7,6 +7,7 @@ import { ApprovalsService } from '../approvals/approvals.service';
 import { BadRequestException } from '@nestjs/common';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { AttendanceService } from '../attendance/attendance.service';
 import { ModuleRef } from '@nestjs/core';
 
 describe('OrdersService', () => {
@@ -34,6 +35,12 @@ describe('OrdersService', () => {
   const mockApprovalsService = {};
   const mockHierarchyService = {
     getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't2']),
+    getUserRole: jest.fn().mockResolvedValue({ name: 'Sales Executive' }),
+    getUserTerritories: jest.fn().mockResolvedValue(['t1']),
+  };
+  
+  const mockAttendanceService = {
+    getCurrentSession: jest.fn().mockResolvedValue({ status: 'ON_DUTY' }),
   };
   
   const mockConnection = {
@@ -88,6 +95,10 @@ describe('OrdersService', () => {
           useValue: mockHierarchyService,
         },
         {
+          provide: AttendanceService,
+          useValue: mockAttendanceService,
+        },
+        {
           provide: getConnectionToken(),
           useValue: mockConnection,
         },
@@ -109,7 +120,7 @@ describe('OrdersService', () => {
   describe('scheme validation', () => {
     it('should throw BadRequestException if scheme is inactive', async () => {
       mockOrderModel.findOne.mockResolvedValue(null);
-      mockOutletModel.findById.mockResolvedValue({ _id: 'outlet1', location: { state: 'KA' }, commercial: { creditLimit: 10000, outstandingBalance: 0 } });
+      mockOutletModel.findById.mockResolvedValue({ _id: 'outlet1', location: { state: 'KA' }, commercial: { creditLimit: 10000, outstandingBalance: 0 }, territoryId: 't1' });
       
       mockProductModel.find.mockResolvedValue([{
         _id: 'prod1',
@@ -138,7 +149,7 @@ describe('OrdersService', () => {
 
     it('should throw BadRequestException if scheme is expired', async () => {
       mockOrderModel.findOne.mockResolvedValue(null);
-      mockOutletModel.findById.mockResolvedValue({ _id: 'outlet1', location: { state: 'KA' }, commercial: { creditLimit: 10000, outstandingBalance: 0 } });
+      mockOutletModel.findById.mockResolvedValue({ _id: 'outlet1', location: { state: 'KA' }, commercial: { creditLimit: 10000, outstandingBalance: 0 }, territoryId: 't1' });
       
       mockProductModel.find.mockResolvedValue([{
         _id: 'prod1',
