@@ -119,7 +119,7 @@ export function CartScreen() {
       outletId: currentOutletId,
       assignedDistributorId: assignedDistributor?.id,
       createdByUserId: 'user_local',
-      status: 'Draft',
+      status: 'Submitted',
       items: orderItems,
       totals,
       createdAt: new Date().toISOString(),
@@ -127,6 +127,7 @@ export function CartScreen() {
     };
 
     await db.syncQueue.add({
+      id: Date.now(),
       action: 'CREATE_ORDER',
       status: 'PENDING',
       createdAt: Date.now(),
@@ -289,7 +290,7 @@ export function CartScreen() {
 
       {/* Bottom Sticky Action Bar */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 w-full bg-white px-5 py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] border-t border-gray-100 z-50">
+        <div className="fixed bottom-16 left-0 w-full bg-white px-5 py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] border-t border-gray-100 z-50">
           <div className="max-w-sm mx-auto flex items-center justify-between">
             <div>
               <p className="text-xs text-[#64748B] font-medium uppercase tracking-wider mb-0.5">Total Amount</p>

@@ -87,7 +87,7 @@ export class OrdersService {
     let isInterState = false;
     if (orderData.assignedDistributorId) {
       const distributor = await this.distributorModel.findById(orderData.assignedDistributorId);
-      if (distributor && distributor.location.state !== outlet.location.state) {
+      if (distributor && distributor.location?.state !== outlet.location?.state) {
         isInterState = true;
       }
     }
