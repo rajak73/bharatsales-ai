@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Visit } from '../schemas/visit.schema';
 import { Outlet } from '../schemas/outlet.schema';
+import { Order } from '@bharatsales/shared-types';
 
 @Injectable()
 export class VisitsService {
   constructor(
     @InjectModel('Visit') private visitModel: Model<Visit>,
-    @InjectModel('Outlet') private outletModel: Model<Outlet>
+    @InjectModel('Outlet') private outletModel: Model<Outlet>,
+    @InjectModel('Order') private orderModel: Model<Order>
   ) {}
 
   // Haversine formula to calculate distance in meters
@@ -105,6 +107,18 @@ export class VisitsService {
     const visit = await this.visitModel.findOne({ _id: visitId, user: userId, status: 'Active' });
     if (!visit) {
       throw new NotFoundException('Active visit not found');
+    }
+
+    // Verify Business Logic: Visit cannot complete if Draft Order exists
+    const draftOrder = await this.orderModel.findOne({
+      createdByUserId: userId,
+      outletId: visit.outlet,
+      status: 'Draft',
+      createdAt: { $gte: visit.checkInTime }
+    });
+
+    if (draftOrder) {
+      throw new BadRequestException('Checkout blocked: You have a Draft order pending. Please submit or cancel it before checking out.');
     }
 
     visit.checkOutTime = new Date();

@@ -5,11 +5,14 @@ import { VisitsService } from './visits.service';
 import { VisitSchema } from '../schemas/visit.schema';
 import { OutletSchema } from '../schemas/outlet.schema';
 
+import { OrderSchema } from '../schemas/order.schema';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: 'Visit', schema: VisitSchema },
-      { name: 'Outlet', schema: OutletSchema }
+      { name: 'Outlet', schema: OutletSchema },
+      { name: 'Order', schema: OrderSchema }
     ])
   ],
   controllers: [VisitsController],
