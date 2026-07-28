@@ -5,7 +5,20 @@ import { HierarchyNode } from '@bharatsales/shared-types';
 
 @Injectable()
 export class HierarchyService {
-  constructor(@InjectModel('HierarchyNode') private readonly hierarchyModel: Model<any>) {}
+  constructor(
+    @InjectModel('HierarchyNode') private readonly hierarchyModel: Model<any>,
+    @InjectModel('User') private readonly userModel: Model<any>
+  ) {}
+
+  async getUserRole(userId: string) {
+    const user = await this.userModel.findById(userId).exec();
+    return { name: user?.role };
+  }
+
+  async getUserTerritories(userId: string) {
+    const user = await this.userModel.findById(userId).exec();
+    return user?.territoryIds || [];
+  }
 
   async findAllByOrgId(organizationId: string) {
     return this.hierarchyModel.find({ organizationId }).exec();

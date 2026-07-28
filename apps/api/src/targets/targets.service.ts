@@ -76,6 +76,19 @@ export class TargetsService {
           status = 'At Risk';
         }
 
+        // Target Logic & Achievement
+        const achievementPercentage = target.targetValue > 0 ? (actualValue / target.targetValue) * 100 : 0;
+
+        // Incentive Logic
+        let incentiveMultiplier = 0;
+        if (achievementPercentage >= 120) {
+          incentiveMultiplier = 2.0;
+        } else if (achievementPercentage >= 100) {
+          incentiveMultiplier = 1.5;
+        } else if (achievementPercentage >= 80) {
+          incentiveMultiplier = 1.0;
+        }
+
         return {
           ...target,
           id: target._id.toString(),
@@ -84,7 +97,9 @@ export class TargetsService {
           meta: {
             remainingDays,
             dailyRunRate,
-            remainingTarget
+            remainingTarget,
+            achievementPercentage: parseFloat(achievementPercentage.toFixed(2)),
+            incentiveMultiplier
           }
         };
       })

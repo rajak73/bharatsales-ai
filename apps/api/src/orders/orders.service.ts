@@ -6,6 +6,7 @@ import { Order, Outlet, Scheme, Distributor, Product } from '@bharatsales/shared
 import { InventoryService } from '../inventory/inventory.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { AttendanceService } from '../attendance/attendance.service';
 
 @Injectable()
 export class OrdersService {
@@ -21,6 +22,7 @@ export class OrdersService {
     private moduleRef: ModuleRef,
     private approvalsService: ApprovalsService,
     private hierarchyService: HierarchyService,
+    private attendanceService: AttendanceService,
     @InjectConnection() private connection: Connection,
   ) {}
 
@@ -69,9 +71,27 @@ export class OrdersService {
       return existingOrder;
     }
 
+    // BR-002: Check Attendance Session
+    const userRole = await this.hierarchyService.getUserRole(userId);
+    if (!['Super Admin', 'Company Admin', 'Auditor'].includes(userRole?.name || '')) {
+      const activeSession = await this.attendanceService.getCurrentSession(userId);
+      if (!activeSession) {
+        throw new BadRequestException('Cannot create order: Attendance not started. You must clock in first.');
+      }
+    }
+
     const outlet = await this.outletModel.findById(orderData.outletId);
     if (!outlet) {
       throw new BadRequestException('Outlet not found');
+    }
+
+    // BR-003: Check Outlet Assignment
+    if (!['Super Admin', 'Company Admin', 'Auditor'].includes(userRole?.name || '')) {
+      const userTerritories = await this.hierarchyService.getUserTerritories(userId);
+      const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, userTerritories);
+      if (!outlet.territoryId || !descendantIds.includes(outlet.territoryId)) {
+        throw new BadRequestException('Cannot create order: This outlet is not assigned to your territory.');
+      }
     }
 
     // 2. Fetch Product Master Data to validate prices and calculate exact GST

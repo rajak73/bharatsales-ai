@@ -11,6 +11,7 @@ import { InventoryModule } from '../inventory/inventory.module';
 
 import { ApprovalsModule } from '../approvals/approvals.module';
 import { HierarchyModule } from '../hierarchy/hierarchy.module';
+import { AttendanceModule } from '../attendance/attendance.module';
 
 @Module({
   imports: [
@@ -23,7 +24,8 @@ import { HierarchyModule } from '../hierarchy/hierarchy.module';
     ]),
     InventoryModule,
     ApprovalsModule,
-    HierarchyModule
+    HierarchyModule,
+    AttendanceModule
   ],
   controllers: [OrdersController],
   providers: [OrdersService],
