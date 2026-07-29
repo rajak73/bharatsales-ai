@@ -63,6 +63,7 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
     [Resource.Attendance]: [Action.Read, Action.Update, Action.Export],
     [Resource.Visits]: [Action.Read, Action.Update, Action.Export],
     [Resource.Targets]: [Action.Create, Action.Read, Action.Update, Action.Delete],
+    [Resource.Collections]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Export],
   },
   'Sales Manager': {
     [Resource.Users]: [Action.Read, Action.Update],
