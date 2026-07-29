@@ -38,7 +38,7 @@ describe('ReportsService Engine', () => {
             create: jest.fn().mockResolvedValue({}),
             updateOne: jest.fn().mockResolvedValue({}),
             findOne: jest.fn().mockReturnValue({
-              exec: jest.fn().mockResolvedValue({ status: 'Completed', data: 'mock,csv,data' })
+              exec: jest.fn().mockResolvedValue({ status: 'Completed', data: 'ORD-001,Test Outlet,5000' })
             })
           } 
         },
