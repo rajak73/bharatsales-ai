@@ -44,8 +44,6 @@ const navGroups = [
   {
     title: 'Settings & Admin',
     items: [
-
-      { icon: UserCog, label: 'Roles', href: '/dashboard/roles', roles: ADMIN_ROLES },
       { icon: Network, label: 'Hierarchy', href: '/dashboard/hierarchy', roles: ADMIN_ROLES },
       { icon: Settings, label: 'Settings', href: '/dashboard/settings', roles: ADMIN_ROLES },
     ]

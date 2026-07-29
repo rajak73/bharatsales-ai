@@ -70,9 +70,6 @@ export default function SettingsPage() {
     { id: 'company', label: 'Company Profile', icon: '🏢' },
     { id: 'attendance', label: 'Attendance & Geofence', icon: '📍' },
     { id: 'order', label: 'Order & Approval', icon: '📋' },
-    { id: 'notification', label: 'Notifications', icon: '🔔' },
-    { id: 'integration', label: 'Integrations', icon: '🔗' },
-    { id: 'security', label: 'Security', icon: '🔒' },
   ];
 
   return (
@@ -308,106 +305,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Notifications */}
-          {activeSection === 'notification' && (
-            <div className="card space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Notification Settings</h3>
-                <p className="text-sm text-gray-500 mb-6">Configure notification channels and preferences</p>
-              </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
-                <h4 className="font-medium text-yellow-800 mb-1">Coming Soon</h4>
-                <p className="text-sm text-yellow-700">Notification preferences will be manageable in a future update. These are currently global defaults.</p>
-              </div>
-              <div className="space-y-4 opacity-75">
-                {[
-                  { name: 'Order Confirmations', desc: 'Send when new order is placed', enabled: true },
-                  { name: 'Payment Receipts', desc: 'Send when payment is received', enabled: true },
-                  { name: 'Delivery Updates', desc: 'Send delivery status changes', enabled: true },
-                  { name: 'Target Alerts', desc: 'Send when target is achieved', enabled: false },
-                  { name: 'Overdue Reminders', desc: 'Send for overdue invoices', enabled: true },
-                ].map((notif) => (
-                  <div key={notif.name} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="font-medium text-gray-900">{notif.name}</div>
-                      <div className="text-sm text-gray-500">{notif.desc}</div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-not-allowed">
-                      <input type="checkbox" defaultChecked={notif.enabled} disabled className="sr-only peer" />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Integrations */}
-          {activeSection === 'integration' && (
-            <div className="card space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Integrations</h3>
-                <p className="text-sm text-gray-500 mb-6">Configure third-party integrations</p>
-              </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
-                <h4 className="font-medium text-yellow-800 mb-1">Enterprise Feature</h4>
-                <p className="text-sm text-yellow-700">Integrations (ERP, WhatsApp, SMS) are currently configured at the platform level by the Super Admin.</p>
-              </div>
-              <div className="space-y-4 opacity-75">
-                {[
-                  { name: 'Maps & Geocoding', provider: 'OpenStreetMap', status: 'Active' },
-                  { name: 'Tally / ERP', provider: 'Not Configured', status: 'Not Configured' },
-                  { name: 'WhatsApp Business', provider: 'Not Configured', status: 'Not Configured' },
-                  { name: 'SMS / OTP', provider: 'Not Configured', status: 'Not Configured' },
-                  { name: 'Email (SMTP)', provider: 'Not Configured', status: 'Not Configured' },
-                ].map((integration) => (
-                  <div key={integration.name} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="font-medium text-gray-900">{integration.name}</div>
-                      <div className="text-sm text-gray-500">Provider: {integration.provider}</div>
-                    </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                      integration.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {integration.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Security */}
-          {activeSection === 'security' && (
-            <div className="card space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Security Settings</h3>
-                <p className="text-sm text-gray-500 mb-6">Configure security policies</p>
-              </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
-                <h4 className="font-medium text-yellow-800 mb-1">Coming Soon</h4>
-                <p className="text-sm text-yellow-700">These security settings are read-only defaults. Policy configuration will be available in the next release.</p>
-              </div>
-              <div className="space-y-4 opacity-75">
-                {[
-                  { name: 'Session Timeout', value: '30 minutes of inactivity', enabled: true },
-                  { name: 'Max Concurrent Sessions', value: '3 per user', enabled: true },
-                  { name: 'Device Verification', value: 'OTP for new devices', enabled: true },
-                  { name: 'Force Password Reset', value: 'Every 90 days', enabled: true },
-                  { name: 'Login Rate Limiting', value: '5 attempts per 15 minutes', enabled: true },
-                  { name: 'Account Lockout', value: 'After 10 failed attempts', enabled: true },
-                ].map((item) => (
-                  <div key={item.name} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="font-medium text-gray-900">{item.name}</div>
-                      <div className="text-sm text-gray-500">{item.value}</div>
-                    </div>
-                    <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
             </>
           )}
         </div>
