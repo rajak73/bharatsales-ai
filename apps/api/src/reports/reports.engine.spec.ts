@@ -36,7 +36,10 @@ describe('ReportsService Engine', () => {
           provide: getModelToken('ReportJob'), 
           useValue: { 
             create: jest.fn().mockResolvedValue({}),
-            updateOne: jest.fn().mockResolvedValue({})
+            updateOne: jest.fn().mockResolvedValue({}),
+            findOne: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue({ status: 'Completed', data: 'mock,csv,data' })
+            })
           } 
         },
         { provide: getModelToken('ScheduledReport'), useValue: {} }
