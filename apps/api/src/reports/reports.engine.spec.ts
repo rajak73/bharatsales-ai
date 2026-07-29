@@ -32,7 +32,13 @@ describe('ReportsService Engine', () => {
         ReportsService,
         { provide: getModelToken('Order'), useValue: mockOrderModel },
         { provide: getModelToken('Outlet'), useValue: mockOutletModel },
-        { provide: getModelToken('ReportJob'), useValue: {} },
+        { 
+          provide: getModelToken('ReportJob'), 
+          useValue: { 
+            create: jest.fn().mockResolvedValue({}),
+            updateOne: jest.fn().mockResolvedValue({})
+          } 
+        },
         { provide: getModelToken('ScheduledReport'), useValue: {} }
       ],
     }).compile();
