@@ -32,10 +32,13 @@ export default function DashboardPage() {
           // @ts-ignore
           { label: 'Total Revenue', value: `₹${(data.kpis.totalRevenue / 1000).toFixed(1)}k`, change: `${data.kpis.revenueGrowth}%`, up: data.kpis.revenueGrowth >= 0, icon: <DollarSign className="w-5 h-5" /> },
           // @ts-ignore
-          { label: 'Total Orders', value: data.kpis.totalOrders.toString(), change: `${data.kpis.orderGrowth}%`, up: data.kpis.orderGrowth >= 0, icon: <ShoppingCart className="w-5 h-5" /> },
+          { label: 'Total Orders', value: data.kpis.totalOrders?.toString() || '0', change: `${data.kpis.orderGrowth}%`, up: data.kpis.orderGrowth >= 0, icon: <ShoppingCart className="w-5 h-5" /> },
           // @ts-ignore
-          { label: 'Active Users', value: (data.kpis.activeReps + data.kpis.activeOutlets).toString(), change: '0%', up: true, icon: <Users className="w-5 h-5" /> }
+          { label: 'Active Users', value: ((data.kpis.activeReps || 0) + (data.kpis.activeOutlets || 0)).toString(), change: '0%', up: true, icon: <Users className="w-5 h-5" /> }
         ];
+        
+        data.teamActivity = data.topSalesReps || [];
+        
         setDashboardData(data);
       } else {
         // Fallback to true empty state instead of mock data
@@ -71,7 +74,7 @@ export default function DashboardPage() {
     );
   }
 
-  const maxOrders = dashboardData ? Math.max(...dashboardData.salesData.map((d: any) => d.orders)) : 10;
+  const maxOrders = dashboardData ? Math.max(...(dashboardData.salesData?.map((d: any) => d.orders) || [0])) : 10;
 
   return (
     <div className="space-y-6 font-sans">
@@ -94,7 +97,7 @@ export default function DashboardPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {dashboardData?.kpis.map((kpi: any, idx: number) => (
+        {dashboardData?.kpis?.map((kpi: any, idx: number) => (
           <Card key={idx} className="p-6 relative overflow-hidden">
             <div className="flex justify-between items-start mb-4">
               <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center text-primary-600 border border-primary-200">
@@ -134,7 +137,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Bars */}
-            {dashboardData?.salesData.map((d: any, i: number) => {
+            {dashboardData?.salesData?.map((d: any, i: number) => {
               const isMax = d.orders === maxOrders;
               return (
                 <div key={d.day} className="flex flex-col items-center flex-1 relative z-10 group">
@@ -164,7 +167,7 @@ export default function DashboardPage() {
           </div>
           
           <div className="space-y-4 flex-1">
-            {dashboardData?.teamActivity.map((member: any, i: number) => (
+            {dashboardData?.teamActivity?.map((member: any, i: number) => (
               <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
                 <div className="relative">
                   <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm">
