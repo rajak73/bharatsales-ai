@@ -81,8 +81,8 @@ export function OutletVisitScreen() {
     try {
       await VisitsService.checkOut(activeVisitId);
       navigate(-1);
-    } catch {
-      setError('Failed to check out');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to check out');
     }
   };
 

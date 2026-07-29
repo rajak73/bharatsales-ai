@@ -95,20 +95,32 @@ export class OrdersService {
     }
 
     // 2. Fetch Product Master Data to validate prices and calculate exact GST
+    // Enforce tenant isolation (BRD Phase 8)
     const productIds = (orderData.items || []).map((i: any) => i.productId);
-    const products = await this.productModel.find({ _id: { $in: productIds } });
+    const products = await this.productModel.find({ _id: { $in: productIds }, organizationId });
     const productMap = new Map(products.map(p => [p._id.toString(), p]));
 
     const schemeIds = (orderData.items || []).map((i: any) => i.appliedSchemeId).filter(Boolean);
-    const schemes = await this.schemeModel.find({ _id: { $in: schemeIds } });
+    const schemes = await this.schemeModel.find({ _id: { $in: schemeIds }, organizationId });
     const schemeMap = new Map(schemes.map(s => [s._id.toString(), s]));
 
-    // 3. Determine Inter-state vs Intra-state (BR-004)
+    // 3. Determine Inter-state vs Intra-state (BR-004) and Automatic Distributor Routing (BR-007)
     let isInterState = false;
+    
+    // Auto-route to the mapped distributor if not explicitly provided
+    if (!orderData.assignedDistributorId && outlet.commercial?.assignedDistributorId) {
+      orderData.assignedDistributorId = outlet.commercial.assignedDistributorId.toString();
+    }
+
     if (orderData.assignedDistributorId) {
-      const distributor = await this.distributorModel.findById(orderData.assignedDistributorId);
-      if (distributor && distributor.location?.state !== outlet.location?.state) {
-        isInterState = true;
+      const distributor = await this.distributorModel.findOne({ _id: orderData.assignedDistributorId, organizationId });
+      if (distributor) {
+        if (distributor.status !== 'Active') {
+          throw new BadRequestException(`Cannot route order to inactive distributor ${distributor.name}`);
+        }
+        if (distributor.location?.state !== outlet.location?.state) {
+          isInterState = true;
+        }
       }
     }
 

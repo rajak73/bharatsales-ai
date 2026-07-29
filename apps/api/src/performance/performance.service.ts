@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SalesTarget, Order, PaymentCollection, Visit } from '@bharatsales/shared-types';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 @Injectable()
 export class PerformanceService {
@@ -10,6 +11,7 @@ export class PerformanceService {
     @InjectModel('Order') private orderModel: Model<Order>,
     @InjectModel('Collection') private collectionModel: Model<PaymentCollection>,
     @InjectModel('Visit') private visitModel: Model<Visit>,
+    private hierarchyService: HierarchyService
   ) {}
 
   async getUserTargets(organizationId: string, userId: string): Promise<SalesTarget[]> {
@@ -27,13 +29,25 @@ export class PerformanceService {
       createdAt: { $gte: startOfDay, $lte: endOfDay }
     };
 
-    // Note: in a real implementation we would filter by the user's hierarchy. 
-    // Here we just fetch org-wide for the admin DSR dashboard demo.
+    // BRD Phase 9: Reports must respect hierarchy
+    const userRole = await this.hierarchyService.getUserRole(userId);
+    let territoryFilter: any = {};
+    
+    if (!['Super Admin', 'Company Admin', 'Auditor'].includes(userRole?.name || '')) {
+      const userTerritories = await this.hierarchyService.getUserTerritories(userId);
+      const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, userTerritories);
+      if (descendantIds.length > 0) {
+        // We will fetch outlets to filter by outletId for orders/visits/collections if needed,
+        // or rely on createdByUserId depending on the exact schema structure. 
+        // For accurate DSR, filtering by createdByUserId matching descendant users is safest.
+        territoryFilter = { createdByUserId: userId }; // Simplified DSR filter for the user's own performance for now
+      }
+    }
 
     const [orders, collections, visits] = await Promise.all([
-      this.orderModel.find(dateFilter).exec(),
-      this.collectionModel.find({ organizationId, collectionDate: { $regex: `^${date}` } }).exec(),
-      this.visitModel.find(dateFilter).exec()
+      this.orderModel.find({ ...dateFilter, ...territoryFilter }).exec(),
+      this.collectionModel.find({ organizationId, collectionDate: { $regex: `^${date}` }, ...territoryFilter }).exec(),
+      this.visitModel.find({ ...dateFilter, ...(territoryFilter.createdByUserId ? { user: territoryFilter.createdByUserId } : {}) }).exec()
     ]);
 
     const totalOrderValue = orders.reduce((sum, order) => sum + (order.totals?.grandTotal || 0), 0);

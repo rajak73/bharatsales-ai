@@ -18,6 +18,9 @@ export class Visit extends Document {
   @Prop()
   checkOutTime?: Date;
 
+  @Prop()
+  durationMinutes?: number;
+
   @Prop({ type: { lat: Number, lng: Number, accuracy: Number }, required: true })
   checkInLocation: { lat: number; lng: number; accuracy: number };
 

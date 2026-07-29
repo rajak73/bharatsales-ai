@@ -50,9 +50,9 @@ export class VisitsService {
     let distanceFromOutlet = 0;
     let isWithinGeofence = true;
     
-    // Default geofence radius in BRD is 5 meters, but in reality 50 meters is more practical for GPS accuracy. Let's use 50m.
-    // NOTE: Temporarily increased to 5000000 (5,000 km) so the user can test the app from anywhere without being blocked by seed data coordinates.
-    const GEOFENCE_RADIUS = 5000000; 
+    // Enforce GPS Validation (BRD Phase 6)
+    // Use the outlet's configured radius, falling back to 50 meters if undefined.
+    const GEOFENCE_RADIUS = outlet.location?.geofenceRadiusMeters || 50; 
 
     if (data.isMock) {
       throw new BadRequestException('Mock locations are not allowed for check-in.');
@@ -121,8 +121,16 @@ export class VisitsService {
       throw new BadRequestException('Checkout blocked: You have a Draft order pending. Please submit or cancel it before checking out.');
     }
 
-    visit.checkOutTime = new Date();
+    const checkOutTime = new Date();
+    visit.checkOutTime = checkOutTime;
     visit.status = 'Completed';
+    
+    // Calculate visit duration in minutes
+    if (visit.checkInTime) {
+      const diffMs = checkOutTime.getTime() - new Date(visit.checkInTime).getTime();
+      visit.durationMinutes = Math.round(diffMs / 60000);
+    }
+
     return visit.save();
   }
 

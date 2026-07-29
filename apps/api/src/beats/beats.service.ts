@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Beat, BeatSchedule } from '../schemas';
+import { Beat, BeatSchedule, Visit } from '../schemas';
 
 @Injectable()
 export class BeatsService {
   constructor(
     @InjectModel('Beat') private beatModel: Model<Beat>,
-    @InjectModel('BeatSchedule') private beatScheduleModel: Model<BeatSchedule>
+    @InjectModel('BeatSchedule') private beatScheduleModel: Model<BeatSchedule>,
+    @InjectModel('Visit') private visitModel: Model<Visit>
   ) {}
 
   async getTodayBeat(userId: string, organizationId: string) {
@@ -32,7 +33,26 @@ export class BeatsService {
       return null;
     }
 
-    return schedule;
+    const scheduleObj = schedule.toObject() as any;
+    
+    // Calculate Beat Completion Percentage (BRD Phase 6)
+    if (scheduleObj.beat && scheduleObj.beat.outlets && scheduleObj.beat.outlets.length > 0) {
+      const totalOutlets = scheduleObj.beat.outlets.length;
+      const completedVisits = await this.visitModel.countDocuments({
+        user: userId,
+        organizationId,
+        status: 'Completed',
+        checkInTime: { $gte: todayStart, $lte: todayEnd }
+      });
+      
+      scheduleObj.completionPercentage = Math.round((completedVisits / totalOutlets) * 100);
+      scheduleObj.completedVisits = completedVisits;
+    } else {
+      scheduleObj.completionPercentage = 0;
+      scheduleObj.completedVisits = 0;
+    }
+
+    return scheduleObj;
   }
 
   async getAllBeats(organizationId: string) {
