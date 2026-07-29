@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Order, PaymentCollection, Visit, User, Outlet } from '@bharatsales/shared-types';
+import { Order, Visit, User, Outlet } from '@bharatsales/shared-types';
 
 @Injectable()
 export class AnalyticsService {
   constructor(
     @InjectModel('Order') private orderModel: Model<Order>,
-    @InjectModel('Collection') private collectionModel: Model<PaymentCollection>,
     @InjectModel('Visit') private visitModel: Model<Visit>,
     @InjectModel('User') private userModel: Model<User>,
     @InjectModel('Outlet') private outletModel: Model<Outlet>,
@@ -20,18 +19,18 @@ export class AnalyticsService {
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
-    // Total Revenue & Orders for this month
-    const monthlyOrders = await this.orderModel.find({
-      organizationId,
-      createdAt: { $gte: startOfMonth.toISOString() }
-    });
+    const query = { organizationId, createdAt: { $gte: startOfMonth.toISOString() } };
+    
+    const [monthlyOrders, activeOutlets, activeReps, activeUsers, monthlyVisits] = await Promise.all([
+      this.orderModel.find(query).lean(),
+      this.outletModel.countDocuments({ organizationId, status: 'Active' }),
+      this.userModel.countDocuments({ organizationId, status: 'Active' }),
+      this.userModel.find({ organizationId, status: 'Active' }).lean(),
+      this.visitModel.find(query).lean()
+    ]);
     
     const totalRevenue = monthlyOrders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
     const totalOrders = monthlyOrders.length;
-
-    // Active Outlets and Reps
-    const activeOutlets = await this.outletModel.countDocuments({ organizationId, status: 'Active' });
-    const activeReps = await this.userModel.countDocuments({ organizationId, status: 'Active' });
 
     // Build KPIs Object
     const kpis = {
@@ -51,9 +50,9 @@ export class AnalyticsService {
       const start = new Date(d); start.setHours(0,0,0,0);
       const end = new Date(d); end.setHours(23,59,59,999);
       
-      const orders = await this.orderModel.find({
-        organizationId,
-        createdAt: { $gte: start.toISOString(), $lte: end.toISOString() }
+      const orders = monthlyOrders.filter(o => {
+        const d = new Date(o.createdAt);
+        return d >= start && d <= end;
       });
       
       const rev = orders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
@@ -68,7 +67,7 @@ export class AnalyticsService {
     // Top Products
     const productSales = new Map<string, { sales: number, revenue: number }>();
     for (const order of monthlyOrders) {
-      for (const item of order.items) {
+      for (const item of (order as any).items || []) {
         const pName = item.name || item.productId;
         const current = productSales.get(pName) || { sales: 0, revenue: 0 };
         current.sales += item.quantity;
@@ -82,7 +81,6 @@ export class AnalyticsService {
       .slice(0, 5);
 
     // Zone Performance (Extract from Users or mock from outlets)
-    const activeUsers = await this.userModel.find({ organizationId, status: 'Active' });
     const zoneSales = new Map<string, number>();
     for (const order of monthlyOrders) {
        const user = activeUsers.find(u => u._id.toString() === order.createdByUserId);
@@ -98,10 +96,6 @@ export class AnalyticsService {
 
     // Top Sales Reps
     const userStats = new Map<string, { orders: number, revenue: number, visits: number }>();
-    const monthlyVisits = await this.visitModel.find({
-      organizationId,
-      createdAt: { $gte: startOfMonth.toISOString() }
-    });
 
     for (const order of monthlyOrders) {
       if (!order.createdByUserId) continue;
@@ -134,7 +128,8 @@ export class AnalyticsService {
 
     const recentOrders = await this.orderModel.find({ organizationId })
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(5)
+      .lean();
 
     return {
       kpis,

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { SalesTarget, Order, PaymentCollection, Visit } from '@bharatsales/shared-types';
+import { SalesTarget, Order, Visit } from '@bharatsales/shared-types';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 @Injectable()
@@ -9,7 +9,6 @@ export class PerformanceService {
   constructor(
     @InjectModel('Target') private targetModel: Model<SalesTarget>,
     @InjectModel('Order') private orderModel: Model<Order>,
-    @InjectModel('Collection') private collectionModel: Model<PaymentCollection>,
     @InjectModel('Visit') private visitModel: Model<Visit>,
     private hierarchyService: HierarchyService
   ) {}
@@ -37,21 +36,16 @@ export class PerformanceService {
       const userTerritories = await this.hierarchyService.getUserTerritories(userId);
       const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, userTerritories);
       if (descendantIds.length > 0) {
-        // We will fetch outlets to filter by outletId for orders/visits/collections if needed,
-        // or rely on createdByUserId depending on the exact schema structure. 
-        // For accurate DSR, filtering by createdByUserId matching descendant users is safest.
         territoryFilter = { createdByUserId: userId }; // Simplified DSR filter for the user's own performance for now
       }
     }
 
-    const [orders, collections, visits] = await Promise.all([
+    const [orders, visits] = await Promise.all([
       this.orderModel.find({ ...dateFilter, ...territoryFilter }).exec(),
-      this.collectionModel.find({ organizationId, collectionDate: { $regex: `^${date}` }, ...territoryFilter }).exec(),
       this.visitModel.find({ ...dateFilter, ...(territoryFilter.createdByUserId ? { user: territoryFilter.createdByUserId } : {}) }).exec()
     ]);
 
-    const totalOrderValue = orders.reduce((sum, order) => sum + (order.totals?.grandTotal || 0), 0);
-    const totalCollections = collections.reduce((sum, col) => sum + (col.amount || 0), 0);
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.totals?.grandTotal || 0), 0);
     const productiveVisits = visits.filter(v => v.status === 'Completed').length;
 
     return {
@@ -59,8 +53,7 @@ export class PerformanceService {
       metrics: {
         totalVisits: visits.length,
         productiveVisits,
-        totalOrderValue,
-        totalCollections,
+        totalRevenue,
         ordersCount: orders.length
       }
     };

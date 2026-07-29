@@ -1,33 +1,28 @@
 import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession } from 'mongoose';
-import { Order, Visit, PaymentCollection, Product, PriceList, Outlet, Inventory } from '../schemas';
+import { Order, Visit, Product, PriceList, Outlet } from '../schemas';
 import { OrdersService } from '../orders/orders.service';
-import { InventoryService } from '../inventory/inventory.service';
 
 @Injectable()
 export class SyncService {
   constructor(
     @InjectModel('Order') private orderModel: Model<Order>,
     @InjectModel('Visit') private visitModel: Model<Visit>,
-    @InjectModel('Collection') private collectionModel: Model<PaymentCollection>,
     @InjectModel('Product') private productModel: Model<Product>,
     @InjectModel('PriceList') private priceListModel: Model<PriceList>,
     @InjectModel('Outlet') private outletModel: Model<Outlet>,
-    private ordersService: OrdersService,
-    private inventoryService: InventoryService
+    private ordersService: OrdersService
   ) {}
 
   async pull(organizationId: string, userId: string, lastSyncTimestamp?: string) {
     const query = lastSyncTimestamp ? { updatedAt: { $gt: new Date(lastSyncTimestamp) } } : {};
     const orgQuery = { organizationId, ...query };
 
-    const [products, prices, outlets, collections, inventory, schemes, targets, beats, orders, visits] = await Promise.all([
+    const [products, prices, outlets, schemes, targets, beats, orders, visits] = await Promise.all([
       this.productModel.find(orgQuery).exec(),
       this.priceListModel.find(orgQuery).exec(),
       this.outletModel.find(orgQuery).exec(),
-      this.collectionModel.find({ organizationId }).exec(),
-      this.inventoryService.getInventory(organizationId),
       this.orderModel.db.model('Scheme').find(orgQuery).exec(),
       this.orderModel.db.model('Target').find({ ...orgQuery, entityType: 'User', entityId: userId }).exec(),
       this.orderModel.db.model('BeatSchedule').find({ ...orgQuery, user: userId }).populate('beat').exec(),
@@ -39,8 +34,6 @@ export class SyncService {
       products,
       prices,
       outlets,
-      collections,
-      inventory,
       schemes,
       targets,
       beats,
@@ -90,13 +83,7 @@ export class SyncService {
       }
 
       if (payload.collections && payload.collections.length > 0) {
-        for (const collection of payload.collections) {
-           await this.collectionModel.findOneAndUpdate(
-            { _id: collection._id || new (this.collectionModel.db as any).base.Types.ObjectId() },
-            { ...(() => { delete collection.organizationId; delete collection._id; delete collection.createdAt; delete collection.updatedAt; return collection; })(), organizationId, collectedBy: userId },
-            { upsert: true, new: true, session }
-          );
-        }
+        // Feature removed per BRD
       }
 
       await session.commitTransaction();
