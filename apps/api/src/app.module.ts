@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { TenantSchema, UserSchema, OutletSchema, ProductSchema, OrderSchema, SchemeSchema, DistributorSchema, TargetSchema, NotificationLogSchema, SessionSchema, AuditLogSchema, AttendanceSessionSchema, VisitSchema, BeatSchema, BeatScheduleSchema, LocationPingSchema, IntegrationSchema, ApprovalSchema, ApprovalRuleSchema, PriceListSchema, TaxRateSchema } from './schemas';
+import { TenantSchema, UserSchema, OutletSchema, ProductSchema, OrderSchema, SchemeSchema, DistributorSchema, InvoiceSchema, CollectionSchema, TargetSchema, WarehouseSchema, InventorySchema, DispatchSchema, ReturnSchema, NotificationLogSchema, SessionSchema, AuditLogSchema, AttendanceSessionSchema, VisitSchema, BeatSchema, BeatScheduleSchema, LocationPingSchema, IntegrationSchema, ApprovalSchema, ApprovalRuleSchema, ExpenseSchema, PriceListSchema, TaxRateSchema, IncentivePlanSchema, IncentivePayoutSchema } from './schemas';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -14,10 +14,14 @@ import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { VisitsModule } from './visits/visits.module';
+import { FinanceModule } from './finance/finance.module';
 import { PerformanceModule } from './performance/performance.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { DistributorsModule } from './distributors/distributors.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { ReturnsModule } from './returns/returns.module';
 import { LiveMapModule } from './live-map/live-map.module';
+import { Outlet360Module } from './outlet-360/outlet-360.module';
 import { TargetsModule } from './targets/targets.module';
 import { BeatsModule } from './beats/beats.module';
 import { TrackingModule } from './tracking/tracking.module';
@@ -28,9 +32,11 @@ import { UsersModule } from './users/users.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
+import { CollectionsModule } from './collections/collections.module';
 import { SyncModule } from './sync/sync.module';
 import { SuperadminModule } from './superadmin/superadmin.module';
 import { BullModule } from '@nestjs/bull';
+import { IncentivesModule } from './incentives/incentives.module';
 
 @Module({
   imports: [
@@ -58,7 +64,13 @@ import { BullModule } from '@nestjs/bull';
       { name: 'Order', schema: OrderSchema },
       { name: 'Scheme', schema: SchemeSchema },
       { name: 'Distributor', schema: DistributorSchema },
+      { name: 'Invoice', schema: InvoiceSchema },
+      { name: 'Collection', schema: CollectionSchema },
       { name: 'Target', schema: TargetSchema },
+      { name: 'Warehouse', schema: WarehouseSchema },
+      { name: 'Inventory', schema: InventorySchema },
+      { name: 'Dispatch', schema: DispatchSchema },
+      { name: 'ReturnOrder', schema: ReturnSchema },
       { name: 'NotificationLog', schema: NotificationLogSchema },
       { name: 'Session', schema: SessionSchema },
       { name: 'AuditLog', schema: AuditLogSchema },
@@ -70,8 +82,11 @@ import { BullModule } from '@nestjs/bull';
       { name: 'Integration', schema: IntegrationSchema },
       { name: 'Approval', schema: ApprovalSchema },
       { name: 'ApprovalRule', schema: ApprovalRuleSchema },
+      { name: 'Expense', schema: ExpenseSchema },
       { name: 'PriceList', schema: PriceListSchema },
       { name: 'TaxRate', schema: TaxRateSchema },
+      { name: 'IncentivePlan', schema: IncentivePlanSchema },
+      { name: 'IncentivePayout', schema: IncentivePayoutSchema },
     ]),
     AuthModule,
     AuditModule,
@@ -80,11 +95,15 @@ import { BullModule } from '@nestjs/bull';
     OrdersModule,
     AttendanceModule,
     VisitsModule,
+    FinanceModule,
     PerformanceModule,
     HealthModule,
     NotificationsModule,
     DistributorsModule,
+    InventoryModule,
+    ReturnsModule,
     LiveMapModule,
+    Outlet360Module,
     TargetsModule,
     BeatsModule,
     TrackingModule,
@@ -95,8 +114,10 @@ import { BullModule } from '@nestjs/bull';
     AnalyticsModule,
     ReportsModule,
     OnboardingModule,
+    CollectionsModule,
     SyncModule,
     SuperadminModule,
+    IncentivesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

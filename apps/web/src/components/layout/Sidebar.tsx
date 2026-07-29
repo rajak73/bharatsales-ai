@@ -22,6 +22,9 @@ const navGroups = [
       { icon: MapPin, label: 'Live Map', href: '/dashboard/live-map', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
       { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
       { icon: Users, label: 'Team', href: '/dashboard/team', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
+      { icon: Repeat, label: 'Outlet 360', href: '/dashboard/outlet-360', roles: ['Super Admin', 'Sales Manager', 'Sales Representative'] },
+      { icon: Receipt, label: 'Collections', href: '/dashboard/collections', roles: ['Super Admin', 'Distributor'] },
+      { icon: Gift, label: 'Incentives', href: '/dashboard/incentives', roles: ['Super Admin', 'Sales Manager'] },
     ]
   },
   {
@@ -37,6 +40,8 @@ const navGroups = [
   {
     title: 'Inventory & Logistics',
     items: [
+      { icon: Box, label: 'Inventory', href: '/dashboard/inventory', roles: ['Super Admin', 'Distributor'] },
+      { icon: ArrowDownToLine, label: 'Returns', href: '/dashboard/returns', roles: ['Super Admin', 'Distributor'] },
       { icon: Package, label: 'Products', href: '/dashboard/products', roles: ADMIN_ROLES },
       { icon: Factory, label: 'Distributors', href: '/dashboard/distributors', roles: ALL_ROLES },
     ]
@@ -44,6 +49,7 @@ const navGroups = [
   {
     title: 'Settings & Admin',
     items: [
+      { icon: UserCog, label: 'Roles', href: '/dashboard/roles', roles: ['Super Admin'] },
       { icon: Network, label: 'Hierarchy', href: '/dashboard/hierarchy', roles: ADMIN_ROLES },
       { icon: Settings, label: 'Settings', href: '/dashboard/settings', roles: ADMIN_ROLES },
     ]
