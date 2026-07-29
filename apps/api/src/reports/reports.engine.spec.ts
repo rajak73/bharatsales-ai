@@ -31,7 +31,9 @@ describe('ReportsService Engine', () => {
       providers: [
         ReportsService,
         { provide: getModelToken('Order'), useValue: mockOrderModel },
-        { provide: getModelToken('Outlet'), useValue: mockOutletModel }
+        { provide: getModelToken('Outlet'), useValue: mockOutletModel },
+        { provide: getModelToken('ReportJob'), useValue: {} },
+        { provide: getModelToken('ScheduledReport'), useValue: {} }
       ],
     }).compile();
 

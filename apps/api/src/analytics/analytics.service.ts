@@ -132,12 +132,17 @@ export class AnalyticsService {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
+    const recentOrders = await this.orderModel.find({ organizationId })
+      .sort({ createdAt: -1 })
+      .limit(5);
+
     return {
       kpis,
       salesData,
       topProducts,
       zonePerformance,
-      topSalesReps
+      topSalesReps,
+      recentOrders
     };
   }
 }
