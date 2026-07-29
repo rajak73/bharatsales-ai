@@ -27,6 +27,15 @@ export default function DashboardPage() {
       const data = await AnalyticsService.getDashboardData().catch(() => null);
       
       if (data && data.salesData && data.kpis) {
+        // Transform the backend JSON object into the frontend array structure
+        data.kpis = [
+          // @ts-ignore
+          { label: 'Total Revenue', value: `₹${(data.kpis.totalRevenue / 1000).toFixed(1)}k`, change: `${data.kpis.revenueGrowth}%`, up: data.kpis.revenueGrowth >= 0, icon: <DollarSign className="w-5 h-5" /> },
+          // @ts-ignore
+          { label: 'Total Orders', value: data.kpis.totalOrders.toString(), change: `${data.kpis.orderGrowth}%`, up: data.kpis.orderGrowth >= 0, icon: <ShoppingCart className="w-5 h-5" /> },
+          // @ts-ignore
+          { label: 'Active Users', value: (data.kpis.activeReps + data.kpis.activeOutlets).toString(), change: '0%', up: true, icon: <Users className="w-5 h-5" /> }
+        ];
         setDashboardData(data);
       } else {
         // Fallback to true empty state instead of mock data
