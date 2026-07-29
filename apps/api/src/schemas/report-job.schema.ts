@@ -20,7 +20,7 @@ export const ReportJobSchema = SchemaFactory.createForClass(ReportJob);
 ReportJobSchema.set('toJSON', {
   virtuals: true,
   versionKey: false,
-  transform: function (doc, ret) {
+  transform: function (doc, ret: any) {
     ret.id = ret._id.toString();
     delete ret._id;
   }
