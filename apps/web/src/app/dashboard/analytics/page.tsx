@@ -100,7 +100,7 @@ export default function AnalyticsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi) => {
+        {kpis?.map((kpi) => {
           const Icon = kpi.icon;
           return (
             <div key={kpi.label} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
@@ -153,7 +153,7 @@ export default function AnalyticsPage() {
           </div>
           {data?.topProducts?.length > 0 ? (
             <div className="space-y-3">
-              {data.topProducts.slice(0, 5).map((p: any, idx: number) => (
+              {data.topProducts?.slice(0, 5).map((p: any, idx: number) => (
                 <div key={p.name || idx} className="flex items-center space-x-3">
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
                     style={{ backgroundColor: COLORS[idx % COLORS.length] }}>
@@ -201,7 +201,7 @@ export default function AnalyticsPage() {
               <ResponsiveContainer width="50%" height={160}>
                 <PieChart>
                   <Pie data={data.zonePerformance} dataKey="revenue" nameKey="zone" cx="50%" cy="50%" outerRadius={60}>
-                    {data.zonePerformance.map((_: any, i: number) => (
+                    {data.zonePerformance?.map((_: any, i: number) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
@@ -209,7 +209,7 @@ export default function AnalyticsPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex-1 space-y-2">
-                {data.zonePerformance.slice(0, 5).map((z: any, i: number) => (
+                {data.zonePerformance?.slice(0, 5).map((z: any, i: number) => (
                   <div key={z.zone || i} className="flex items-center space-x-2">
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                     <span className="text-xs text-gray-600 truncate flex-1">{z.zone}</span>
@@ -239,7 +239,7 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.topSalesReps.map((rep: any, idx: number) => (
+                {data.topSalesReps?.map((rep: any, idx: number) => (
                   <tr key={rep.name || idx} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-3 font-medium text-gray-900">{rep.name}</td>
                     <td className="py-3 text-gray-600">{rep.orders ?? '—'}</td>
