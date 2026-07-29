@@ -37,7 +37,12 @@ export default function DashboardPage() {
           { label: 'Active Users', value: ((data.kpis.activeReps || 0) + (data.kpis.activeOutlets || 0)).toString(), change: '0%', up: true, icon: <Users className="w-5 h-5" /> }
         ];
         
-        data.teamActivity = data.topSalesReps || [];
+        data.teamActivity = (data.topSalesReps || []).map((rep: any) => ({
+          name: rep.name || 'Unknown',
+          location: rep.location || 'HQ',
+          status: rep.status || 'Active Now',
+          avatar: rep.name ? rep.name.substring(0, 2).toUpperCase() : 'U'
+        }));
         
         setDashboardData(data);
       } else {
@@ -173,17 +178,17 @@ export default function DashboardPage() {
                   <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm">
                     {member.avatar}
                   </div>
-                  <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${member.status.includes('Active Now') ? 'bg-green-500' : member.status.includes('Offline') ? 'bg-gray-400' : 'bg-yellow-500'}`}></div>
+                  <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${(member.status || '').includes('Active Now') ? 'bg-green-500' : (member.status || '').includes('Offline') ? 'bg-gray-400' : 'bg-yellow-500'}`}></div>
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold text-gray-900 truncate">{member.name}</h4>
-                  <p className="text-xs text-gray-500 truncate">{member.location}</p>
+                  <h4 className="text-sm font-bold text-gray-900 truncate">{member.name || 'Unknown'}</h4>
+                  <p className="text-xs text-gray-500 truncate">{member.location || 'Unknown location'}</p>
                 </div>
                 
                 <div className="text-right">
-                  <p className={`text-[10px] font-bold uppercase tracking-wider ${member.status.includes('Active Now') ? 'text-green-600' : member.status.includes('Offline') ? 'text-gray-400' : 'text-yellow-600'}`}>
-                    {member.status === 'Active Now' ? 'Online' : member.status.includes('Offline') ? 'Offline' : 'Away'}
+                  <p className={`text-[10px] font-bold uppercase tracking-wider ${(member.status || '').includes('Active Now') ? 'text-green-600' : (member.status || '').includes('Offline') ? 'text-gray-400' : 'text-yellow-600'}`}>
+                    {(member.status || '') === 'Active Now' ? 'Online' : (member.status || '').includes('Offline') ? 'Offline' : 'Away'}
                   </p>
                 </div>
               </div>
