@@ -29,20 +29,15 @@ const navGroups = [
     items: [
       { icon: Target, label: 'Beats', href: '/dashboard/beats', roles: ALL_ROLES },
       { icon: Store, label: 'Outlets', href: '/dashboard/outlets', roles: ALL_ROLES },
-      { icon: Store, label: 'Outlet 360', href: '/dashboard/outlet-360', roles: ALL_ROLES },
       { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders', roles: ALL_ROLES },
       { icon: CheckSquare, label: 'Approvals', href: '/dashboard/approvals', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
-      { icon: Receipt, label: 'Collections', href: '/dashboard/collections', roles: ALL_ROLES },
-      { icon: Target, label: 'Targets', href: '/dashboard/targets', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
-      { icon: Percent, label: 'Incentives', href: '/dashboard/incentives', roles: ALL_ROLES },
-      { icon: Repeat, label: 'Returns', href: '/dashboard/returns', roles: ALL_ROLES },
+      { icon: Target, label: 'Targets', href: '/dashboard/targets', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] }
     ]
   },
   {
     title: 'Inventory & Logistics',
     items: [
       { icon: Package, label: 'Products', href: '/dashboard/products', roles: ADMIN_ROLES },
-      { icon: Box, label: 'Inventory', href: '/dashboard/inventory', roles: ADMIN_ROLES },
       { icon: Factory, label: 'Distributors', href: '/dashboard/distributors', roles: ALL_ROLES },
     ]
   },
