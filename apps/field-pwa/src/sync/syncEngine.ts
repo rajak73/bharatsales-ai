@@ -74,9 +74,11 @@ export class SyncEngine {
         .sortBy('createdAt');
 
       if (pendingItems.length === 0) {
+        window.dispatchEvent(new CustomEvent('sync_status', { detail: { isSyncing: false, pendingCount: 0 } }));
         return;
       }
 
+      window.dispatchEvent(new CustomEvent('sync_status', { detail: { isSyncing: true, pendingCount: pendingItems.length } }));
       console.log(`[SyncEngine] Starting sync of ${pendingItems.length} items...`);
 
       for (const item of pendingItems) {
@@ -129,6 +131,7 @@ export class SyncEngine {
 
     } finally {
       this.isSyncing = false;
+      window.dispatchEvent(new CustomEvent('sync_status', { detail: { isSyncing: false, pendingCount: 0 } }));
       console.log('[SyncEngine] Sync run complete.');
     }
   }

@@ -120,7 +120,7 @@ export function LoginScreen() {
           </div>
 
           <div className="flex justify-end pt-1">
-            <a href="#" onClick={(e) => { e.preventDefault(); setError('Please contact your Company Administrator to reset your password.'); }} className="text-sm font-semibold text-[#2D3A8C] hover:text-[#1e2761]">
+            <a href="#" onClick={(e) => { e.preventDefault(); setError('Please contact your Organization Administrator to reset your password.'); }} className="text-sm font-semibold text-[#2D3A8C] hover:text-[#1e2761]">
               Forgot Password?
             </a>
           </div>
@@ -154,7 +154,7 @@ export function LoginScreen() {
 
         <div className="text-center space-y-4 pt-6 mt-6 border-t border-gray-100">
           <p className="text-sm text-gray-500">
-            For access, please contact your Company Administrator to receive your login credentials.
+            For access, please contact your Organization Administrator to receive your login credentials.
           </p>
           <div className="text-xs text-gray-400 font-medium flex items-center justify-center gap-2">
             <a href="#" className="hover:text-gray-600">Terms of Service</a>

@@ -89,7 +89,7 @@ async function bootstrap() {
       name: 'Bharat Admin',
       email: 'admin@bharatfoods.com',
       password: defaultPassword,
-      role: 'Company Admin', // Org Owner
+      role: 'Organization Admin', // Org Owner
       status: 'Active',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -99,7 +99,7 @@ async function bootstrap() {
       name: 'National Head',
       email: 'nsm@bharatfoods.com',
       password: defaultPassword,
-      role: 'National Sales Manager',
+      role: 'Sales Manager',
       status: 'Active',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -109,7 +109,7 @@ async function bootstrap() {
       name: 'Zonal Head North',
       email: 'zsm@bharatfoods.com',
       password: defaultPassword,
-      role: 'Zonal Sales Manager',
+      role: 'Sales Manager',
       territoryIds: [zoneId],
       status: 'Active',
       createdAt: new Date(),
@@ -120,7 +120,7 @@ async function bootstrap() {
       name: 'Regional Head Delhi',
       email: 'rm@bharatfoods.com',
       password: defaultPassword,
-      role: 'Regional Sales Manager',
+      role: 'Sales Manager',
       territoryIds: [regionId],
       status: 'Active',
       createdAt: new Date(),
@@ -131,7 +131,7 @@ async function bootstrap() {
       name: 'Area Head South Delhi',
       email: 'asm@bharatfoods.com',
       password: defaultPassword,
-      role: 'Area Sales Manager',
+      role: 'Sales Manager',
       territoryIds: [areaId],
       status: 'Active',
       createdAt: new Date(),
@@ -153,7 +153,7 @@ async function bootstrap() {
       name: 'Finance Controller',
       email: 'finance@bharatfoods.com',
       password: defaultPassword,
-      role: 'Finance User',
+      role: 'Organization Admin',
       status: 'Active',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -163,7 +163,7 @@ async function bootstrap() {
       name: 'External Auditor',
       email: 'audit@bharatfoods.com',
       password: defaultPassword,
-      role: 'Auditor',
+      role: 'Organization Admin',
       status: 'Active',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -176,7 +176,7 @@ async function bootstrap() {
     name: 'Raj Admin',
     email: 'admin@rajpharma.com',
     password: defaultPassword,
-    role: 'Company Admin', // Org Owner
+    role: 'Organization Admin', // Org Owner
     status: 'Active',
     createdAt: new Date(),
     updatedAt: new Date()
@@ -202,7 +202,7 @@ async function bootstrap() {
       name: 'Distributor Owner Saket',
       email: 'owner@saketdist.com',
       password: defaultPassword,
-      role: 'Distributor Owner',
+      role: 'Distributor',
       territoryIds: [territoryId],
       status: 'Active',
       createdAt: new Date(),

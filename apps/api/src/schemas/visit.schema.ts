@@ -44,3 +44,6 @@ export class Visit extends Document {
 }
 
 export const VisitSchema = SchemaFactory.createForClass(Visit);
+
+VisitSchema.index({ user: 1, checkInTime: -1 });
+VisitSchema.index({ checkInLocation: '2dsphere' });

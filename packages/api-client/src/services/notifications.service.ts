@@ -3,14 +3,16 @@ import type { AppNotification } from '@bharatsales/shared-types';
 
 export class NotificationsService {
   static async getNotifications(userId: string): Promise<AppNotification[]> {
-    return Promise.resolve([]);
+    const { data } = await apiClient.get('/notifications');
+    return data;
   }
 
   static async markAsRead(id: string): Promise<AppNotification> {
-    return Promise.resolve({} as AppNotification);
+    const { data } = await apiClient.put(`/notifications/${id}/read`);
+    return data;
   }
 
   static async markAllAsRead(userId: string): Promise<void> {
-    return Promise.resolve();
+    await apiClient.put('/notifications/read-all');
   }
 }

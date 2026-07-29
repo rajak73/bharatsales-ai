@@ -21,7 +21,7 @@ export class OutletsService {
   async findAllByOrgId(organizationId: string, user?: any): Promise<Outlet[]> {
     const query: any = { organizationId };
 
-    if (user && !['Super Admin', 'Company Admin', 'Auditor'].includes(user.role)) {
+    if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
       if (!user.territoryIds || user.territoryIds.length === 0) {
         return []; // Non-admin with no territory sees nothing
       }

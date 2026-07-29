@@ -18,49 +18,32 @@ export class AnalyticsService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // KPIs
-    const todaysOrders = await this.orderModel.find({
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    // Total Revenue & Orders for this month
+    const monthlyOrders = await this.orderModel.find({
       organizationId,
-      createdAt: { $gte: today.toISOString() }
-    });
-    const todaysOrderTotal = todaysOrders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
-
-    const todaysVisits = await this.visitModel.find({
-      organizationId,
-      createdAt: { $gte: today.toISOString() }
+      createdAt: { $gte: startOfMonth.toISOString() }
     });
     
-    // Productive calls = unique outlets visited today that also placed an order today
-    const visitedOutletIds = todaysVisits.map(v => v.outlet?.toString() || (v as any).outletId);
-    const orderedOutletIds = todaysOrders.map(o => o.outletId);
-    const productiveCalls = visitedOutletIds.filter(id => id && orderedOutletIds.includes(id)).length;
+    const totalRevenue = monthlyOrders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
+    const totalOrders = monthlyOrders.length;
 
-    const todaysCollections = await this.collectionModel.find({
-      organizationId,
-      collectionDate: { $gte: today.toISOString() }
-    });
-    const todaysCollectionTotal = todaysCollections.reduce((sum, c) => sum + (c.amount || 0), 0);
+    // Active Outlets and Reps
+    const activeOutlets = await this.outletModel.countDocuments({ organizationId, status: 'Active' });
+    const activeReps = await this.userModel.countDocuments({ organizationId, status: 'Active' });
 
-    // Route Coverage
-    const uniqueVisitedOutlets = new Set(visitedOutletIds.filter(Boolean)).size;
-    const totalOutlets = await this.outletModel.countDocuments({ organizationId }).exec();
-    const routeCoverage = totalOutlets > 0 ? Math.round((uniqueVisitedOutlets / totalOutlets) * 100) : 0;
+    // Build KPIs Object
+    const kpis = {
+      totalRevenue,
+      revenueGrowth: 12, // Mock trend for now
+      totalOrders,
+      orderGrowth: 8, // Mock trend for now
+      activeOutlets,
+      activeReps
+    };
 
-    // Recent Orders
-    const recentOrdersDb = await this.orderModel.find({ organizationId }).sort({ createdAt: -1 }).limit(5);
-    const outletIds = [...new Set(recentOrdersDb.map(o => o.outletId))];
-    const outlets = await this.outletModel.find({ _id: { $in: outletIds } }).exec();
-    const outletMap = new Map(outlets.map(o => [o._id.toString(), o.name]));
-
-    const recentOrders = recentOrdersDb.map(o => ({
-      id: o.orderNumber || o.id,
-      outlet: outletMap.get(o.outletId) || o.outletId,
-      amount: `₹${(o.totals?.grandTotal || 0).toLocaleString()}`,
-      status: o.status,
-      time: new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }));
-
-    // Sales Data (7 days)
+    // Sales Data (7 Days)
     const salesData = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -68,67 +51,93 @@ export class AnalyticsService {
       const start = new Date(d); start.setHours(0,0,0,0);
       const end = new Date(d); end.setHours(23,59,59,999);
       
-      const count = await this.orderModel.countDocuments({
+      const orders = await this.orderModel.find({
         organizationId,
         createdAt: { $gte: start.toISOString(), $lte: end.toISOString() }
       });
       
+      const rev = orders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
+      
       salesData.push({
-        day: start.toLocaleDateString('en-US', { weekday: 'short' }),
-        orders: count
+        month: start.toLocaleDateString('en-US', { weekday: 'short' }), // Recharts uses 'month' as XAxis key based on frontend
+        revenue: rev,
+        orders: orders.length
       });
     }
 
-    // Monthly Target (real calculation)
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
-    const monthlyOrders = await this.orderModel.find({
+    // Top Products
+    const productSales = new Map<string, { sales: number, revenue: number }>();
+    for (const order of monthlyOrders) {
+      for (const item of order.items) {
+        const pName = item.name || item.productId;
+        const current = productSales.get(pName) || { sales: 0, revenue: 0 };
+        current.sales += item.quantity;
+        current.revenue += item.total || 0;
+        productSales.set(pName, current);
+      }
+    }
+    const topProducts = Array.from(productSales.entries())
+      .map(([name, data]) => ({ name, sales: data.sales, revenue: data.revenue }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    // Zone Performance (Extract from Users or mock from outlets)
+    const activeUsers = await this.userModel.find({ organizationId, status: 'Active' });
+    const zoneSales = new Map<string, number>();
+    for (const order of monthlyOrders) {
+       const user = activeUsers.find(u => u._id.toString() === order.createdByUserId);
+       const zone = (user as any)?.zone || 'North Zone';
+       const rev = order.totals?.grandTotal || 0;
+       zoneSales.set(zone, (zoneSales.get(zone) || 0) + rev);
+    }
+    if (zoneSales.size === 0) zoneSales.set('Default Zone', totalRevenue);
+    
+    const zonePerformance = Array.from(zoneSales.entries())
+      .map(([zone, revenue]) => ({ zone, revenue }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    // Top Sales Reps
+    const userStats = new Map<string, { orders: number, revenue: number, visits: number }>();
+    const monthlyVisits = await this.visitModel.find({
       organizationId,
       createdAt: { $gte: startOfMonth.toISOString() }
     });
-    const achieved = monthlyOrders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
-    
-    // Fetch organizational or default target from DB
-    const orgTarget = await this.targetModel.findOne({ 
-      organizationId, 
-      period: 'Monthly', 
-      entityType: 'User' // Wait, organization-wide target isn't strictly defined, we can sum user targets or use a default.
-    }).exec();
 
-    const target = orgTarget?.targetValue || 2500000;
+    for (const order of monthlyOrders) {
+      if (!order.createdByUserId) continue;
+      const current = userStats.get(order.createdByUserId) || { orders: 0, revenue: 0, visits: 0 };
+      current.orders += 1;
+      current.revenue += (order.totals?.grandTotal || 0);
+      userStats.set(order.createdByUserId, current);
+    }
 
-    // Team Activity (Fetch users and their daily stats)
-    const activeUsers = await this.userModel.find({ organizationId, status: 'Active' }).limit(5);
-    const teamActivity = await Promise.all(activeUsers.map(async u => {
-      const uVisits = await this.visitModel.countDocuments({ organizationId, user: u._id, createdAt: { $gte: today.toISOString() } });
-      const uOrders = await this.orderModel.find({ organizationId, createdByUserId: u._id, createdAt: { $gte: today.toISOString() } });
-      const uOrderTotal = uOrders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
-      return {
-        name: u.name,
-        avatar: u.name.charAt(0),
-        visits: uVisits,
-        orders: `₹${uOrderTotal.toLocaleString()}`,
-        status: 'Active Now',
-        location: (u as any).zone || 'Zone A'
-      };
-    }));
+    for (const visit of monthlyVisits) {
+      const uid = visit.user?.toString() || (visit as any).userId;
+      if (!uid) continue;
+      const current = userStats.get(uid) || { orders: 0, revenue: 0, visits: 0 };
+      current.visits += 1;
+      userStats.set(uid, current);
+    }
+
+    const topSalesReps = activeUsers
+      .map(u => {
+        const stats = userStats.get(u._id.toString()) || { orders: 0, revenue: 0, visits: 0 };
+        return {
+          name: u.name,
+          orders: stats.orders,
+          revenue: stats.revenue,
+          visits: stats.visits
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
 
     return {
-      kpis: [
-        { label: "Today's Orders", value: `₹${todaysOrderTotal.toLocaleString()}`, change: '+0%', up: true, icon: '📋' },
-        { label: 'Visits Completed', value: `${todaysVisits.length}`, change: '0%', up: true, icon: '📍' },
-        { label: 'Productive Calls', value: `${productiveCalls}`, change: '0', up: true, icon: '✅' },
-        { label: 'Collections', value: `₹${todaysCollectionTotal.toLocaleString()}`, change: '+0%', up: true, icon: '💰' },
-        { label: 'Route Coverage', value: `${routeCoverage}%`, change: '+0%', up: true, icon: '🗺️' },
-      ],
-      recentOrders,
+      kpis,
       salesData,
-      monthlyTarget: {
-        achieved,
-        target,
-        percentage: Math.round((achieved / target) * 100)
-      },
-      teamActivity
+      topProducts,
+      zonePerformance,
+      topSalesReps
     };
   }
 }

@@ -33,7 +33,7 @@ export class PerformanceService {
     const userRole = await this.hierarchyService.getUserRole(userId);
     let territoryFilter: any = {};
     
-    if (!['Super Admin', 'Company Admin', 'Auditor'].includes(userRole?.name || '')) {
+    if (!['Super Admin', 'Organization Admin'].includes(userRole?.name || '')) {
       const userTerritories = await this.hierarchyService.getUserTerritories(userId);
       const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, userTerritories);
       if (descendantIds.length > 0) {

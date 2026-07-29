@@ -32,9 +32,23 @@ export default function IncentivesPage() {
     }
   };
 
-  const handleCreatePlan = () => {
-    setSuccessMessage('New incentive plan created successfully!');
-    setTimeout(() => setSuccessMessage(''), 3000);
+  const handleCreatePlan = async () => {
+    try {
+      await IncentivesService.createIncentivePlan({
+        name: 'New Incentive Plan ' + new Date().toLocaleDateString(),
+        type: 'Volume',
+        slab: 'Tier A',
+        target: '100 Orders',
+        eligible: 'All Reps',
+        payout: '₹5,000',
+        status: 'Active'
+      });
+      setSuccessMessage('New incentive plan created successfully!');
+      fetchData(); // Refresh the list
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error('Failed to create plan', error);
+    }
   };
 
   return (

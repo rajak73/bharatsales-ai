@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { TenantSchema, UserSchema, OutletSchema, ProductSchema, OrderSchema, SchemeSchema, DistributorSchema, InvoiceSchema, CollectionSchema, TargetSchema, WarehouseSchema, InventorySchema, DispatchSchema, ReturnSchema, NotificationLogSchema, SessionSchema, AuditLogSchema, AttendanceSessionSchema, VisitSchema, BeatSchema, BeatScheduleSchema, LocationPingSchema, IntegrationSchema, ApprovalSchema, ApprovalRuleSchema, ExpenseSchema, PriceListSchema, TaxRateSchema } from './schemas';
+import { TenantSchema, UserSchema, OutletSchema, ProductSchema, OrderSchema, SchemeSchema, DistributorSchema, InvoiceSchema, CollectionSchema, TargetSchema, WarehouseSchema, InventorySchema, DispatchSchema, ReturnSchema, NotificationLogSchema, SessionSchema, AuditLogSchema, AttendanceSessionSchema, VisitSchema, BeatSchema, BeatScheduleSchema, LocationPingSchema, IntegrationSchema, ApprovalSchema, ApprovalRuleSchema, ExpenseSchema, PriceListSchema, TaxRateSchema, IncentivePlanSchema, IncentivePayoutSchema } from './schemas';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -36,6 +36,7 @@ import { CollectionsModule } from './collections/collections.module';
 import { SyncModule } from './sync/sync.module';
 import { SuperadminModule } from './superadmin/superadmin.module';
 import { BullModule } from '@nestjs/bull';
+import { IncentivesModule } from './incentives/incentives.module';
 
 @Module({
   imports: [
@@ -84,6 +85,8 @@ import { BullModule } from '@nestjs/bull';
       { name: 'Expense', schema: ExpenseSchema },
       { name: 'PriceList', schema: PriceListSchema },
       { name: 'TaxRate', schema: TaxRateSchema },
+      { name: 'IncentivePlan', schema: IncentivePlanSchema },
+      { name: 'IncentivePayout', schema: IncentivePayoutSchema },
     ]),
     AuthModule,
     AuditModule,
@@ -114,6 +117,7 @@ import { BullModule } from '@nestjs/bull';
     CollectionsModule,
     SyncModule,
     SuperadminModule,
+    IncentivesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

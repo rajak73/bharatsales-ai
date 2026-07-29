@@ -17,24 +17,24 @@
 - **Details:** State-based wizard available on Web Dashboard.
 
 ## 5. Field Attendance & Visits
-- **Status:** COMPLETE_AND_REUSABLE
-- **Details:** PWA offline-sync for Start Day / Check-In / Check-Out implemented. Geofencing validated server-side.
+- **Status:** BROKEN
+- **Details:** PWA offline-sync for Start Day / Check-In / Check-Out exists, but the duplicate day prevention validation logic is commented out in `attendance.service.ts`, breaking the state machine.
 
 ## 6. Beat Planning
 - **Status:** COMPLETE_AND_REUSABLE
 - **Details:** Route map and outlet assignment exist.
 
 ## 7. Orders & Dispatch
-- **Status:** COMPLETE_AND_REUSABLE
-- **Details:** E2E catalogue, order creation, multi-level approval, and dispatch. Transactions (mongoose.startSession) used.
+- **Status:** INCOMPLETE
+- **Details:** E2E catalogue, order creation, and multi-level approval exist. However, the entire `DispatchService` module is completely hallucinated by documentation and missing from the backend.
 
 ## 8. Distributors
 - **Status:** COMPLETE_AND_REUSABLE
 - **Details:** Multi-channel distribution mapped.
 
 ## 9. Finance & Performance
-- **Status:** COMPLETE_AND_REUSABLE
-- **Details:** Invoices, collections, limits.
+- **Status:** INCOMPLETE
+- **Details:** Invoices, collections, limits. However, `OrdersService.checkCreditLimit` is missing, `DashboardService` is missing, and finance routes are completely disconnected from the API client.
 
 ## 10. Notifications & Integration
 - **Status:** COMPLETE_AND_REUSABLE

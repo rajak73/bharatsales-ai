@@ -227,7 +227,7 @@ export default function BeatsPage() {
                 >
                   <option value="">Select rep</option>
                   {salesReps.map(r => (
-                    <option key={r.id} value={r.name}>{r.name}</option>
+                    <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
                 </select>
               </div>

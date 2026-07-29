@@ -39,7 +39,7 @@ export default function HierarchyPage() {
       ]);
       setNodes(hierarchyData || []);
       // Filter out only managers (Area Managers, etc)
-      setManagers(usersData?.filter((u: User) => ['Area Manager', 'Company Admin', 'Sales Representative'].includes(u.role)) || []);
+      setManagers(usersData?.filter((u: User) => ['Sales Manager', 'Organization Admin', 'Sales Representative'].includes(u.role)) || []);
     } catch (error) {
       console.error('Failed to fetch hierarchy data:', error);
     } finally {

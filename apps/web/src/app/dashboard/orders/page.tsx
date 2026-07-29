@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { OrdersService } from '@bharatsales/api-client';
-import { Order, OrderLineItem } from '@bharatsales/shared-types';
+import { OrdersService, InventoryService } from '@bharatsales/api-client';
+import { Order, OrderLineItem, Inventory } from '@bharatsales/shared-types';
 import { Loader2 as _Loader2, ShoppingCart as _ShoppingCart, Search as _Search, FileText as _FileText, ChevronRight as _ChevronRight, X as _X, Check as _Check } from 'lucide-react';
 const Loader2 = _Loader2 as any;
 const ShoppingCart = _ShoppingCart as any;
@@ -21,6 +21,23 @@ export default function OrdersPage() {
   
   // Detail view state
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [productBatches, setProductBatches] = useState<Record<string, Inventory[]>>({});
+
+  useEffect(() => {
+    if (selectedOrder && user?.role === 'Distributor' && selectedOrder.status === 'Submitted') {
+       const fetchBatches = async () => {
+         const batchesMap: Record<string, Inventory[]> = {};
+         for (const item of selectedOrder.items || []) {
+           try {
+             const batches = await InventoryService.getBatches(item.productId);
+             batchesMap[item.productId] = batches;
+           } catch(e) {}
+         }
+         setProductBatches(batchesMap);
+       };
+       fetchBatches();
+    }
+  }, [selectedOrder, user]);
 
   useEffect(() => {
     // Decode user role from JWT
@@ -245,6 +262,9 @@ export default function OrdersPage() {
                             <td className="px-4 py-3">
                               <select className="w-full rounded-md border-gray-200 text-xs py-1 px-2 border focus:border-primary-500 focus:ring-primary-500">
                                 <option>Auto (FEFO)</option>
+                                {productBatches[item.productId]?.map(b => (
+                                  <option key={b.id} value={b.batch}>{b.batch} (Stock: {b.stock})</option>
+                                ))}
                               </select>
                             </td>
                           )}

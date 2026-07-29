@@ -3,11 +3,17 @@ import type { IncentivePlan, IncentivePayout } from '@bharatsales/shared-types';
 
 export class IncentivesService {
   static async getIncentivePlans(): Promise<IncentivePlan[]> {
-    // Mock data since backend module doesn't exist yet
-    return Promise.resolve([]);
+    const response = await apiClient.get<IncentivePlan[]>('/incentives/plans');
+    return response.data;
   }
 
   static async getIncentivePayouts(): Promise<IncentivePayout[]> {
-    return Promise.resolve([]);
+    const response = await apiClient.get<IncentivePayout[]>('/incentives/payouts');
+    return response.data;
+  }
+
+  static async createIncentivePlan(data: Partial<IncentivePlan>): Promise<IncentivePlan> {
+    const response = await apiClient.post<IncentivePlan>('/incentives/plans', data);
+    return response.data;
   }
 }

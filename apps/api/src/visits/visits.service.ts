@@ -71,8 +71,8 @@ export class VisitsService {
       }
     }
 
-    const outletLat = outlet.location?.latitude || (outlet.location as any)?.coordinates?.lat;
-    const outletLng = outlet.location?.longitude || (outlet.location as any)?.coordinates?.lng;
+    const outletLat = outlet.location?.latitude ?? (outlet.location as any)?.coordinates?.lat;
+    const outletLng = outlet.location?.longitude ?? (outlet.location as any)?.coordinates?.lng;
 
     if (outletLat !== undefined && outletLng !== undefined) {
       distanceFromOutlet = this.calculateDistance(

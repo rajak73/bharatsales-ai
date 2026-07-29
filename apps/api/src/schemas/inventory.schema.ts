@@ -21,3 +21,5 @@ export class Inventory implements Omit<IInventory, 'id' | 'createdAt' | 'updated
 }
 
 export const InventorySchema = SchemaFactory.createForClass(Inventory);
+
+InventorySchema.index({ expiry: 1 });

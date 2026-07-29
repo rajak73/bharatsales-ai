@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SalesTarget as Target, Order } from '@bharatsales/shared-types';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class TargetsService {
+  private readonly logger = new Logger(TargetsService.name);
+
   constructor(
     @InjectModel('Target') private targetModel: Model<Target>,
     @InjectModel('Order') private orderModel: Model<Order>,
@@ -12,49 +15,15 @@ export class TargetsService {
 
   async getTargets(organizationId: string) {
     const targets = await this.targetModel.find({ organizationId }).lean();
-    const db = this.orderModel.db;
     
-    // Dynamic Gamification Engine Calculation (BR-012)
     const calculatedTargets = await Promise.all(
       targets.map(async (target) => {
-        let actualValue = 0;
-        const metric = target.targetMetric || 'SalesValue';
-        
-        const dateQuery = {
-          $gte: target.startDate,
-          $lte: target.endDate
-        };
+        let actualValue = target.actualValue || 0;
+        let status = target.status || 'On Track';
 
-        if (metric === 'SalesValue') {
-          const query: any = {
-            organizationId,
-            status: { $in: ['Submitted', 'Approved', 'Dispatched', 'Delivered'] },
-            createdAt: dateQuery
-          };
-          if (target.entityType === 'User') query.createdByUserId = target.entityId;
-          else if (target.entityType === 'Outlet') query.outletId = target.entityId;
-
-          const eligibleOrders = await this.orderModel.find(query);
-          actualValue = eligibleOrders.reduce((sum, order) => sum + (order.totals?.grandTotal || 0), 0);
-        } else if (metric === 'VisitCount') {
-          const query: any = { organizationId, createdAt: dateQuery };
-          if (target.entityType === 'User') query.user = target.entityId;
-          else if (target.entityType === 'Outlet') query.outlet = target.entityId;
-          
-          actualValue = await db.model('Visit').countDocuments(query);
-        } else if (metric === 'ProductiveCalls') {
-          const query: any = { organizationId, createdAt: dateQuery, isProductive: true };
-          if (target.entityType === 'User') query.user = target.entityId;
-          else if (target.entityType === 'Outlet') query.outlet = target.entityId;
-          
-          actualValue = await db.model('Visit').countDocuments(query);
-        } else if (metric === 'CollectionValue') {
-          const query: any = { organizationId, createdAt: dateQuery, status: 'Success' };
-          if (target.entityType === 'User') query.collectedBy = target.entityId;
-          else if (target.entityType === 'Outlet') query.outlet = target.entityId;
-          
-          const collections = await db.model('Collection').find(query);
-          actualValue = collections.reduce((sum: number, col: any) => sum + (col.amount || 0), 0);
+        // Only calculate dynamically if the target is still active
+        if (status !== 'Achieved' && status !== 'Missed') {
+          actualValue = await this.calculateActualValue(target);
         }
 
         // Run rate calculation
@@ -67,13 +36,16 @@ export class TargetsService {
         const remainingTarget = Math.max(0, target.targetValue - actualValue);
         const dailyRunRate = parseFloat((remainingTarget / remainingDays).toFixed(2));
 
-        let status = 'On Track';
-        if (actualValue >= target.targetValue) {
-          status = 'Achieved';
-        } else if (now > endDate && actualValue < target.targetValue) {
-          status = 'Missed';
-        } else if (dailyRunRate > (target.targetValue / 10)) { 
-          status = 'At Risk';
+        if (status !== 'Achieved' && status !== 'Missed') {
+          if (actualValue >= target.targetValue) {
+            status = 'Achieved';
+          } else if (now > endDate && actualValue < target.targetValue) {
+            status = 'Missed';
+          } else if (dailyRunRate > (target.targetValue / 10)) { 
+            status = 'At Risk';
+          } else {
+            status = 'On Track';
+          }
         }
 
         // Target Logic & Achievement
@@ -106,6 +78,90 @@ export class TargetsService {
     );
 
     return calculatedTargets;
+  }
+
+  private async calculateActualValue(target: any): Promise<number> {
+    const db = this.orderModel.db;
+    const metric = target.targetMetric || 'SalesValue';
+    
+    const dateQuery = {
+      $gte: target.startDate,
+      $lte: target.endDate
+    };
+
+    if (metric === 'SalesValue') {
+      const query: any = {
+        organizationId: target.organizationId,
+        status: { $in: ['Submitted', 'Approved', 'Dispatched', 'Delivered'] },
+        createdAt: dateQuery
+      };
+      if (target.entityType === 'User') query.createdByUserId = target.entityId;
+      else if (target.entityType === 'Outlet') query.outletId = target.entityId;
+
+      const eligibleOrders = await this.orderModel.find(query);
+      return eligibleOrders.reduce((sum, order) => sum + (order.totals?.grandTotal || 0), 0);
+    } 
+    
+    if (metric === 'VisitCount') {
+      const query: any = { organizationId: target.organizationId, createdAt: dateQuery };
+      if (target.entityType === 'User') query.user = target.entityId;
+      else if (target.entityType === 'Outlet') query.outlet = target.entityId;
+      
+      return await db.model('Visit').countDocuments(query);
+    } 
+    
+    if (metric === 'ProductiveCalls') {
+      const query: any = { organizationId: target.organizationId, createdAt: dateQuery, isProductive: true };
+      if (target.entityType === 'User') query.user = target.entityId;
+      else if (target.entityType === 'Outlet') query.outlet = target.entityId;
+      
+      return await db.model('Visit').countDocuments(query);
+    } 
+    
+    if (metric === 'CollectionValue') {
+      const query: any = { organizationId: target.organizationId, createdAt: dateQuery, status: 'Success' };
+      if (target.entityType === 'User') query.collectedBy = target.entityId;
+      else if (target.entityType === 'Outlet') query.outlet = target.entityId;
+      
+      const collections = await db.model('Collection').find(query);
+      return collections.reduce((sum: number, col: any) => sum + (col.amount || 0), 0);
+    }
+
+    return 0;
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async rollupExpiredTargets() {
+    this.logger.log('Running Midnight Target Rollup Cron Job...');
+    const now = new Date();
+    
+    // Find all active targets where endDate has passed
+    const expiredTargets = await this.targetModel.find({
+      endDate: { $lt: now.toISOString() },
+      status: { $nin: ['Achieved', 'Missed'] }
+    });
+
+    if (expiredTargets.length === 0) {
+      this.logger.log('No expired targets to rollup.');
+      return;
+    }
+
+    for (const target of expiredTargets) {
+      try {
+        const actualValue = await this.calculateActualValue(target);
+        const status = actualValue >= target.targetValue ? 'Achieved' : 'Missed';
+        
+        await this.targetModel.updateOne(
+          { _id: target._id },
+          { $set: { actualValue, status } }
+        );
+        this.logger.log(`Rolled up target ${target._id} - Status: ${status}, Actual: ${actualValue}`);
+      } catch (error) {
+        this.logger.error(`Failed to rollup target ${target._id}`, error);
+      }
+    }
+    
+    this.logger.log(`Target Rollup Complete. Processed ${expiredTargets.length} targets.`);
   }
 
   async createTarget(organizationId: string, data: Partial<Target>) {

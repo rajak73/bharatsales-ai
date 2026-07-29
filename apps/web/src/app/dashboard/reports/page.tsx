@@ -88,14 +88,23 @@ export default function ReportsPage() {
     }
   };
 
-  const handleScheduleReport = () => {
+  const handleScheduleReport = async () => {
     if (schedule.report && schedule.recipients) {
-      setSuccessMessage(`"${schedule.report}" has been scheduled!`);
-      setShowScheduleModal(false);
-      setSchedule({ report: '', frequency: 'Daily', time: '08:00', recipients: '', format: 'PDF' });
-      setTimeout(() => setSuccessMessage(''), 3000);
+      try {
+        await ReportsService.scheduleReport(schedule);
+        setSuccessMessage(`"${schedule.report}" has been scheduled!`);
+        setShowScheduleModal(false);
+        setSchedule({ report: '', frequency: 'Daily', time: '08:00', recipients: '', format: 'PDF' });
+        fetchData(); // Refresh stats to show new scheduled report count
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } catch (err) {
+        console.error(err);
+        setSuccessMessage(`Failed to schedule report.`);
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
     }
   };
+
 
   return (
     <div className="space-y-6">

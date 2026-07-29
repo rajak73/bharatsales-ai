@@ -1,75 +1,105 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { RolesService } from '@bharatsales/api-client';
-import { Role } from '@bharatsales/shared-types';
-import { Loader2 } from 'lucide-react';
+import { Shield, ShieldAlert, Users, Target, Truck } from 'lucide-react';
+
+const PREDEFINED_ROLES = [
+  {
+    id: 'super-admin',
+    name: 'Super Admin',
+    description: 'Full platform access, multi-tenant management, global settings.',
+    permissions: 'All Permissions',
+    scope: 'Global',
+    icon: ShieldAlert,
+    color: 'text-red-600',
+    bg: 'bg-red-100',
+  },
+  {
+    id: 'org-admin',
+    name: 'Organization Admin',
+    description: 'Top-level access for a specific organization, billing, and settings.',
+    permissions: 'Org Settings, Users, Billing',
+    scope: 'Organization',
+    icon: Shield,
+    color: 'text-primary-600',
+    bg: 'bg-primary-100',
+  },
+  {
+    id: 'sales-manager',
+    name: 'Sales Manager',
+    description: 'Team management, target setting, and approval workflows.',
+    permissions: 'Team, Targets, Approvals',
+    scope: 'Hierarchy Node',
+    icon: Target,
+    color: 'text-blue-600',
+    bg: 'bg-blue-100',
+  },
+  {
+    id: 'sales-rep',
+    name: 'Sales Representative',
+    description: 'Field execution, store visits, order taking.',
+    permissions: 'Visits, Orders, Outlets',
+    scope: 'Assigned Territory',
+    icon: Users,
+    color: 'text-green-600',
+    bg: 'bg-green-100',
+  },
+  {
+    id: 'distributor',
+    name: 'Distributor',
+    description: 'Inventory management, order fulfillment, and dispatch.',
+    permissions: 'Inventory, Dispatch, Returns',
+    scope: 'Assigned Outlets',
+    icon: Truck,
+    color: 'text-orange-600',
+    bg: 'bg-orange-100',
+  },
+];
 
 export default function RolesPage() {
-  const [successMessage, setSuccessMessage] = useState('');
-  
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchRoles();
-  }, []);
-
-  const fetchRoles = async () => {
-    try {
-      setLoading(true);
-      const data = await RolesService.getRoles();
-      setRoles(data || []);
-    } catch (error) {
-      console.error('Failed to fetch roles:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateRole = () => {
-    setSuccessMessage('New role created successfully!');
-    setTimeout(() => setSuccessMessage(''), 3000);
-  };
-
   return (
     <div className="space-y-6">
-      {successMessage && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2"><span className="text-green-600">✅</span><span className="text-sm text-green-800 font-medium">{successMessage}</span></div>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
-        </div>
-      )}
-
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900">Roles & Permissions</h1><p className="text-gray-500">Manage role-based access control • {roles.length} roles</p></div>
-        <button onClick={handleCreateRole} className="btn-primary text-sm">+ Create Role</button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Roles & Permissions</h1>
+          <p className="text-gray-500">View predefined roles and access levels</p>
+        </div>
+      </div>
+
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+        <h4 className="font-medium text-yellow-800 mb-1">Static RBAC Model</h4>
+        <p className="text-sm text-yellow-700">
+          This organization uses a strict, predefined Role-Based Access Control (RBAC) model. 
+          Custom roles cannot be created dynamically. Please assign these predefined roles to your employees.
+        </p>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {loading ? (
-          <div className="col-span-full flex justify-center items-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
-          </div>
-        ) : roles.length > 0 ? (
-          roles.map((role) => (
-            <div key={role.id} className="card-hover">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-gray-900 text-sm">{role.name}</h3>
-                <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">{role.users} users</span>
+        {PREDEFINED_ROLES.map((role) => {
+          const Icon = role.icon;
+          return (
+            <div key={role.id} className="card-hover flex flex-col h-full">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className={`p-2 rounded-lg ${role.bg} ${role.color}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-lg">{role.name}</h3>
               </div>
-              <div className="text-xs text-gray-500 space-y-1">
-                <div>Permissions: {role.permissions}</div>
-                <div>Scope: {role.scope}</div>
+              <p className="text-sm text-gray-600 mb-4 flex-grow">
+                {role.description}
+              </p>
+              <div className="space-y-2 pt-4 border-t border-gray-100">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Scope:</span>
+                  <span className="font-medium text-gray-900">{role.scope}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Key Permissions:</span>
+                  <span className="font-medium text-gray-900">{role.permissions}</span>
+                </div>
               </div>
-              <div className="flex space-x-2 mt-3"><button className="text-primary-600 text-xs font-medium">Edit</button><button className="text-gray-400 text-xs">View</button></div>
             </div>
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12 text-gray-500 card">
-            No roles found.
-          </div>
-        )}
+          );
+        })}
       </div>
     </div>
   );

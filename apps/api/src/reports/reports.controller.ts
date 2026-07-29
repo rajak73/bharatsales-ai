@@ -44,4 +44,17 @@ export class ReportsController {
   getExport(@Request() req: any, @Param('id') id: string) {
     return this.reportsService.getExport(req.user.orgId, id);
   }
+
+  @RequirePermissions(Resource.Reports, Action.Create)
+  @Post('schedule')
+  scheduleReport(@Request() req: any, @Body() payload: any) {
+    return this.reportsService.scheduleReport(req.user.orgId, payload);
+  }
+
+  @RequirePermissions(Resource.Reports, Action.Read)
+  @Get('schedules')
+  getSchedules(@Request() req: any) {
+    return this.reportsService.getSchedules(req.user.orgId);
+  }
 }
+

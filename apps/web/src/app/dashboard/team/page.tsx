@@ -214,10 +214,7 @@ export default function TeamPage() {
                   onChange={(e) => setNewMember({ ...newMember, role: e.target.value as UserRole })}
                 >
                   <option value="Sales Representative">Sales Representative</option>
-                  <option value="Area Sales Manager">Area Sales Manager</option>
-                  <option value="Regional Sales Manager">Regional Sales Manager</option>
-                  <option value="Zonal Sales Manager">Zonal Sales Manager</option>
-                  <option value="National Sales Manager">National Sales Manager</option>
+                  <option value="Sales Manager">Sales Manager</option>
                 </select>
               </div>
               <div>

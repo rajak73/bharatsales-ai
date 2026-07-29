@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, UseInterceptors, Param } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -15,10 +15,19 @@ import { AuditInterceptor } from '../audit/audit.interceptor';
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
-@RequirePermissions(Resource.Inventory, Action.Read)
+  @RequirePermissions(Resource.Inventory, Action.Read)
   @Get()
   async getInventory(@Request() req: any) {
     return this.inventoryService.getInventory(req.user.orgId);
+  }
+
+  @RequirePermissions(Resource.Inventory, Action.Read)
+  @Get('batches/:productId')
+  async getBatches(
+    @Request() req: any,
+    @Param('productId') productId: string
+  ) {
+    return this.inventoryService.getBatches(req.user.orgId, productId);
   }
 
 @RequirePermissions(Resource.Inventory, Action.Update)

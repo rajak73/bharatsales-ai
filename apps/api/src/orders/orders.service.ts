@@ -31,7 +31,7 @@ export class OrdersService {
   async findAll(organizationId: string, user?: any): Promise<Order[]> {
     const query: any = { organizationId };
 
-    if (user && !['Super Admin', 'Company Admin', 'Auditor'].includes(user.role)) {
+    if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
       if (!user.territoryIds || user.territoryIds.length === 0) {
         return []; // Non-admin with no territory sees nothing
       }
@@ -73,7 +73,7 @@ export class OrdersService {
 
     // BR-002: Check Attendance Session
     const userRole = await this.hierarchyService.getUserRole(userId);
-    if (!['Super Admin', 'Company Admin', 'Auditor'].includes(userRole?.name || '')) {
+    if (!['Super Admin', 'Organization Admin'].includes(userRole?.name || '')) {
       const activeSession = await this.attendanceService.getCurrentSession(userId);
       if (!activeSession) {
         throw new BadRequestException('Cannot create order: Attendance not started. You must clock in first.');
@@ -86,7 +86,7 @@ export class OrdersService {
     }
 
     // BR-003: Check Outlet Assignment
-    if (!['Super Admin', 'Company Admin', 'Auditor'].includes(userRole?.name || '')) {
+    if (!['Super Admin', 'Organization Admin'].includes(userRole?.name || '')) {
       const userTerritories = await this.hierarchyService.getUserTerritories(userId);
       const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, userTerritories);
       if (!outlet.territoryId || !descendantIds.includes(outlet.territoryId)) {
@@ -112,13 +112,14 @@ export class OrdersService {
       orderData.assignedDistributorId = outlet.commercial.assignedDistributorId.toString();
     }
 
+    let assignedDistributor = null;
     if (orderData.assignedDistributorId) {
-      const distributor = await this.distributorModel.findOne({ _id: orderData.assignedDistributorId, organizationId });
-      if (distributor) {
-        if (distributor.status !== 'Active') {
-          throw new BadRequestException(`Cannot route order to inactive distributor ${distributor.name}`);
+      assignedDistributor = await this.distributorModel.findOne({ _id: orderData.assignedDistributorId, organizationId });
+      if (assignedDistributor) {
+        if (assignedDistributor.status !== 'Active') {
+          throw new BadRequestException(`Cannot route order to inactive distributor ${assignedDistributor.name}`);
         }
-        if (distributor.location?.state !== outlet.location?.state) {
+        if (assignedDistributor.location?.state !== outlet.location?.state) {
           isInterState = true;
         }
       }
@@ -210,6 +211,16 @@ export class OrdersService {
     const unbilledOrderExposure = openOrders.reduce((sum, ord) => sum + (ord.totals?.grandTotal || (ord as any).total || 0), 0);
     const projectedExposure = outlet.commercial.outstandingBalance + unbilledOrderExposure + totals.grandTotal;
 
+    let projectedDistributorExposure = totals.grandTotal;
+    if (assignedDistributor) {
+      const openDistributorOrders = await this.orderModel.find({
+        assignedDistributorId: assignedDistributor._id,
+        status: { $in: ['Pending', 'Submitted', 'Approved', 'Dispatched'] }
+      });
+      const unbilledDistributorExposure = openDistributorOrders.reduce((sum, ord) => sum + (ord.totals?.grandTotal || (ord as any).total || 0), 0);
+      projectedDistributorExposure += ((assignedDistributor as any).commercial?.outstandingBalance || 0) + unbilledDistributorExposure;
+    }
+
     let initialStatus = orderData.status || 'Submitted';
     
     // Draft orders skip credit and stock checks completely until submitted
@@ -222,6 +233,9 @@ export class OrdersService {
     } else if (projectedExposure > outlet.commercial.creditLimit) {
       initialStatus = 'Hold_Credit';
       this.logger.warn(`Order placed on Hold_Credit. Projected Exposure: ₹${projectedExposure}, Limit: ₹${outlet.commercial.creditLimit}`);
+    } else if (assignedDistributor && ((assignedDistributor as any).commercial?.creditLimit ?? 0) > 0 && projectedDistributorExposure > (assignedDistributor as any).commercial.creditLimit) {
+      initialStatus = 'Hold_Credit';
+      this.logger.warn(`Order placed on Hold_Credit for Distributor. Projected Exposure: ₹${projectedDistributorExposure}, Limit: ₹${(assignedDistributor as any).commercial.creditLimit}`);
     } else {
       // BR-016: If exposure is fine, check stock availability.
       let hasInsufficientStock = false;

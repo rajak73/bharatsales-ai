@@ -37,3 +37,4 @@ export * from './tracking';
 export * from './hierarchy';
 export * from './claim';
 export * from './finance';
+export * from './report-job';

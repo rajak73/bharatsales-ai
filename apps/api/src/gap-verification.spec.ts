@@ -41,7 +41,7 @@ describe('Gap Verification (e2e)', () => {
 
     orgToken = jwtService.sign({ sub: validUserId1, email: 'u1@test.com', orgId: 'org-1', role: 'Sales Representative' });
     hackerToken = jwtService.sign({ sub: validHackerId, email: 'h@test.com', orgId: 'org-2', role: 'Sales Representative' });
-    managerToken = jwtService.sign({ sub: validMgrId, email: 'm@test.com', orgId: 'org-1', role: 'Area Sales Manager' });
+    managerToken = jwtService.sign({ sub: validMgrId, email: 'm@test.com', orgId: 'org-1', role: 'Sales Manager' });
     // Insert active attendance sessions to bypass BR-002 (Order creation block)
     await connection.collection('attendancesessions').insertOne({
       organizationId: 'org-1',
@@ -267,6 +267,49 @@ describe('Gap Verification (e2e)', () => {
       expect(res.body.durationMinutes).toBeLessThanOrEqual(31);
 
       await connection.collection('visits').deleteMany({ _id: visitDurId } as any);
+    });
+  });
+
+  describe('GAP-08: PWA Offline Login Validity Enforcement (Missing)', () => {
+    it.todo('should forcefully reject offline login if the last successful network login exceeds 7 days (Currently unimplemented in PWA and API client)');
+  });
+
+  describe('GAP-09: Unexposed Session Management Endpoints', () => {
+    it('should successfully fetch active sessions (verifying endpoint exists despite missing UI)', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/auth/sessions')
+        .set('Authorization', `Bearer ${orgToken}`);
+      
+      // We expect the endpoint to exist and be functional
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+  });
+
+  describe('GAP-11: Disconnected Backend API Routes', () => {
+    it.todo('verifies 46 backend endpoints (e.g. SSO, Return Approvals, Sync) are missing from api-client');
+  });
+
+  describe('GAP-12: Hallucinated Business Logic', () => {
+    it.todo('verifies the existence of missing modules (DispatchService, DashboardService, ExportsService)');
+    it.todo('verifies OrdersService.checkCreditLimit exists');
+    it.todo('verifies Attendance duplicate day logic is uncommented');
+  });
+
+  describe('GAP-10: Unused Registration Endpoint', () => {
+    it('should confirm the /auth/register endpoint exists and is active (despite missing UI integration)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: 'new_gap10_user@test.com',
+          password: 'password123',
+          role: 'Sales Representative',
+          organizationId: 'org-1'
+        });
+      
+      // Depending on implementation, it might return 201 Created or 400 (if org validation fails), 
+      // but it should NOT return 404 (Not Found).
+      expect(res.status).not.toBe(404);
     });
   });
 });

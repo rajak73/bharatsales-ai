@@ -1,15 +1,9 @@
 export type UserRole = 
   | 'Super Admin' 
-  | 'Company Admin' 
-  | 'National Sales Manager' 
-  | 'Zonal Sales Manager' 
-  | 'Regional Sales Manager' 
-  | 'Area Sales Manager' 
+  | 'Organization Admin' 
+  | 'Sales Manager' 
   | 'Sales Representative' 
-  | 'Distributor Owner' 
-  | 'Distributor Staff' 
-  | 'Finance User' 
-  | 'Auditor';
+  | 'Distributor';
 
 export interface User {
   id: string;

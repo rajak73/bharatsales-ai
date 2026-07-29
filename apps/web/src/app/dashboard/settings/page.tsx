@@ -315,7 +315,11 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Notification Settings</h3>
                 <p className="text-sm text-gray-500 mb-6">Configure notification channels and preferences</p>
               </div>
-              <div className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+                <h4 className="font-medium text-yellow-800 mb-1">Coming Soon</h4>
+                <p className="text-sm text-yellow-700">Notification preferences will be manageable in a future update. These are currently global defaults.</p>
+              </div>
+              <div className="space-y-4 opacity-75">
                 {[
                   { name: 'Order Confirmations', desc: 'Send when new order is placed', enabled: true },
                   { name: 'Payment Receipts', desc: 'Send when payment is received', enabled: true },
@@ -328,8 +332,8 @@ export default function SettingsPage() {
                       <div className="font-medium text-gray-900">{notif.name}</div>
                       <div className="text-sm text-gray-500">{notif.desc}</div>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked={notif.enabled} className="sr-only peer" />
+                    <label className="relative inline-flex items-center cursor-not-allowed">
+                      <input type="checkbox" defaultChecked={notif.enabled} disabled className="sr-only peer" />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
                     </label>
                   </div>
@@ -345,7 +349,11 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Integrations</h3>
                 <p className="text-sm text-gray-500 mb-6">Configure third-party integrations</p>
               </div>
-              <div className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+                <h4 className="font-medium text-yellow-800 mb-1">Enterprise Feature</h4>
+                <p className="text-sm text-yellow-700">Integrations (ERP, WhatsApp, SMS) are currently configured at the platform level by the Super Admin.</p>
+              </div>
+              <div className="space-y-4 opacity-75">
                 {[
                   { name: 'Maps & Geocoding', provider: 'OpenStreetMap', status: 'Active' },
                   { name: 'Tally / ERP', provider: 'Not Configured', status: 'Not Configured' },
@@ -376,7 +384,11 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Security Settings</h3>
                 <p className="text-sm text-gray-500 mb-6">Configure security policies</p>
               </div>
-              <div className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+                <h4 className="font-medium text-yellow-800 mb-1">Coming Soon</h4>
+                <p className="text-sm text-yellow-700">These security settings are read-only defaults. Policy configuration will be available in the next release.</p>
+              </div>
+              <div className="space-y-4 opacity-75">
                 {[
                   { name: 'Session Timeout', value: '30 minutes of inactivity', enabled: true },
                   { name: 'Max Concurrent Sessions', value: '3 per user', enabled: true },

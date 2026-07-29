@@ -26,4 +26,15 @@ export class ReportsService {
     const response = await apiClient.get<{ data: string, filename: string, contentType: string }>(`/reports/exports/${jobId}`);
     return response.data;
   }
+
+  static async scheduleReport(payload: any): Promise<any> {
+    const response = await apiClient.post<any>('/reports/schedule', payload);
+    return response.data;
+  }
+
+  static async getSchedules(): Promise<any[]> {
+    const response = await apiClient.get<any[]>('/reports/schedules');
+    return response.data;
+  }
 }
+

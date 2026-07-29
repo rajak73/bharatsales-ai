@@ -18,6 +18,19 @@ export class InventoryService {
     return this.inventoryModel.find({ organizationId }).exec();
   }
 
+  async getBatches(organizationId: string, productId: string): Promise<Inventory[]> {
+    return this.inventoryModel.find({ 
+      organizationId, 
+      productId,
+      stock: { $gt: 0 },
+      blocked: { $ne: true },
+      $or: [
+        { status: { $exists: false } },
+        { status: 'Active' }
+      ]
+    }).sort({ expiry: 1, createdAt: 1 }).exec();
+  }
+
   async create(organizationId: string, data: Omit<SharedInventory, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>): Promise<Inventory> {
     delete (data as any).organizationId;
     delete (data as any)._id;

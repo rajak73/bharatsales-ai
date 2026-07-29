@@ -7,6 +7,11 @@ export class InventoryService {
     return response.data;
   }
 
+  static async getBatches(productId: string): Promise<Inventory[]> {
+    const response = await apiClient.get<Inventory[]>(`/inventory/batches/${productId}`);
+    return response.data;
+  }
+
   static async addInventory(data: Partial<Inventory>): Promise<Inventory> {
     const response = await apiClient.post<Inventory>('/inventory', data);
     return response.data;

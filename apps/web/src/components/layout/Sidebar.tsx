@@ -10,18 +10,18 @@ import {
   BarChart3, ShieldAlert, BookOpen, Server, ChevronDown, ChevronRight
 } from 'lucide-react';
 
-const ALL_ROLES = ['Super Admin', 'Company Admin', 'Area Manager', 'Sales Representative'];
-const ADMIN_ROLES = ['Super Admin', 'Company Admin'];
+const ALL_ROLES = ['Super Admin', 'Organization Admin', 'Sales Manager', 'Sales Representative'];
+const ADMIN_ROLES = ['Super Admin', 'Organization Admin'];
 
 const navGroups = [
   {
     title: 'Overview',
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ALL_ROLES },
-      { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
-      { icon: MapPin, label: 'Live Map', href: '/dashboard/live-map', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
-      { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
-      { icon: Users, label: 'Team', href: '/dashboard/team', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
+      { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
+      { icon: MapPin, label: 'Live Map', href: '/dashboard/live-map', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
+      { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
+      { icon: Users, label: 'Team', href: '/dashboard/team', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
     ]
   },
   {
@@ -31,9 +31,9 @@ const navGroups = [
       { icon: Store, label: 'Outlets', href: '/dashboard/outlets', roles: ALL_ROLES },
       { icon: Store, label: 'Outlet 360', href: '/dashboard/outlet-360', roles: ALL_ROLES },
       { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders', roles: ALL_ROLES },
-      { icon: CheckSquare, label: 'Approvals', href: '/dashboard/approvals', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
+      { icon: CheckSquare, label: 'Approvals', href: '/dashboard/approvals', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
       { icon: Receipt, label: 'Collections', href: '/dashboard/collections', roles: ALL_ROLES },
-      { icon: Target, label: 'Targets', href: '/dashboard/targets', roles: ['Super Admin', 'Company Admin', 'Area Manager'] },
+      { icon: Target, label: 'Targets', href: '/dashboard/targets', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
       { icon: Percent, label: 'Incentives', href: '/dashboard/incentives', roles: ALL_ROLES },
       { icon: Repeat, label: 'Returns', href: '/dashboard/returns', roles: ALL_ROLES },
     ]

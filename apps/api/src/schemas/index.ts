@@ -29,3 +29,7 @@ export * from './price-list.schema';
 export * from './tax-rate.schema';
 export * from './token.schema';
 export * from './claim.schema';
+export * from './incentives.schema';
+export * from './app-notification.schema';
+export * from './report-job.schema';
+export * from './scheduled-report.schema';

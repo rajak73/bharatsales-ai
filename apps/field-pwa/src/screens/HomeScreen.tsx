@@ -8,6 +8,15 @@ import { db } from '../database/db';import { useAttendance } from '../contexts/A
 export function HomeScreen() {
   const navigate = useNavigate();
   const { activeSession } = useAttendance();
+  const [syncStatus, setSyncStatus] = useState({ isSyncing: false, pendingCount: 0 });
+
+  useEffect(() => {
+    const handleSyncStatus = (e: any) => {
+      setSyncStatus(e.detail);
+    };
+    window.addEventListener('sync_status', handleSyncStatus);
+    return () => window.removeEventListener('sync_status', handleSyncStatus);
+  }, []);
 
   useEffect(() => {
     const fetchTarget = async () => {
@@ -32,7 +41,10 @@ export function HomeScreen() {
             percentage: myTarget.targetValue ? Math.round(((myTarget.actualValue || 0) / myTarget.targetValue) * 100) : 0,
             shopsVisited: 0,
             totalShops: 0,
+            hasTarget: true
           });
+        } else {
+          setTargetData(prev => ({ ...prev, hasTarget: false }));
         }
       } catch (err) {
         console.error('Failed to fetch target', err);
@@ -51,6 +63,7 @@ export function HomeScreen() {
     percentage: 0,
     shopsVisited: 0,
     totalShops: 0,
+    hasTarget: false
   });
 
   const allOutlets = useLiveQuery(() => db.outlets.toArray(), []) ?? [];
@@ -91,38 +104,54 @@ export function HomeScreen() {
         </div>
       </div>
 
+      {syncStatus.isSyncing && (
+        <div className="bg-blue-500 text-white text-xs font-bold px-4 py-2 flex items-center justify-center gap-2">
+          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          Syncing {syncStatus.pendingCount} offline {syncStatus.pendingCount === 1 ? 'action' : 'actions'}...
+        </div>
+      )}
+
       <div className="px-5 py-6 space-y-6">
         
         {/* Target Progress Card */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
           <h2 className="text-[#1E293B] text-lg font-bold mb-4">Today's Target Progress</h2>
           
-          <div className="flex justify-between items-end mb-2">
-            <div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Goal</p>
-              <p className="text-[#1E293B] font-bold">{formatCurrency(targetData.goal)}</p>
+          {!targetData.hasTarget ? (
+            <div className="text-center py-4">
+              <p className="text-sm font-medium text-gray-500">No target assigned for today.</p>
+              <p className="text-xs text-gray-400 mt-1">Please check with your manager.</p>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Achieved</p>
-              <p className="text-[#1E293B] font-bold">{formatCurrency(targetData.achieved)}</p>
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className="flex justify-between items-end mb-2">
+                <div>
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Goal</p>
+                  <p className="text-[#1E293B] font-bold">{formatCurrency(targetData.goal)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Achieved</p>
+                  <p className="text-[#1E293B] font-bold">{formatCurrency(targetData.achieved)}</p>
+                </div>
+              </div>
 
-          <div className="relative h-6 w-full bg-[#E2E8F0] rounded-full overflow-hidden mb-4 shadow-inner">
-            <div 
-              className="absolute top-0 left-0 h-full bg-[#2D3A8C] rounded-full transition-all duration-1000 flex items-center justify-end pr-2"
-              style={{ width: `${targetData.percentage}%` }}
-            >
-              <span className="text-white text-xs font-bold">{targetData.percentage}%</span>
-            </div>
-          </div>
-          
-          <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
-            <p className="text-xs font-medium text-[#64748B]">Status: <span className="text-green-600 font-bold">On Track! Keep going!</span></p>
-            <p className="text-xs font-bold text-[#1E293B] bg-slate-100 px-2.5 py-1 rounded-lg">
-              {targetData.shopsVisited}/{targetData.totalShops} Shops Visited
-            </p>
-          </div>
+              <div className="relative h-6 w-full bg-[#E2E8F0] rounded-full overflow-hidden mb-4 shadow-inner">
+                <div 
+                  className="absolute top-0 left-0 h-full bg-[#2D3A8C] rounded-full transition-all duration-1000 flex items-center justify-end pr-2"
+                  style={{ width: `${targetData.percentage}%` }}
+                >
+                  <span className="text-white text-xs font-bold">{targetData.percentage}%</span>
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
+                <p className="text-xs font-medium text-[#64748B]">Status: <span className="text-green-600 font-bold">On Track! Keep going!</span></p>
+                <p className="text-xs font-bold text-[#1E293B] bg-slate-100 px-2.5 py-1 rounded-lg">
+                  {targetData.shopsVisited}/{targetData.totalShops} Shops Visited
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Smart Beat Section */}
