@@ -12,17 +12,34 @@ export default function DSRPage() {
     totalCollections: 0,
     ordersCount: 0
   });
+  const [repBreakdown, setRepBreakdown] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isManager, setIsManager] = useState(false);
+
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('bharatsales_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setIsManager(payload.role === 'Sales Manager');
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     const fetchDSR = async () => {
       try {
         setLoading(true);
-        const data = await PerformanceService.getDSR(date);
+        const data = isManager
+          ? await PerformanceService.getTeamDSR(date)
+          : await PerformanceService.getDSR(date);
         if (data && data.metrics) {
           setMetrics(data.metrics);
         }
+        setRepBreakdown(data?.repBreakdown || []);
       } catch (err) {
         console.error('Failed to load DSR:', err);
       } finally {
@@ -30,7 +47,7 @@ export default function DSRPage() {
       }
     };
     fetchDSR();
-  }, [date]);
+  }, [date, isManager]);
 
   return (
     <div className="space-y-6">
@@ -114,12 +131,43 @@ export default function DSRPage() {
             </div>
           </div>
           
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Field Rep Performance</h2>
-            <div className="text-sm text-gray-500 text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
-              Breakdown by Sales Rep will be rendered here.
+          {isManager && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Field Rep Performance</h2>
+              {repBreakdown.length === 0 ? (
+                <div className="text-sm text-gray-500 text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
+                  No rep activity recorded for this date.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr className="text-left text-gray-500">
+                        <th className="px-4 py-2 font-medium">Rep</th>
+                        <th className="px-4 py-2 font-medium text-right">Visits</th>
+                        <th className="px-4 py-2 font-medium text-right">Productive</th>
+                        <th className="px-4 py-2 font-medium text-right">Orders</th>
+                        <th className="px-4 py-2 font-medium text-right">Order Value</th>
+                        <th className="px-4 py-2 font-medium text-right">Collections</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {repBreakdown.map((rep) => (
+                        <tr key={rep.userId} className="border-t border-gray-100">
+                          <td className="px-4 py-2 font-medium text-gray-900">{rep.name}</td>
+                          <td className="px-4 py-2 text-right">{rep.totalVisits}</td>
+                          <td className="px-4 py-2 text-right">{rep.productiveVisits}</td>
+                          <td className="px-4 py-2 text-right">{rep.ordersCount}</td>
+                          <td className="px-4 py-2 text-right">₹{rep.totalOrderValue.toLocaleString()}</td>
+                          <td className="px-4 py-2 text-right">₹{rep.totalCollections.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </>
       )}
     </div>

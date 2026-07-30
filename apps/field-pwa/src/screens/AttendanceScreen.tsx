@@ -1,16 +1,33 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAttendance } from '../contexts/AttendanceContext';
-import { Clock, MapPin, Loader2, CheckCircle2 } from 'lucide-react';
+import { Clock, MapPin, Loader2, CheckCircle2, Camera } from 'lucide-react';
+import { UploadsService } from '@bharatsales/api-client';
+import { compressImage } from '../utils/image';
 
 export function AttendanceScreen() {
   const { activeSession, startDay, endDay, isLoading } = useAttendance();
   const [isLocating, setIsLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selfie, setSelfie] = useState<File | null>(null);
+  const [selfiePreviewUrl, setSelfiePreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSelfieCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelfie(file);
+    setSelfiePreviewUrl(URL.createObjectURL(file));
+  };
 
   const handleAttendanceAction = async () => {
+    if (!activeSession && !selfie) {
+      setError('A selfie photo is required to start your day.');
+      return;
+    }
+
     setIsLocating(true);
     setError(null);
-    
+
     if (!navigator.geolocation) {
       setError('Geolocation is not supported by your browser');
       setIsLocating(false);
@@ -25,11 +42,15 @@ export function AttendanceScreen() {
             lng: position.coords.longitude,
             accuracy: position.coords.accuracy,
           };
-          
+
           if (activeSession) {
             await endDay(loc);
           } else {
-            await startDay(loc);
+            const compressed = await compressImage(selfie!);
+            const { url: photoUrl } = await UploadsService.uploadVisitPhoto(compressed, 'attendance-selfie.jpg');
+            await startDay(loc, photoUrl);
+            setSelfie(null);
+            setSelfiePreviewUrl(null);
           }
         } catch {
           setError('Failed to record attendance. Please try again.');
@@ -88,9 +109,33 @@ export function AttendanceScreen() {
             </p>
           </div>
 
+          {!activeSession && (
+            <div className="mb-8 space-y-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="hidden"
+                onChange={handleSelfieCapture}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium"
+              >
+                <Camera className="w-5 h-5" />
+                {selfie ? 'Retake Selfie' : 'Take Selfie'}
+              </button>
+              {selfiePreviewUrl && (
+                <img src={selfiePreviewUrl} alt="Selfie preview" className="w-full h-40 object-cover rounded-xl border border-gray-200" />
+              )}
+            </div>
+          )}
+
           <button
             onClick={handleAttendanceAction}
-            disabled={isLocating}
+            disabled={isLocating || (!activeSession && !selfie)}
             className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl text-lg font-bold transition-all
               ${activeSession 
                 ? 'bg-red-50 text-red-600 hover:bg-red-100 border-2 border-red-200' 

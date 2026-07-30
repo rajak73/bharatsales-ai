@@ -7,6 +7,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { AttendanceService } from '../attendance/attendance.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class OrdersService {
@@ -23,29 +24,38 @@ export class OrdersService {
     private approvalsService: ApprovalsService,
     private hierarchyService: HierarchyService,
     private attendanceService: AttendanceService,
+    private notificationsService: NotificationsService,
     @InjectConnection() private connection: Connection,
   ) {}
 
 
 
-  async findAll(organizationId: string, user?: any): Promise<Order[]> {
+  async findAll(organizationId: string, user?: any, mine?: boolean): Promise<Order[]> {
     const query: any = { organizationId };
 
-    if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
+    if (user && user.role === 'Distributor') {
+      // A Distributor sees only orders routed to them, not territory-based access
+      // (distributors aren't assigned territories the same way reps/managers are).
+      query.assignedDistributorId = user.distributorId || '__none__';
+    } else if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
       if (!user.territoryIds || user.territoryIds.length === 0) {
         return []; // Non-admin with no territory sees nothing
       }
-      
+
       const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, user.territoryIds);
-      
+
       // Fetch outlets that belong to these territories
-      const accessibleOutlets = await this.outletModel.find({ 
-        organizationId, 
-        territoryId: { $in: descendantIds } 
+      const accessibleOutlets = await this.outletModel.find({
+        organizationId,
+        territoryId: { $in: descendantIds }
       }).select('_id').exec();
-      
+
       const accessibleOutletIds = accessibleOutlets.map(o => o._id.toString());
       query.outletId = { $in: accessibleOutletIds };
+    }
+
+    if (mine && user?.sub) {
+      query.createdByUserId = user.sub;
     }
 
     return this.orderModel.find(query).sort({ createdAt: -1 }).exec();
@@ -80,7 +90,7 @@ export class OrdersService {
       }
     }
 
-    const outlet = await this.outletModel.findById(orderData.outletId);
+    const outlet = await this.outletModel.findOne({ _id: orderData.outletId, organizationId });
     if (!outlet) {
       throw new BadRequestException('Outlet not found');
     }
@@ -370,7 +380,7 @@ export class OrdersService {
       let hasInsufficientStock = false;
       for (const item of order.items || []) {
         try {
-          const product = await this.productModel.findById(item.productId).session(session);
+          const product = await this.productModel.findOne({ _id: item.productId, organizationId }).session(session);
           const minShelfLife = product?.shelfLifeDays ? Math.floor(product.shelfLifeDays * 0.2) : 0; // Require at least 20% shelf life remaining
 
           const itemManualAllocations = manualAllocations ? manualAllocations[item.productId] : undefined;
@@ -408,6 +418,13 @@ export class OrdersService {
       await order.save({ session });
       const updated = await this.updateStatus(organizationId, orderId, 'Approved', actorId, reason || 'Approved by web dashboard', session);
       await session.commitTransaction();
+
+      this.notificationsService.create(organizationId, order.createdByUserId, {
+        type: 'order_approved',
+        title: 'Order Approved',
+        message: `Your order ${order.orderNumber || orderId} has been approved.`
+      }).catch(err => this.logger.error('Failed to create order-approved notification', err));
+
       return updated;
     } catch (error) {
       await session.abortTransaction();
@@ -434,9 +451,6 @@ export class OrdersService {
       for (const item of order.items || []) {
         await this.inventoryService.deductStock(organizationId, item.productId, item.quantity, undefined, session, item.allocations);
       }
-
-      // Create Dispatch record (Dispatch service doesn't use session currently, but should ideally)
-
 
       const updated = await this.updateStatus(organizationId, orderId, 'Dispatched', actorId, 'Dispatched via operations', session);
       await session.commitTransaction();
@@ -479,6 +493,13 @@ export class OrdersService {
 
       const updated = await this.updateStatus(organizationId, orderId, 'Rejected', actorId, reason || 'Rejected by manager', session);
       await session.commitTransaction();
+
+      this.notificationsService.create(organizationId, order.createdByUserId, {
+        type: 'order_rejected',
+        title: 'Order Rejected',
+        message: `Your order ${order.orderNumber || orderId} was rejected.${reason ? ` Reason: ${reason}` : ''}`
+      }).catch(err => this.logger.error('Failed to create order-rejected notification', err));
+
       return updated;
     } catch (error) {
       await session.abortTransaction();

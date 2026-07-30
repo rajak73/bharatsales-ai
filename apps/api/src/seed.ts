@@ -60,6 +60,7 @@ async function bootstrap() {
     email: 'superadmin@bharatsales.com',
     password: defaultPassword,
     role: 'Super Admin',
+    platformAdmin: true,
     status: 'Active',
     createdAt: new Date(),
     updatedAt: new Date()

@@ -20,7 +20,15 @@ export class PaymentCollection implements Omit<IPaymentCollection, 'id' | 'creat
   @Prop({ required: true }) collectionDate: string;
   
   @Prop({ type: [{ invoiceId: String, amount: Number }] }) allocations?: { invoiceId: string, amount: number }[];
+  @Prop() idempotencyKey?: string;
 }
 
 export const CollectionSchema = SchemaFactory.createForClass(PaymentCollection);
 CollectionSchema.index({ organizationId: 1, outletId: 1 });
+// partialFilterExpression (not sparse) is required here: since organizationId is
+// always present, a plain compound sparse index would still enforce uniqueness
+// across every document that omits idempotencyKey (they'd collide on `null`).
+CollectionSchema.index(
+  { organizationId: 1, idempotencyKey: 1 },
+  { unique: true, partialFilterExpression: { idempotencyKey: { $exists: true } } }
+);

@@ -16,9 +16,26 @@ export default function ReportsPage() {
   const [allReports, setAllReports] = useState<Report[]>([]);
   const [stats, setStats] = useState<ReportStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<{ role: string } | null>(null);
+
+  const DISTRIBUTOR_CATEGORIES = ['Distribution', 'Inventory', 'Finance'];
+  const isDistributor = user?.role === 'Distributor';
+  const availableCategories = isDistributor
+    ? DISTRIBUTOR_CATEGORIES
+    : ['Sales', 'HR', 'Execution', 'Distribution', 'Inventory', 'Performance', 'Finance', 'Admin'];
 
   useEffect(() => {
     fetchData();
+
+    try {
+      const token = localStorage.getItem('bharatsales_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUser({ role: payload.role });
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   const fetchData = async () => {
@@ -42,7 +59,8 @@ export default function ReportsPage() {
     const matchesSearch = report.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           report.desc.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'All Categories' || report.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const matchesRoleScope = !isDistributor || DISTRIBUTOR_CATEGORIES.includes(report.category);
+    return matchesSearch && matchesCategory && matchesRoleScope;
   });
 
   const handleRunReport = async (reportName: string) => {
@@ -168,14 +186,9 @@ export default function ReportsPage() {
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
             <option>All Categories</option>
-            <option>Sales</option>
-            <option>HR</option>
-            <option>Execution</option>
-            <option>Distribution</option>
-            <option>Inventory</option>
-            <option>Performance</option>
-            <option>Finance</option>
-            <option>Admin</option>
+            {availableCategories.map(cat => (
+              <option key={cat}>{cat}</option>
+            ))}
           </select>
           {(searchTerm || categoryFilter !== 'All Categories') && (
             <button

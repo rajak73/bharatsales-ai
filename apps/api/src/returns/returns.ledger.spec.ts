@@ -3,6 +3,7 @@ import { ReturnsService } from './returns.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { InventoryService } from '../inventory/inventory.service';
 import { FinanceService } from '../finance/finance.service';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { ReturnOrder } from '../schemas/return.schema';
 
 describe('ReturnsService Ledger Compliance', () => {
@@ -40,7 +41,8 @@ describe('ReturnsService Ledger Compliance', () => {
         { provide: getModelToken('Product'), useValue: mockModel },
         { provide: 'DatabaseConnection', useValue: mockConnection },
         { provide: InventoryService, useValue: {} },
-        { provide: FinanceService, useValue: mockFinanceService }
+        { provide: FinanceService, useValue: mockFinanceService },
+        { provide: HierarchyService, useValue: { getDescendantTerritoryIds: jest.fn().mockResolvedValue([]) } }
       ],
     }).compile();
 

@@ -35,6 +35,16 @@ export class User implements Omit<IUser, 'id' | 'createdAt' | 'updatedAt'> {
 
   @Prop()
   lockedUntil?: Date;
+
+  // True platform operator flag — distinct from the tenant-scoped `role` string.
+  // Never settable via any public API path; only via the seed-platform-admin script.
+  @Prop({ default: false })
+  platformAdmin?: boolean;
+
+  // Set when provisioning a Distributor-role account, to scope their data access
+  // to only their own distributor's inventory/returns/collections/staff.
+  @Prop()
+  distributorId?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

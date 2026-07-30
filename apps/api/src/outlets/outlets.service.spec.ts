@@ -5,6 +5,7 @@ import { Outlet } from '../schemas/outlet.schema';
 import { Order } from '../schemas/order.schema';
 import { Visit } from '../schemas/visit.schema';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ConflictException, BadRequestException } from '@nestjs/common';
 
 describe('OutletsService', () => {
@@ -15,6 +16,9 @@ describe('OutletsService', () => {
   };
   const mockOrderModel = {};
   const mockVisitModel = {};
+  const mockUserModel = {
+    find: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) })
+  };
   const mockTenantModel = {
     findById: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) })
   };
@@ -47,10 +51,18 @@ describe('OutletsService', () => {
           useValue: mockTenantModel,
         },
         {
+          provide: getModelToken('User'),
+          useValue: mockUserModel,
+        },
+        {
           provide: HierarchyService,
           useValue: {
             getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't2'])
           }
+        },
+        {
+          provide: NotificationsService,
+          useValue: { create: jest.fn().mockResolvedValue(undefined) }
         }
       ],
     }).compile();

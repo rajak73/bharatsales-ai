@@ -18,7 +18,7 @@ export class InventoryController {
   @RequirePermissions(Resource.Inventory, Action.Read)
   @Get()
   async getInventory(@Request() req: any) {
-    return this.inventoryService.getInventory(req.user.orgId);
+    return this.inventoryService.getInventory(req.user.orgId, req.user);
   }
 
   @RequirePermissions(Resource.Inventory, Action.Read)

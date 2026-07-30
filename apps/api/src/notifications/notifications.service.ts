@@ -13,6 +13,19 @@ export class NotificationsService {
     @InjectModel(AppNotification.name) private appNotificationModel: Model<AppNotification>,
   ) {}
 
+  async create(organizationId: string, userId: string, data: { type: string; title: string; message: string }) {
+    const notification = new this.appNotificationModel({
+      organizationId,
+      userId,
+      type: data.type,
+      title: data.title,
+      message: data.message,
+      time: new Date().toISOString(),
+      read: false
+    });
+    return notification.save();
+  }
+
   async getNotifications(organizationId: string, userId: string) {
     return this.appNotificationModel.find({ organizationId, userId }).sort({ createdAt: -1 }).exec();
   }

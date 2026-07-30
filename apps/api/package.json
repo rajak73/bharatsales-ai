@@ -8,6 +8,7 @@
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
     "seed": "ts-node --transpile-only src/seed.ts",
+    "seed:platform-admin": "ts-node --transpile-only src/seed-platform-admin.ts",
     "lint": "echo 'No linting required'",
     "test": "jest --runInBand --detectOpenHandles --forceExit",
     "type-check": "tsc --noEmit"
@@ -54,6 +55,7 @@
     "@types/express": "^4.17.0",
     "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.0",
+    "@types/multer": "^1.4.12",
     "@types/node": "^22.0.0",
     "@types/supertest": "^7.2.1",
     "@types/uuid": "^9.0.0",

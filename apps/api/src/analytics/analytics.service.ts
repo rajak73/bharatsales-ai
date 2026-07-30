@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Order, PaymentCollection, Visit, User, Outlet } from '@bharatsales/shared-types';
+import { Order, PaymentCollection, Visit, User, Outlet, Inventory } from '@bharatsales/shared-types';
 
 @Injectable()
 export class AnalyticsService {
@@ -12,9 +12,14 @@ export class AnalyticsService {
     @InjectModel('User') private userModel: Model<User>,
     @InjectModel('Outlet') private outletModel: Model<Outlet>,
     @InjectModel('Target') private targetModel: Model<any>,
+    @InjectModel('Inventory') private inventoryModel: Model<Inventory>,
   ) {}
 
-  async getDashboardData(organizationId: string) {
+  async getDashboardData(organizationId: string, user?: any) {
+    if (user && user.role === 'Distributor') {
+      return this.getDistributorDashboardData(organizationId, user.distributorId);
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -143,6 +148,57 @@ export class AnalyticsService {
       zonePerformance,
       topSalesReps,
       recentOrders
+    };
+  }
+
+  // Fulfilment-scoped dashboard for the Distributor role — replaces the
+  // org-wide sales KPIs (revenue/orders/active-users) with metrics relevant
+  // to a distributor's own responsibility: pending deliveries, own stock,
+  // and outstanding receivables from the outlets they supply.
+  private async getDistributorDashboardData(organizationId: string, distributorId?: string) {
+    const scopedDistributorId = distributorId || '__none__';
+
+    const distributorOrders = await this.orderModel.find({
+      organizationId,
+      assignedDistributorId: scopedDistributorId
+    }).exec();
+
+    const pendingDeliveries = distributorOrders.filter(o =>
+      ['Approved', 'Dispatched', 'Partial_Delivery'].includes(o.status as string)
+    ).length;
+    const inTransit = distributorOrders.filter(o => o.status === 'Dispatched').length;
+    const deliveredThisMonth = (() => {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      return distributorOrders.filter(o =>
+        o.status === 'Delivered' && new Date(o.updatedAt) >= startOfMonth
+      ).length;
+    })();
+
+    const inventory = await this.inventoryModel.find({ organizationId, distributorId: scopedDistributorId }).exec();
+    const lowStockBatches = inventory.filter(i => i.stock <= 0 || i.blocked).length;
+    const totalStockValue = inventory.reduce((sum, i) => sum + (i.stock || 0), 0);
+
+    const distributorOutletIds = [...new Set(distributorOrders.map(o => o.outletId))];
+    const outlets = distributorOutletIds.length
+      ? await this.outletModel.find({ organizationId, _id: { $in: distributorOutletIds } }).exec()
+      : [];
+    const outstandingReceivables = outlets.reduce((sum, o) => sum + ((o as any).commercial?.outstandingBalance || 0), 0);
+
+    return {
+      kpis: {
+        pendingDeliveries,
+        inTransit,
+        deliveredThisMonth,
+        lowStockBatches,
+        totalStockValue,
+        outstandingReceivables,
+        outletsServed: distributorOutletIds.length
+      },
+      recentOrders: distributorOrders
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5)
     };
   }
 }

@@ -8,6 +8,8 @@ export type DispatchDocument = Dispatch & Document;
 export class Dispatch implements Omit<IDispatch, 'id' | 'createdAt' | 'updatedAt'> {
   @Prop({ required: true, index: true }) organizationId: string;
   @Prop({ required: true }) orderId: string;
+  @Prop({ index: true }) assignedDistributorId?: string;
+  @Prop() dispatchedByUserId?: string;
   @Prop({ required: true }) vehicle: string;
   @Prop({ required: true }) driver: string;
   @Prop({ required: true, enum: ['Pending', 'In Transit', 'Delivered', 'Partial_Delivery', 'Damaged_Delivery', 'Short_Delivery', 'Refused', 'Return_Initiated', 'Cancelled'], default: 'Pending' }) status: 'Pending' | 'In Transit' | 'Delivered' | 'Partial_Delivery' | 'Damaged_Delivery' | 'Short_Delivery' | 'Refused' | 'Return_Initiated' | 'Cancelled';

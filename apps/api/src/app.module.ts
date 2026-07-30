@@ -37,6 +37,9 @@ import { SyncModule } from './sync/sync.module';
 import { SuperadminModule } from './superadmin/superadmin.module';
 import { BullModule } from '@nestjs/bull';
 import { IncentivesModule } from './incentives/incentives.module';
+import { UploadsModule } from './uploads/uploads.module';
+import { DispatchModule } from './dispatch/dispatch.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -118,6 +121,9 @@ import { IncentivesModule } from './incentives/incentives.module';
     SyncModule,
     SuperadminModule,
     IncentivesModule,
+    UploadsModule,
+    DispatchModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CollectionsService } from './collections.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { getConnectionToken } from '@nestjs/mongoose';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 describe('CollectionsService', () => {
   let service: CollectionsService;
@@ -13,12 +14,16 @@ describe('CollectionsService', () => {
   };
 
   const mockOutletModel = {
-    findById: jest.fn(),
+    findOne: jest.fn(),
     updateOne: jest.fn(),
   };
 
   const mockInvoiceModel = {
-    findById: jest.fn(),
+    findOne: jest.fn(),
+  };
+
+  const mockOrderModel = {
+    find: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }),
   };
 
   const mockConnection = {
@@ -47,8 +52,16 @@ describe('CollectionsService', () => {
           useValue: mockInvoiceModel,
         },
         {
+          provide: getModelToken('Order'),
+          useValue: mockOrderModel,
+        },
+        {
           provide: getConnectionToken(),
           useValue: mockConnection,
+        },
+        {
+          provide: HierarchyService,
+          useValue: { getDescendantTerritoryIds: jest.fn().mockResolvedValue([]) }
         },
       ],
     }).compile();
@@ -74,7 +87,7 @@ describe('CollectionsService', () => {
         save: jest.fn().mockResolvedValue(true)
       };
 
-      mockInvoiceModel.findById.mockReturnValue({
+      mockInvoiceModel.findOne.mockReturnValue({
         session: jest.fn().mockResolvedValue(mockInvoice)
       } as any);
 
@@ -97,7 +110,7 @@ describe('CollectionsService', () => {
         save: jest.fn().mockResolvedValue(true)
       };
 
-      mockInvoiceModel.findById.mockReturnValue({
+      mockInvoiceModel.findOne.mockReturnValue({
         session: jest.fn().mockResolvedValue(mockInvoice)
       } as any);
 

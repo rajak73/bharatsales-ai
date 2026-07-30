@@ -8,6 +8,7 @@ import { VisitSchema } from '../schemas/visit.schema';
 import { UserSchema } from '../schemas/user.schema';
 import { OutletSchema } from '../schemas/outlet.schema';
 import { TargetSchema } from '../schemas/target.schema';
+import { InventorySchema } from '../schemas/inventory.schema';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { TargetSchema } from '../schemas/target.schema';
       { name: 'Visit', schema: VisitSchema },
       { name: 'User', schema: UserSchema },
       { name: 'Outlet', schema: OutletSchema },
-      { name: 'Target', schema: TargetSchema }
+      { name: 'Target', schema: TargetSchema },
+      { name: 'Inventory', schema: InventorySchema }
     ])
   ],
   controllers: [AnalyticsController],

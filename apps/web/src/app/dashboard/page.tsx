@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { AnalyticsService } from '@bharatsales/api-client';
 import { Loader2, TrendingUp, TrendingDown, Users, ShoppingCart, DollarSign } from 'lucide-react';
 import { Card, Button } from '@bharatsales/ui';
+import { DistributorDashboard } from './_components/DistributorDashboard';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ name: string; role: string; organizationId: string } | null>(null);
@@ -12,10 +13,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
-    if (userData) { 
+    if (userData) {
       const parsed = JSON.parse(userData);
       setUser(parsed);
-      fetchDashboardData(parsed.organizationId);
+      if (parsed.role === 'Distributor') {
+        setLoading(false); // DistributorDashboard fetches its own data
+      } else {
+        fetchDashboardData(parsed.organizationId);
+      }
     } else {
       window.location.href = '/login';
     }
@@ -77,6 +82,10 @@ export default function DashboardPage() {
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
+  }
+
+  if (user?.role === 'Distributor') {
+    return <DistributorDashboard userName={user.name} />;
   }
 
   const maxOrders = dashboardData ? Math.max(...(dashboardData.salesData?.map((d: any) => d.orders) || [0])) : 10;

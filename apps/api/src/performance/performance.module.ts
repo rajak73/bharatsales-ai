@@ -6,7 +6,9 @@ import { TargetSchema } from '../schemas/target.schema';
 import { OrderSchema } from '../schemas/order.schema';
 import { CollectionSchema } from '../schemas/collection.schema';
 import { VisitSchema } from '../schemas/visit.schema';
+import { UserSchema } from '../schemas/user.schema';
 import { HierarchyModule } from '../hierarchy/hierarchy.module';
+import { TargetsModule } from '../targets/targets.module';
 
 @Module({
   imports: [
@@ -14,9 +16,11 @@ import { HierarchyModule } from '../hierarchy/hierarchy.module';
       { name: 'Target', schema: TargetSchema },
       { name: 'Order', schema: OrderSchema },
       { name: 'Collection', schema: CollectionSchema },
-      { name: 'Visit', schema: VisitSchema }
+      { name: 'Visit', schema: VisitSchema },
+      { name: 'User', schema: UserSchema }
     ]),
-    HierarchyModule
+    HierarchyModule,
+    TargetsModule
   ],
   controllers: [PerformanceController],
   providers: [PerformanceService],

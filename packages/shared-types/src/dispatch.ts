@@ -2,6 +2,8 @@ export interface Dispatch {
   id: string;
   organizationId: string;
   orderId: string;
+  assignedDistributorId?: string;
+  dispatchedByUserId?: string;
   vehicle: string;
   driver: string;
   status: 'Pending' | 'In Transit' | 'Delivered' | 'Partial_Delivery' | 'Damaged_Delivery' | 'Short_Delivery' | 'Refused' | 'Return_Initiated' | 'Cancelled';

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Request, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards, UseInterceptors } from '@nestjs/common';
 import { BeatsService } from './beats.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { Action, Resource } from '@bharatsales/permissions';
@@ -18,6 +18,18 @@ export class BeatsController {
   @RequirePermissions(Resource.Visits, Action.Read)
   async getTodayBeat(@Request() req: any) {
     return this.beatsService.getTodayBeat(req.user.sub, req.user.orgId);
+  }
+
+  @Get('deviation')
+  @RequirePermissions(Resource.LiveMap, Action.Read)
+  async checkRouteDeviation(@Request() req: any, @Query('userId') userId: string, @Query('date') date?: string) {
+    return this.beatsService.checkRouteDeviation(req.user.orgId, userId || req.user.sub, date);
+  }
+
+  @Get('team-today')
+  @RequirePermissions(Resource.LiveMap, Action.Read)
+  async getTeamBeatCompletion(@Request() req: any) {
+    return this.beatsService.getTeamBeatCompletion(req.user.orgId, req.user.sub, req.user.role);
   }
 
   @Get()

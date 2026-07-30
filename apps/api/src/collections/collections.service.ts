@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
-import { PaymentCollection, Outlet, Invoice } from '@bharatsales/shared-types';
+import { PaymentCollection, Outlet, Invoice, Order } from '@bharatsales/shared-types';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 @Injectable()
 export class CollectionsService {
@@ -9,19 +10,52 @@ export class CollectionsService {
     @InjectModel('Collection') private readonly collectionModel: Model<PaymentCollection>,
     @InjectModel('Outlet') private readonly outletModel: Model<Outlet>,
     @InjectModel('Invoice') private readonly invoiceModel: Model<Invoice>,
-    @InjectConnection() private readonly connection: Connection
+    @InjectModel('Order') private readonly orderModel: Model<Order>,
+    @InjectConnection() private readonly connection: Connection,
+    private readonly hierarchyService: HierarchyService
   ) {}
 
-  async findAll(organizationId: string): Promise<PaymentCollection[]> {
-    return this.collectionModel.find({ organizationId }).sort({ createdAt: -1 }).exec();
+  async findAll(organizationId: string, user?: any): Promise<PaymentCollection[]> {
+    const query: any = { organizationId };
+
+    if (user && user.role === 'Distributor') {
+      // Collections/Invoices have no direct distributorId — derive the
+      // distributor's outlet-set via the orders routed to them.
+      const distributorOrders = await this.orderModel.find({
+        organizationId,
+        assignedDistributorId: user.distributorId || '__none__'
+      }).select('outletId').exec();
+      const distributorOutletIds = [...new Set(distributorOrders.map(o => o.outletId))];
+      query.outletId = { $in: distributorOutletIds };
+    } else if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
+      if (!user.territoryIds || user.territoryIds.length === 0) {
+        return [];
+      }
+      const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, user.territoryIds);
+      const accessibleOutlets = await this.outletModel.find({
+        organizationId,
+        territoryId: { $in: descendantIds }
+      }).select('_id').exec();
+      const accessibleOutletIds = accessibleOutlets.map(o => o._id.toString());
+      query.outletId = { $in: accessibleOutletIds };
+    }
+
+    return this.collectionModel.find(query).sort({ createdAt: -1 }).exec();
   }
 
   async create(organizationId: string, userId: string, data: Partial<PaymentCollection>): Promise<PaymentCollection> {
+    if ((data as any).idempotencyKey) {
+      const existing = await this.collectionModel.findOne({ organizationId, idempotencyKey: (data as any).idempotencyKey });
+      if (existing) {
+        return existing;
+      }
+    }
+
     delete (data as any).organizationId;
     delete (data as any)._id;
     delete (data as any).createdAt;
     delete (data as any).updatedAt;
-    
+
     // Auto-settle cash payments on creation, else Pending
     let initialStatus = data.status || 'Pending';
     if (data.paymentMode === 'Cash' && !data.status) {
@@ -45,7 +79,7 @@ export class CollectionsService {
       // If cleared immediately (like cash), reduce outstanding balance
       if (saved.status === 'Cleared' && saved.amount > 0) {
         await this.outletModel.updateOne(
-          { _id: saved.outletId },
+          { _id: saved.outletId, organizationId },
           { $inc: { 'commercial.outstandingBalance': -saved.amount } },
           { session }
         );
@@ -53,7 +87,7 @@ export class CollectionsService {
         // Apply allocations to invoices
         if (saved.allocations && saved.allocations.length > 0) {
           for (const alloc of saved.allocations) {
-            const invoice = await this.invoiceModel.findById(alloc.invoiceId).session(session);
+            const invoice = await this.invoiceModel.findOne({ _id: alloc.invoiceId, organizationId }).session(session);
             if (invoice) {
               invoice.paidAmount += alloc.amount;
               if (invoice.paidAmount >= invoice.totalAmount) {
@@ -101,10 +135,10 @@ export class CollectionsService {
       collection.status = status;
       const updated = await collection.save({ session });
 
-      const outlet = await this.outletModel.findById(collection.outletId).session(session);
+      const outlet = await this.outletModel.findOne({ _id: collection.outletId, organizationId }).session(session);
       if (outlet) {
         let balanceChange = 0;
-        
+
         if (!wasSettled && isNowSettled) {
           // Pending -> Cleared (Decrease Balance)
           balanceChange = -collection.amount;
@@ -115,14 +149,14 @@ export class CollectionsService {
 
         if (balanceChange !== 0) {
           await this.outletModel.updateOne(
-            { _id: collection.outletId },
+            { _id: collection.outletId, organizationId },
             { $inc: { 'commercial.outstandingBalance': balanceChange } },
             { session }
           );
 
           if (collection.allocations && collection.allocations.length > 0) {
             for (const alloc of collection.allocations) {
-              const invoice = await this.invoiceModel.findById(alloc.invoiceId).session(session);
+              const invoice = await this.invoiceModel.findOne({ _id: alloc.invoiceId, organizationId }).session(session);
               if (invoice) {
                 // If it was cleared, add amount. If reversed, subtract.
                 const allocChange = (!wasSettled && isNowSettled) ? alloc.amount : (wasSettled && isNowReversed ? -alloc.amount : 0);

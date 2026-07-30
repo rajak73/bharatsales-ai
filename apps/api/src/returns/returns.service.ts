@@ -5,6 +5,7 @@ import { ReturnOrder } from '../schemas/return.schema';
 import { ReturnOrder as SharedReturnOrder, Outlet, Invoice } from '@bharatsales/shared-types';
 import { InventoryService } from '../inventory/inventory.service';
 import { FinanceService } from '../finance/finance.service';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 @Injectable()
 export class ReturnsService {
@@ -17,12 +18,28 @@ export class ReturnsService {
     @InjectModel('Order') private orderModel: Model<any>,
     @InjectModel('Product') private productModel: Model<any>,
     private inventoryService: InventoryService,
-    private financeService: FinanceService
+    private financeService: FinanceService,
+    private hierarchyService: HierarchyService
   ) {}
 
-  async getReturns(organizationId: string): Promise<ReturnOrder[]> {
+  async getReturns(organizationId: string, user?: any): Promise<ReturnOrder[]> {
     this.logger.log(`Fetching returns for org ${organizationId}`);
-    return this.returnModel.find({ organizationId }).exec();
+    const query: any = { organizationId };
+
+    if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
+      if (!user.territoryIds || user.territoryIds.length === 0) {
+        return [];
+      }
+      const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, user.territoryIds);
+      const accessibleOutlets = await this.outletModel.find({
+        organizationId,
+        territoryId: { $in: descendantIds }
+      }).select('_id').exec();
+      const accessibleOutletIds = accessibleOutlets.map(o => o._id.toString());
+      query.outlet = { $in: accessibleOutletIds };
+    }
+
+    return this.returnModel.find(query).exec();
   }
 
   async create(
@@ -30,15 +47,15 @@ export class ReturnsService {
     data: Omit<SharedReturnOrder, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>,
     userId: string
   ): Promise<ReturnOrder> {
-    const outlet = await this.outletModel.findById(data.outlet);
+    const outlet = await this.outletModel.findOne({ _id: data.outlet, organizationId });
     if (!outlet) {
       throw new NotFoundException('Outlet not found');
     }
 
     let calculatedRefundAmount = 0;
-    
+
     if (data.orderId) {
-      const order = await this.orderModel.findById(data.orderId);
+      const order = await this.orderModel.findOne({ _id: data.orderId, organizationId });
       if (order && data.items) {
         for (const returnItem of data.items) {
           const originalItem = order.items.find((i: any) => i.productId === returnItem.product || i.productId?.toString() === returnItem.product);
@@ -46,7 +63,7 @@ export class ReturnsService {
             calculatedRefundAmount += (originalItem.unitPrice * returnItem.qty);
           } else {
              // Fallback to fetch product
-            const product = await this.productModel.findById(returnItem.product);
+            const product = await this.productModel.findOne({ _id: returnItem.product, organizationId });
             if (product) {
               calculatedRefundAmount += (product.pricing.basePrice * returnItem.qty);
             }
@@ -55,7 +72,7 @@ export class ReturnsService {
       }
     } else if (data.items) {
         for (const returnItem of data.items) {
-            const product = await this.productModel.findById(returnItem.product);
+            const product = await this.productModel.findOne({ _id: returnItem.product, organizationId });
             if (product) {
               calculatedRefundAmount += (product.pricing.basePrice * returnItem.qty);
             }

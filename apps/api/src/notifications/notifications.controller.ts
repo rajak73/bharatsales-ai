@@ -15,19 +15,22 @@ import { AuditInterceptor } from '../audit/audit.interceptor';
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
+  @RequirePermissions(Resource.Notifications, Action.Read)
   @Get()
   async getNotifications(@Request() req: any) {
-    return this.notificationsService.getNotifications(req.user.orgId, req.user.userId);
+    return this.notificationsService.getNotifications(req.user.orgId, req.user.sub);
   }
 
+  @RequirePermissions(Resource.Notifications, Action.Update)
   @Put(':id/read')
   async markAsRead(@Request() req: any, @Param('id') id: string) {
-    return this.notificationsService.markAsRead(req.user.orgId, req.user.userId, id);
+    return this.notificationsService.markAsRead(req.user.orgId, req.user.sub, id);
   }
 
+  @RequirePermissions(Resource.Notifications, Action.Update)
   @Put('read-all')
   async markAllAsRead(@Request() req: any) {
-    return this.notificationsService.markAllAsRead(req.user.orgId, req.user.userId);
+    return this.notificationsService.markAllAsRead(req.user.orgId, req.user.sub);
   }
 
   @RequirePermissions(Resource.Users, Action.Create)

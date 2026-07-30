@@ -102,4 +102,38 @@ describe('HierarchyService', () => {
       ).rejects.toThrow('Cannot delete node with assigned children. Reassign children first.');
     });
   });
+
+  describe('getTeamUserIds', () => {
+    it('should resolve reps under the manager\'s descendant territories', async () => {
+      const mockUserModel = {
+        findById: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({ territoryIds: ['zone1'] }) }),
+        find: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([{ _id: 'rep1' }, { _id: 'rep2' }]) }) }),
+      };
+      (service as any).userModel = mockUserModel;
+
+      let call = 0;
+      mockHierarchyModel.find.mockImplementation(() => ({
+        exec: jest.fn().mockResolvedValue(call++ === 0 ? [{ _id: 'territory1' }] : []),
+      }));
+
+      const result = await service.getTeamUserIds('org1', 'manager1');
+      expect(result).toEqual(['rep1', 'rep2']);
+      expect(mockUserModel.find).toHaveBeenCalledWith(expect.objectContaining({
+        organizationId: 'org1',
+        role: 'Sales Representative',
+      }));
+    });
+
+    it('should return an empty array if the manager has no territories', async () => {
+      const mockUserModel = {
+        findById: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({ territoryIds: [] }) }),
+        find: jest.fn(),
+      };
+      (service as any).userModel = mockUserModel;
+
+      const result = await service.getTeamUserIds('org1', 'manager1');
+      expect(result).toEqual([]);
+      expect(mockUserModel.find).not.toHaveBeenCalled();
+    });
+  });
 });

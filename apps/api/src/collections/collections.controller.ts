@@ -18,7 +18,7 @@ export class CollectionsController {
 @RequirePermissions(Resource.Collections, Action.Read)
   @Get()
   async findAll(@Request() req: any) {
-    return this.collectionsService.findAll(req.user.orgId);
+    return this.collectionsService.findAll(req.user.orgId, req.user);
   }
 
 @RequirePermissions(Resource.Collections, Action.Create)

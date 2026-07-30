@@ -18,6 +18,6 @@ export class AnalyticsController {
 @RequirePermissions(Resource.Analytics, Action.Read)
   @Get('dashboard')
   getDashboardData(@Request() req: any) {
-    return this.analyticsService.getDashboardData(req.user.orgId);
+    return this.analyticsService.getDashboardData(req.user.orgId, req.user);
   }
 }

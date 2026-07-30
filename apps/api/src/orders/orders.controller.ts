@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, UseGuards, Request, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Request, UseInterceptors } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { Order } from '@bharatsales/shared-types';
@@ -17,9 +17,9 @@ export class OrdersController {
 
 @RequirePermissions(Resource.Orders, Action.Read)
   @Get()
-  async getOrders(@Request() req: any) {
+  async getOrders(@Request() req: any, @Query('mine') mine?: string) {
     // req.user is populated by the JwtAuthGuard
-    return this.ordersService.findAll(req.user.orgId, req.user);
+    return this.ordersService.findAll(req.user.orgId, req.user, mine === 'true');
   }
 
 @RequirePermissions(Resource.Orders, Action.Read)

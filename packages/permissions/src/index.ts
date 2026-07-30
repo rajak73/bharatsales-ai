@@ -37,6 +37,7 @@ export const Resource = {
   Analytics: 'analytics',
   Claims: 'claims',
   Invoices: 'invoices',
+  Notifications: 'notifications',
 } as const;
 export type Resource = typeof Resource[keyof typeof Resource];
 
@@ -64,6 +65,9 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
     [Resource.Visits]: [Action.Read, Action.Update, Action.Export],
     [Resource.Targets]: [Action.Create, Action.Read, Action.Update, Action.Delete],
     [Resource.Collections]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Export],
+    [Resource.Notifications]: [Action.Read, Action.Update],
+    [Resource.Dispatch]: [Action.Read],
+    [Resource.LiveMap]: [Action.Read],
   },
   'Sales Manager': {
     [Resource.Users]: [Action.Read, Action.Update],
@@ -81,6 +85,8 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
     [Resource.PriceLists]: [Action.Read],
     [Resource.TaxRates]: [Action.Read],
     [Resource.Distributors]: [Action.Read, Action.Create, Action.Update],
+    [Resource.Notifications]: [Action.Read, Action.Update],
+    [Resource.Dispatch]: [Action.Read],
   },
   'Sales Representative': {
     [Resource.Attendance]: [Action.Create, Action.Read],
@@ -95,6 +101,7 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
     [Resource.PriceLists]: [Action.Read],
     [Resource.TaxRates]: [Action.Read],
     [Resource.Distributors]: [Action.Read],
+    [Resource.Notifications]: [Action.Read, Action.Update],
   },
   'Distributor': {
     [Resource.Inventory]: [Action.Create, Action.Read, Action.Export, Action.Update],
@@ -110,6 +117,7 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
     [Resource.Distributors]: [Action.Read],
     [Resource.Invoices]: [Action.Read],
     [Resource.Collections]: [Action.Read, Action.Create],
+    [Resource.Notifications]: [Action.Read, Action.Update],
   },
 };
 

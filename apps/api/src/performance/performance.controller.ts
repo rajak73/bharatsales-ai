@@ -27,4 +27,17 @@ export class PerformanceController {
   getTargets(@Request() req: any) {
     return this.performanceService.getUserTargets(req.user.orgId, req.user.sub);
   }
+
+@RequirePermissions(Resource.Analytics, Action.Read)
+  @Get('team-dsr')
+  getTeamDailySalesReport(@Request() req: any, @Query('date') date: string) {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    return this.performanceService.generateTeamDSR(req.user.orgId, req.user.sub, targetDate, req.user.role);
+  }
+
+@RequirePermissions(Resource.Analytics, Action.Read)
+  @Get('team-targets')
+  getTeamTargets(@Request() req: any) {
+    return this.performanceService.getTeamTargets(req.user.orgId, req.user.sub, req.user.role);
+  }
 }

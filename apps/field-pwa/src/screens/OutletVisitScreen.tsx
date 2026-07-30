@@ -1,22 +1,30 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAttendance } from '../contexts/AttendanceContext';
-import { VisitsService } from '@bharatsales/api-client';
+import { VisitsService, UploadsService } from '@bharatsales/api-client';
 import type { Outlet } from '@bharatsales/shared-types';
-import { MapPin, CheckCircle2, AlertTriangle, Loader2, Navigation, ShoppingCart, IndianRupee } from 'lucide-react';
+import { MapPin, CheckCircle2, AlertTriangle, Loader2, Navigation, ShoppingCart, IndianRupee, Camera } from 'lucide-react';
 import CollectionScreen from './CollectionScreen';
+import { compressImage } from '../utils/image';
 
 export function OutletVisitScreen() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const outlet = state?.outlet as Outlet;
-  
+
   const { activeSession } = useAttendance();
   const [visitStatus, setVisitStatus] = useState<'pending' | 'checking_in' | 'checked_in'>('pending');
   const [activeVisitId, setActiveVisitId] = useState<string | null>(null);
   const [geofenceWarning, setGeofenceWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCollection, setShowCollection] = useState(false);
+  const [shopfrontPhoto, setShopfrontPhoto] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Stable for this screen's lifetime so a retry after a dropped response
+  // (request succeeded server-side but the client never saw it) reuses the
+  // same key instead of creating a duplicate Visit.
+  const [checkInIdempotencyKey] = useState(() => crypto.randomUUID());
 
   if (!outlet) {
     return <div className="p-6">Outlet data not found</div>;
@@ -26,9 +34,21 @@ export function OutletVisitScreen() {
     return <CollectionScreen outletId={outlet.id} onBack={() => setShowCollection(false)} />;
   }
 
+  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setShopfrontPhoto(file);
+    setPhotoPreviewUrl(URL.createObjectURL(file));
+  };
+
   const handleCheckIn = async () => {
     if (!activeSession) {
       setError('You must start your day before checking into an outlet.');
+      return;
+    }
+
+    if (!shopfrontPhoto) {
+      setError('A shopfront photo is mandatory for check-in.');
       return;
     }
 
@@ -50,11 +70,15 @@ export function OutletVisitScreen() {
             lng: position.coords.longitude,
             accuracy: position.coords.accuracy,
           };
-          
+
+          const compressed = await compressImage(shopfrontPhoto);
+          const { url: photoUrl } = await UploadsService.uploadVisitPhoto(compressed, `visit-${outlet.id}.jpg`);
+
           const visit = await VisitsService.checkIn({
             outletId: outlet.id,
             ...loc,
-            photoUrl: 'https://example.com/dummy-shopfront.jpg'
+            photoUrl,
+            idempotencyKey: checkInIdempotencyKey
           });
 
           setActiveVisitId(visit._id);
@@ -149,17 +173,40 @@ export function OutletVisitScreen() {
               </div>
             </div>
           ) : (
-            <button
-              onClick={handleCheckIn}
-              disabled={visitStatus === 'checking_in'}
-              className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-lg font-bold shadow-lg shadow-blue-600/20 disabled:opacity-50"
-            >
-              {visitStatus === 'checking_in' ? (
-                <><Loader2 className="w-6 h-6 animate-spin" /> Checking in...</>
-              ) : (
-                <><MapPin className="w-6 h-6" /> Check In to Outlet</>
+            <div className="space-y-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhotoCapture}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium"
+              >
+                <Camera className="w-5 h-5" />
+                {shopfrontPhoto ? 'Retake Shopfront Photo' : 'Take Shopfront Photo'}
+              </button>
+
+              {photoPreviewUrl && (
+                <img src={photoPreviewUrl} alt="Shopfront preview" className="w-full h-40 object-cover rounded-xl border border-gray-200" />
               )}
-            </button>
+
+              <button
+                onClick={handleCheckIn}
+                disabled={visitStatus === 'checking_in' || !shopfrontPhoto}
+                className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-lg font-bold shadow-lg shadow-blue-600/20 disabled:opacity-50"
+              >
+                {visitStatus === 'checking_in' ? (
+                  <><Loader2 className="w-6 h-6 animate-spin" /> Checking in...</>
+                ) : (
+                  <><MapPin className="w-6 h-6" /> Check In to Outlet</>
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>

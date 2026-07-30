@@ -29,7 +29,15 @@ export class VisitsService {
     return R * c;
   }
 
-  async checkIn(userId: string, organizationId: string, data: { outletId: string; lat: number; lng: number; accuracy: number; isMock?: boolean; deviceTimestamp?: string; photoUrl?: string }) {
+  async checkIn(userId: string, organizationId: string, data: { outletId: string; lat: number; lng: number; accuracy: number; isMock?: boolean; deviceTimestamp?: string; photoUrl?: string; idempotencyKey?: string }) {
+    // Retry of a previously-synced check-in (e.g. offline-first client resubmit)
+    if (data.idempotencyKey) {
+      const existingByKey = await this.visitModel.findOne({ organizationId, idempotencyKey: data.idempotencyKey });
+      if (existingByKey) {
+        return existingByKey;
+      }
+    }
+
     // Check if user already has an active visit
     const existingVisit = await this.visitModel.findOne({ user: userId, status: 'Active' });
     if (existingVisit) {
@@ -42,7 +50,7 @@ export class VisitsService {
       throw new BadRequestException('Invalid outlet ID format');
     }
 
-    const outlet = await this.outletModel.findById(data.outletId).lean();
+    const outlet = await this.outletModel.findOne({ _id: data.outletId, organizationId }).lean();
     if (!outlet) {
       throw new NotFoundException('Outlet not found');
     }
@@ -97,6 +105,7 @@ export class VisitsService {
       distanceFromOutlet: Math.round(distanceFromOutlet),
       isWithinGeofence,
       photoUrl: data.photoUrl,
+      idempotencyKey: data.idempotencyKey,
       status: 'Active'
     });
 

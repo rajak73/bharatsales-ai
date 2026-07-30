@@ -1,6 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PERMISSIONS_KEY } from './permissions.decorator';
+import { PERMISSIONS_KEY, IS_PUBLIC_KEY } from './permissions.decorator';
 import { RBAC, Action, Resource } from '@bharatsales/permissions';
 
 @Injectable()
@@ -8,13 +8,23 @@ export class PermissionsGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass()
+    ]);
+    if (isPublic) {
+      return true;
+    }
+
     const requiredPermission = this.reflector.getAllAndOverride<{ resource: Resource; action: Action }>(
       PERMISSIONS_KEY,
       [context.getHandler(), context.getClass()]
     );
 
     if (!requiredPermission) {
-      return true; // No specific permissions required
+      // Deny by default: every route behind PermissionsGuard must declare its
+      // resource:action mapping explicitly, or be marked @Public().
+      throw new ForbiddenException('No permission mapping defined for this route');
     }
 
     const { user } = context.switchToHttp().getRequest();

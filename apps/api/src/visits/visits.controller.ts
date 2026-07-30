@@ -17,7 +17,7 @@ export class VisitsController {
 
 @RequirePermissions(Resource.Visits, Action.Create)
   @Post('check-in')
-  checkIn(@Request() req: any, @Body() data: { outletId: string; lat: number; lng: number; accuracy: number; isMock?: boolean; deviceTimestamp?: string }) {
+  checkIn(@Request() req: any, @Body() data: { outletId: string; lat: number; lng: number; accuracy: number; isMock?: boolean; deviceTimestamp?: string; photoUrl?: string; idempotencyKey?: string }) {
     return this.visitsService.checkIn(req.user.sub, req.user.orgId, data);
   }
 

@@ -6,6 +6,7 @@ import { ReturnOrder, ReturnSchema } from '../schemas/return.schema';
 import { Outlet, OutletSchema, Invoice, InvoiceSchema, Order, OrderSchema, Product, ProductSchema } from '../schemas';
 import { InventoryModule } from '../inventory/inventory.module';
 import { FinanceModule } from '../finance/finance.module';
+import { HierarchyModule } from '../hierarchy/hierarchy.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { FinanceModule } from '../finance/finance.module';
     ]),
     InventoryModule,
     FinanceModule,
+    HierarchyModule,
   ],
   controllers: [ReturnsController],
   providers: [ReturnsService],

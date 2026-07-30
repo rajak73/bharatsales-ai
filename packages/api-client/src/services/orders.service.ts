@@ -2,8 +2,8 @@ import { apiClient } from '../index';
 import type { Order } from '@bharatsales/shared-types';
 
 export const OrdersService = {
-  getOrders: async (): Promise<Order[]> => {
-    const response = await apiClient.get('/orders');
+  getOrders: async (params?: { mine?: boolean }): Promise<Order[]> => {
+    const response = await apiClient.get('/orders', { params });
     return response.data;
   },
 

@@ -9,11 +9,16 @@ export class Beat extends Document {
   @Prop()
   description?: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Organization', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Organization', required: true, index: true })
   organizationId: Types.ObjectId;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Outlet' }], default: [] })
   outlets: Types.ObjectId[];
+
+  // Planned visit order for route-deviation checks (BRD Phase 6). Additive
+  // alongside `outlets` so existing consumers of the unordered list are unaffected.
+  @Prop({ type: [{ outletId: { type: Types.ObjectId, ref: 'Outlet' }, sequenceOrder: Number }], default: [] })
+  sequence: { outletId: Types.ObjectId; sequenceOrder: number }[];
 
   @Prop({ default: 'Active', enum: ['Active', 'Draft', 'Archived'] })
   status: string;
@@ -32,7 +37,7 @@ export class BeatSchedule extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Beat', required: true })
   beat: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Organization', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Organization', required: true, index: true })
   organizationId: Types.ObjectId;
 
   @Prop({ required: true })

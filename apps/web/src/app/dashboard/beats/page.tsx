@@ -14,10 +14,23 @@ export default function BeatsPage() {
   const [allBeats, setAllBeats] = useState<Beat[]>([]);
   const [salesReps, setSalesReps] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<{ role: string } | null>(null);
+  const canManage = user?.role !== 'Sales Representative';
 
   useEffect(() => {
     fetchBeats();
     fetchUsers();
+
+    // Decode user role from JWT
+    try {
+      const token = localStorage.getItem('bharatsales_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUser({ role: payload.role });
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   const fetchBeats = async () => {
@@ -104,7 +117,9 @@ export default function BeatsPage() {
             <option>Friday</option>
             <option>Saturday</option>
           </select>
-          <button onClick={() => setShowCreateModal(true)} className="btn-primary text-sm">+ Create Beat</button>
+          {canManage && (
+            <button onClick={() => setShowCreateModal(true)} className="btn-primary text-sm">+ Create Beat</button>
+          )}
         </div>
       </div>
 
@@ -170,8 +185,12 @@ export default function BeatsPage() {
               </div>
               <div className="flex space-x-2 mt-4 pt-4 border-t border-gray-100">
                 <button className="flex-1 text-center text-sm text-primary-600 hover:text-primary-700 font-medium">View</button>
-                <button className="flex-1 text-center text-sm text-gray-500 hover:text-gray-700">Edit</button>
-                <button className="flex-1 text-center text-sm text-gray-500 hover:text-gray-700">Publish</button>
+                {canManage && (
+                  <>
+                    <button className="flex-1 text-center text-sm text-gray-500 hover:text-gray-700">Edit</button>
+                    <button className="flex-1 text-center text-sm text-gray-500 hover:text-gray-700">Publish</button>
+                  </>
+                )}
               </div>
             </div>
           ))
@@ -184,7 +203,7 @@ export default function BeatsPage() {
       </div>
 
       {/* Create Beat Modal */}
-      {showCreateModal && (
+      {showCreateModal && canManage && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-6">

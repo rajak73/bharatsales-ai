@@ -16,6 +16,7 @@ describe('SyncService Security', () => {
     find: jest.fn().mockReturnThis(),
     exec: jest.fn().mockResolvedValue([]),
     findById: jest.fn().mockReturnThis(),
+    findOne: jest.fn().mockReturnValue({ session: jest.fn().mockResolvedValue(null) }),
     session: jest.fn().mockResolvedValue(null),
     findOneAndUpdate: jest.fn(),
     db: {

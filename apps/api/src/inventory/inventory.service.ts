@@ -13,9 +13,14 @@ export class InventoryService {
     @InjectModel('Product') private productModel: Model<any>,
   ) {}
 
-  async getInventory(organizationId: string): Promise<Inventory[]> {
+  async getInventory(organizationId: string, user?: any): Promise<Inventory[]> {
     this.logger.log(`Fetching inventory for org ${organizationId}`);
-    return this.inventoryModel.find({ organizationId }).exec();
+    const query: any = { organizationId };
+    if (user && user.role === 'Distributor') {
+      // A Distributor only sees their own stock, not the whole org's inventory.
+      query.distributorId = user.distributorId || '__none__';
+    }
+    return this.inventoryModel.find(query).exec();
   }
 
   async getBatches(organizationId: string, productId: string): Promise<Inventory[]> {
@@ -278,7 +283,7 @@ export class InventoryService {
     } else {
       if (adjustmentQty < 0) throw new Error('Cannot reduce stock below 0 for a non-existent batch.');
       
-      const product = await this.productModel.findById(adjustment.productId).exec();
+      const product = await this.productModel.findOne({ _id: adjustment.productId, organizationId }).exec();
       if (!product) {
         throw new Error(`Product ${adjustment.productId} not found`);
       }

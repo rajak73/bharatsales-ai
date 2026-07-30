@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SalesTarget as Target, Order } from '@bharatsales/shared-types';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TargetsService {
@@ -11,11 +12,27 @@ export class TargetsService {
   constructor(
     @InjectModel('Target') private targetModel: Model<Target>,
     @InjectModel('Order') private orderModel: Model<Order>,
+    private notificationsService: NotificationsService,
   ) {}
 
   async getTargets(organizationId: string) {
     const targets = await this.targetModel.find({ organizationId }).lean();
-    
+    return this.calculateForTargets(targets);
+  }
+
+  // Same achievement-calc logic as getTargets(), for an explicit set of
+  // entities (e.g. a Sales Manager's team) rather than the whole org.
+  async getTargetsForEntities(organizationId: string, entityIds: string[]) {
+    if (!entityIds || entityIds.length === 0) return [];
+    const targets = await this.targetModel.find({
+      organizationId,
+      entityType: 'User',
+      entityId: { $in: entityIds }
+    }).lean();
+    return this.calculateForTargets(targets);
+  }
+
+  private async calculateForTargets(targets: any[]) {
     const calculatedTargets = await Promise.all(
       targets.map(async (target) => {
         let actualValue = target.actualValue || 0;
@@ -171,6 +188,15 @@ export class TargetsService {
     delete (data as any).updatedAt;
     const target = new this.targetModel({ ...data, organizationId });
     const saved = await target.save();
+
+    if ((data as any).entityType === 'User' && (data as any).entityId) {
+      this.notificationsService.create(organizationId, (data as any).entityId, {
+        type: 'target_assigned',
+        title: 'New Target Assigned',
+        message: `A new ${(data as any).metric || ''} target has been assigned to you.`
+      }).catch(err => this.logger.error('Failed to create target-assigned notification', err));
+    }
+
     return { ...saved.toObject(), id: saved._id.toString() };
   }
 

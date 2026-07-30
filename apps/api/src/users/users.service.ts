@@ -5,26 +5,42 @@ import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { User } from '@bharatsales/shared-types';
 import { Tenant } from '../schemas/tenant.schema';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel('User') private readonly userModel: Model<any>,
     @InjectModel('Token') private readonly tokenModel: Model<any>,
-    @InjectModel(Tenant.name) private readonly tenantModel: Model<Tenant>
+    @InjectModel(Tenant.name) private readonly tenantModel: Model<Tenant>,
+    private readonly hierarchyService: HierarchyService
   ) {}
 
-  async findAllByOrgId(organizationId: string) {
-    return this.userModel.find({ organizationId }).select('-password').exec();
+  async findAllByOrgId(organizationId: string, user?: any) {
+    const query: any = { organizationId };
+    if (user && user.role === 'Distributor') {
+      // A Distributor only manages their own staff, not the whole org's users.
+      query.distributorId = user.distributorId || '__none__';
+    } else if (user && user.role === 'Sales Manager') {
+      // A Sales Manager only sees the reps on their own team, not the whole org.
+      const teamUserIds = await this.hierarchyService.getTeamUserIds(organizationId, user.sub);
+      query._id = { $in: teamUserIds.length ? teamUserIds : ['__none__'] };
+    }
+    return this.userModel.find(query).select('-password').exec();
   }
 
-  async createUser(organizationId: string, actorRole: string, userData: Partial<User> & { password?: string }) {
+  async createUser(organizationId: string, actorRole: string, userData: Partial<User> & { password?: string }, actorDistributorId?: string) {
     delete (userData as any).organizationId;
     delete (userData as any)._id;
     delete (userData as any).createdAt;
     delete (userData as any).updatedAt;
     if (userData.role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can create other Super Admins.');
+    }
+
+    // A Distributor-created user is scoped to that same distributor's staff.
+    if (actorRole === 'Distributor') {
+      (userData as any).distributorId = actorDistributorId;
     }
 
     if (!userData.email) {

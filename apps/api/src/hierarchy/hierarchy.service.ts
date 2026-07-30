@@ -106,6 +106,25 @@ export class HierarchyService {
     return { deleted: true };
   }
 
+  // Resolves the Sales Representatives reporting (via territory) to a given
+  // Sales Manager — derived from the territory tree since there's no direct
+  // manager/reportsTo field on User.
+  async getTeamUserIds(organizationId: string, managerUserId: string): Promise<string[]> {
+    const managerTerritories = await this.getUserTerritories(managerUserId);
+    if (!managerTerritories || managerTerritories.length === 0) return [];
+
+    const descendantIds = await this.getDescendantTerritoryIds(organizationId, managerTerritories);
+    if (descendantIds.length === 0) return [];
+
+    const reps = await this.userModel.find({
+      organizationId,
+      role: 'Sales Representative',
+      territoryIds: { $in: descendantIds }
+    }).select('_id').exec();
+
+    return reps.map((u: any) => u._id.toString());
+  }
+
   async getDescendantTerritoryIds(organizationId: string, nodeIds: string[]): Promise<string[]> {
     if (!nodeIds || nodeIds.length === 0) return [];
     

@@ -14,7 +14,7 @@ import { OutletSchema } from '../schemas/outlet.schema';
       { name: 'Outlet', schema: OutletSchema }
     ]),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'bharatsales-super-secret-key-2026',
+      secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '7d' },
     }),
   ],

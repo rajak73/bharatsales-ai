@@ -13,7 +13,8 @@ export interface PaymentCollection {
   status: 'Draft' | 'Submitted' | 'Pending_Verification' | 'Verified' | 'Rejected' | 'Reversed' | 'Pending' | 'Cleared' | 'Bounced';
   collectionDate: string;
   allocations?: { invoiceId: string, amount: number }[];
-  
+  idempotencyKey?: string;
+
   createdAt: string;
   updatedAt: string;
 }

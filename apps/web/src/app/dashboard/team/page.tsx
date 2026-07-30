@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UsersService } from '@bharatsales/api-client';
+import { UsersService, PerformanceService, BeatsService } from '@bharatsales/api-client';
 import { User, UserRole } from '@bharatsales/shared-types';
 import { Loader2 } from 'lucide-react';
 
@@ -13,9 +13,13 @@ export default function TeamPage() {
   const [newMember, setNewMember] = useState({ name: '', role: 'Sales Representative' as UserRole, territory: '', mobile: '', email: '' });
   const [allMembers, setAllMembers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teamDSR, setTeamDSR] = useState<any>(null);
+  const [teamTargets, setTeamTargets] = useState<any[]>([]);
+  const [beatCompletion, setBeatCompletion] = useState<{ teamCompletionPercentage: number; reps: any[] } | null>(null);
 
   useEffect(() => {
     fetchUsers();
+    fetchTeamStats();
   }, []);
 
   const fetchUsers = async () => {
@@ -29,6 +33,25 @@ export default function TeamPage() {
       setLoading(false);
     }
   };
+
+  const fetchTeamStats = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const [dsr, targets, beats] = await Promise.all([
+        PerformanceService.getTeamDSR(today).catch(() => null),
+        PerformanceService.getTeamTargets().catch(() => []),
+        BeatsService.getTeamBeatCompletion().catch(() => null),
+      ]);
+      setTeamDSR(dsr);
+      setTeamTargets(targets || []);
+      setBeatCompletion(beats);
+    } catch (error) {
+      console.error('Failed to fetch team stats:', error);
+    }
+  };
+
+  const repStats = (userId: string) => teamDSR?.repBreakdown?.find((r: any) => r.userId === userId);
+  const repTarget = (userId: string) => teamTargets.find((t: any) => t.entityId === userId);
 
   // Filter members
   const filteredMembers = allMembers.filter(member => {
@@ -88,7 +111,7 @@ export default function TeamPage() {
       </div>
 
       {/* Team Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <div className="card text-center">
           <div className="text-2xl font-bold text-gray-900">{allMembers.length}</div>
           <div className="text-sm text-gray-500">Total Members</div>
@@ -98,12 +121,16 @@ export default function TeamPage() {
           <div className="text-sm text-gray-500">Active Today</div>
         </div>
         <div className="card text-center">
-          <div className="text-2xl font-bold text-primary-600">0</div>
-          <div className="text-sm text-gray-500">Total Visits (Month)</div>
+          <div className="text-2xl font-bold text-primary-600">{teamDSR?.metrics?.totalVisits ?? 0}</div>
+          <div className="text-sm text-gray-500">Total Visits (Today)</div>
         </div>
         <div className="card text-center">
-          <div className="text-2xl font-bold text-saffron-600">₹0</div>
-          <div className="text-sm text-gray-500">Team Revenue</div>
+          <div className="text-2xl font-bold text-saffron-600">{formatCurrency(teamDSR?.metrics?.totalOrderValue ?? 0)}</div>
+          <div className="text-sm text-gray-500">Team Revenue (Today)</div>
+        </div>
+        <div className="card text-center">
+          <div className="text-2xl font-bold text-blue-600">{beatCompletion?.teamCompletionPercentage ?? 0}%</div>
+          <div className="text-sm text-gray-500">Beat Completion (Today)</div>
         </div>
       </div>
 
@@ -145,7 +172,10 @@ export default function TeamPage() {
             <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
           </div>
         ) : filteredMembers.length > 0 ? (
-          filteredMembers.map((member) => (
+          filteredMembers.map((member) => {
+            const stats = repStats(member.id);
+            const target = repTarget(member.id);
+            return (
             <div key={member.id} className="card flex items-center justify-between hover:shadow-md transition-shadow">
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
@@ -159,15 +189,15 @@ export default function TeamPage() {
               </div>
               <div className="flex items-center space-x-8">
                 <div className="text-center">
-                  <div className="text-sm font-bold text-gray-900">0</div>
-                  <div className="text-xs text-gray-500">Visits</div>
+                  <div className="text-sm font-bold text-gray-900">{stats?.totalVisits ?? '-'}</div>
+                  <div className="text-xs text-gray-500">Visits Today</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-sm font-bold text-gray-900">₹0</div>
-                  <div className="text-xs text-gray-500">Orders</div>
+                  <div className="text-sm font-bold text-gray-900">{stats ? formatCurrency(stats.totalOrderValue) : '-'}</div>
+                  <div className="text-xs text-gray-500">Orders Today</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-sm font-bold text-primary-600">0%</div>
+                  <div className="text-sm font-bold text-primary-600">{target ? `${Math.round(target.meta?.achievementPercentage ?? 0)}%` : '-'}</div>
                   <div className="text-xs text-gray-500">Target</div>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${member.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
@@ -175,7 +205,8 @@ export default function TeamPage() {
                 </span>
               </div>
             </div>
-          ))
+            );
+          })
         ) : (
           <div className="card text-center py-12">
             <div className="text-4xl mb-2">👥</div>

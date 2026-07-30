@@ -94,8 +94,8 @@ export default function CollectionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Collections</h1>
-          <p className="text-gray-500">Track incoming payments from field representatives.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
+          <p className="text-gray-500">Payments collected from the outlets you supply.</p>
         </div>
         <div className="flex space-x-3">
           <button 
@@ -163,8 +163,8 @@ export default function CollectionsPage() {
                       <div className="bg-gray-50 p-3 rounded-full mb-3">
                         <IndianRupee className="h-8 w-8 text-gray-400" />
                       </div>
-                      <h3 className="text-sm font-medium text-gray-900 mb-1">No collections yet</h3>
-                      <p className="text-sm text-gray-500">Payments recorded in the field app will appear here.</p>
+                      <h3 className="text-sm font-medium text-gray-900 mb-1">No payments yet</h3>
+                      <p className="text-sm text-gray-500">Payments you record from your outlets will appear here.</p>
                     </div>
                   </td>
                 </tr>

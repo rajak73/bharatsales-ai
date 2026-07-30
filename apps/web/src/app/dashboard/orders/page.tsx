@@ -85,19 +85,6 @@ export default function OrdersPage() {
     }
   };
 
-  const handleDispatch = async (orderId: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    try {
-      await OrdersService.dispatchOrder(orderId);
-      await fetchOrders();
-    } catch (error) {
-      console.error('Failed to dispatch order:', error);
-      alert('Failed to dispatch order. Please check reserved stock.');
-    }
-  };
-
-
-
   const filteredOrders = orders.filter(order => 
     order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.outletId?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -308,15 +295,6 @@ export default function OrdersPage() {
                       {user?.role === 'Distributor' ? 'Confirm & Allocate' : 'Approve Order'}
                     </button>
                   )}
-                  {selectedOrder.status === 'Approved' && (
-                    <button 
-                      onClick={() => handleDispatch(selectedOrder.id!)}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
-                    >
-                      Mark Dispatched
-                    </button>
-                  )}
-
                 </div>
               </div>
 

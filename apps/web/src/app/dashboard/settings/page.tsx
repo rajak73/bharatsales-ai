@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SettingsService } from '@bharatsales/api-client';
+import { SettingsService, SupportService } from '@bharatsales/api-client';
 import { Settings } from '@bharatsales/shared-types';
 import { Loader2 } from 'lucide-react';
 
@@ -9,6 +9,8 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('company');
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [ticketForm, setTicketForm] = useState({ subject: '', message: '', priority: 'Medium' });
+  const [submittingTicket, setSubmittingTicket] = useState(false);
   const [settings, setSettings] = useState<Settings>({
     organizationId: '',
     companyName: '',
@@ -66,10 +68,26 @@ export default function SettingsPage() {
     });
   };
 
+  const handleRaiseTicket = async () => {
+    if (!ticketForm.subject || !ticketForm.message) return;
+    try {
+      setSubmittingTicket(true);
+      await SupportService.createTicket(ticketForm);
+      setTicketForm({ subject: '', message: '', priority: 'Medium' });
+      setSuccessMessage('Support ticket raised successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error('Failed to raise support ticket:', error);
+    } finally {
+      setSubmittingTicket(false);
+    }
+  };
+
   const sections = [
     { id: 'company', label: 'Company Profile', icon: '🏢' },
     { id: 'attendance', label: 'Attendance & Geofence', icon: '📍' },
     { id: 'order', label: 'Order & Approval', icon: '📋' },
+    { id: 'support', label: 'Support', icon: '🎫' },
   ];
 
   return (
@@ -302,6 +320,55 @@ export default function SettingsPage() {
                   <li>• Large order threshold</li>
                 </ul>
               </div>
+            </div>
+          )}
+
+          {/* Support */}
+          {activeSection === 'support' && (
+            <div className="card space-y-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">Raise a Support Ticket</h3>
+                <p className="text-sm text-gray-500 mb-4">Reach the BharatSales platform team about an issue with your account.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={ticketForm.subject}
+                  onChange={(e) => setTicketForm({ ...ticketForm, subject: e.target.value })}
+                  placeholder="Briefly describe the issue"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                <textarea
+                  className="input-field"
+                  rows={4}
+                  value={ticketForm.message}
+                  onChange={(e) => setTicketForm({ ...ticketForm, message: e.target.value })}
+                  placeholder="Describe the issue in detail"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <select
+                  className="input-field"
+                  value={ticketForm.priority}
+                  onChange={(e) => setTicketForm({ ...ticketForm, priority: e.target.value })}
+                >
+                  <option>Low</option>
+                  <option>Medium</option>
+                  <option>High</option>
+                </select>
+              </div>
+              <button
+                onClick={handleRaiseTicket}
+                disabled={submittingTicket || !ticketForm.subject || !ticketForm.message}
+                className="btn-primary text-sm disabled:opacity-50"
+              >
+                {submittingTicket ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Ticket'}
+              </button>
             </div>
           )}
 

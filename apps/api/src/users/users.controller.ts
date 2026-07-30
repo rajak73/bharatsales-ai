@@ -18,7 +18,7 @@ export class UsersController {
   @Get()
   async getUsers(@Request() req: any) {
     const orgId = req.user.orgId;
-    return this.usersService.findAllByOrgId(orgId);
+    return this.usersService.findAllByOrgId(orgId, req.user);
   }
 
 @RequirePermissions(Resource.Users, Action.Create)
@@ -27,7 +27,7 @@ export class UsersController {
   async createUser(@Request() req: any, @Body() userData: Partial<User> & { password?: string }) {
     const orgId = req.user.orgId;
     const actorRole = req.user.role;
-    return this.usersService.createUser(orgId, actorRole, userData);
+    return this.usersService.createUser(orgId, actorRole, userData, req.user.distributorId);
   }
 
 @RequirePermissions(Resource.Users, Action.Update)

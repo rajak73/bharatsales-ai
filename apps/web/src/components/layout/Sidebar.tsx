@@ -7,7 +7,8 @@ import {
   Truck, Percent, Tags, Gift, ArrowDownToLine,
   Link as LinkIcon, UserCog, Smartphone, CreditCard,
   Sparkles, CalendarClock, Settings, ShieldCheck, Repeat, Receipt, Network,
-  BarChart3, ShieldAlert, BookOpen, Server, ChevronDown, ChevronRight
+  BarChart3, ShieldAlert, BookOpen, Server, ChevronDown, ChevronRight, Bell, Trophy,
+  Building2, LifeBuoy, IndianRupee
 } from 'lucide-react';
 
 const ALL_ROLES = ['Super Admin', 'Organization Admin', 'Sales Manager', 'Sales Representative', 'Distributor'];
@@ -21,21 +22,25 @@ const navGroups = [
     title: 'Overview',
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ALL_ROLES },
+      { icon: Bell, label: 'Notifications', href: '/dashboard/notifications', roles: ALL_ROLES },
       { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
       { icon: MapPin, label: 'Live Map', href: '/dashboard/live-map', roles: ['Sales Manager'] },
-      { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
+      { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Organization Admin', 'Sales Manager', 'Distributor'] },
       { icon: Users, label: 'Team', href: '/dashboard/team', roles: ORG_AND_MANAGER },
+      { icon: Trophy, label: 'Performance', href: '/dashboard/performance', roles: ['Sales Manager'] },
       { icon: Repeat, label: 'Outlet 360', href: '/dashboard/outlet-360', roles: MANAGER_AND_REP },
-      { icon: Receipt, label: 'Collections', href: '/dashboard/collections', roles: ['Distributor'] },
+      { icon: Receipt, label: 'Payments', href: '/dashboard/collections', roles: ['Distributor'] },
       { icon: Gift, label: 'Incentives', href: '/dashboard/incentives', roles: ORG_AND_MANAGER },
     ]
   },
   {
     title: 'Sales Operations',
     items: [
-      { icon: Target, label: 'Beats', href: '/dashboard/beats', roles: MANAGER_AND_REP },
-      { icon: Store, label: 'Outlets', href: '/dashboard/outlets', roles: FIELD_EXECUTION },
+      { icon: Target, label: 'Beats', href: '/dashboard/beats', roles: ['Sales Manager'] },
+      { icon: ShoppingCart, label: 'Sales', href: '/dashboard/sales', roles: ['Organization Admin'] },
+      { icon: Store, label: 'Outlets', href: '/dashboard/outlets', roles: [...FIELD_EXECUTION, 'Organization Admin'] },
       { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders', roles: FIELD_EXECUTION },
+      { icon: Truck, label: 'Deliveries', href: '/dashboard/deliveries', roles: ['Distributor'] },
       { icon: CheckSquare, label: 'Approvals', href: '/dashboard/approvals', roles: ORG_AND_MANAGER },
       { icon: Target, label: 'Targets', href: '/dashboard/targets', roles: ORG_AND_MANAGER }
     ]
@@ -55,6 +60,20 @@ const navGroups = [
       { icon: UserCog, label: 'Roles', href: '/dashboard/roles', roles: ['Super Admin'] },
       { icon: Network, label: 'Hierarchy', href: '/dashboard/hierarchy', roles: ['Organization Admin'] },
       { icon: Settings, label: 'Settings', href: '/dashboard/settings', roles: ADMIN_ROLES },
+    ]
+  },
+  {
+    title: 'Platform',
+    items: [
+      { icon: Server, label: 'Platform Dashboard', href: '/dashboard/superadmin', roles: ['Super Admin'] },
+      { icon: Building2, label: 'Organizations', href: '/dashboard/superadmin/organizations', roles: ['Super Admin'] },
+      { icon: CreditCard, label: 'Subscriptions', href: '/dashboard/superadmin/subscriptions', roles: ['Super Admin'] },
+      { icon: IndianRupee, label: 'Billing', href: '/dashboard/superadmin/billing', roles: ['Super Admin'] },
+      { icon: BarChart3, label: 'Platform Analytics', href: '/dashboard/superadmin/analytics', roles: ['Super Admin'] },
+      { icon: Users, label: 'Global Users', href: '/dashboard/superadmin/users', roles: ['Super Admin'] },
+      { icon: LifeBuoy, label: 'Support', href: '/dashboard/superadmin/support', roles: ['Super Admin'] },
+      { icon: ShieldCheck, label: 'Audit Logs', href: '/dashboard/superadmin/audit', roles: ['Super Admin'] },
+      { icon: Settings, label: 'Platform Settings', href: '/dashboard/superadmin/settings', roles: ['Super Admin'] },
     ]
   }
 ];
@@ -138,12 +157,6 @@ export function Sidebar({ open, user }: { open: boolean, user?: { role: string }
       </nav>
 
       <div className="p-3 border-t border-gray-100 bg-gray-50 flex-shrink-0 space-y-1">
-        {userRole === 'Super Admin' && (
-          <Link href="/dashboard/superadmin" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Super Admin' : undefined}>
-            <Server className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
-            {open && <span className="font-medium truncate">Super Admin</span>}
-          </Link>
-        )}
         <a href={process.env.NEXT_PUBLIC_FIELD_PWA_URL || 'http://localhost:6001'} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Field PWA' : undefined}>
           <Smartphone className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
           {open && <span className="font-medium truncate">Field PWA</span>}

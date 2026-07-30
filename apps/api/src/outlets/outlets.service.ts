@@ -7,6 +7,7 @@ import { Visit } from '../schemas/visit.schema';
 import { Outlet as SharedOutlet } from '@bharatsales/shared-types';
 import { Tenant } from '../schemas/tenant.schema';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class OutletsService {
@@ -15,7 +16,9 @@ export class OutletsService {
     @InjectModel(Order.name) private orderModel: Model<Order>,
     @InjectModel(Visit.name) private visitModel: Model<Visit>,
     @InjectModel(Tenant.name) private tenantModel: Model<Tenant>,
-    private readonly hierarchyService: HierarchyService
+    @InjectModel('User') private userModel: Model<any>,
+    private readonly hierarchyService: HierarchyService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   async findAllByOrgId(organizationId: string, user?: any): Promise<Outlet[]> {
@@ -136,6 +139,20 @@ export class OutletsService {
     if (!updated) {
       throw new NotFoundException('Outlet not found during update');
     }
+
+    const newDistributorId = data['commercial.assignedDistributorId'];
+    const previousDistributorId = outlet.commercial?.assignedDistributorId?.toString();
+    if (newDistributorId && newDistributorId !== previousDistributorId) {
+      const distributorUsers = await this.userModel.find({ organizationId, role: 'Distributor', distributorId: newDistributorId }).exec();
+      for (const distributorUser of distributorUsers) {
+        this.notificationsService.create(organizationId, distributorUser._id.toString(), {
+          type: 'distributor_assigned',
+          title: 'New Outlet Assigned',
+          message: `Outlet ${updated.name} has been assigned to you.`
+        }).catch(() => {});
+      }
+    }
+
     return updated;
   }
 }

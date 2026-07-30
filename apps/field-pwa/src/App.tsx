@@ -2,6 +2,8 @@ import './App.css'
 import { useSyncEngine } from './hooks/useSyncEngine'
 import { MobileLayout } from './components/MobileLayout'
 import { HomeScreen } from './screens/HomeScreen'
+import { TodaysBeatScreen } from './screens/TodaysBeatScreen'
+import { OrdersScreen } from './screens/OrdersScreen'
 import { OutletsScreen } from './screens/OutletsScreen'
 import { CatalogScreen } from './screens/CatalogScreen'
 import { CartScreen } from './screens/CartScreen'
@@ -13,7 +15,7 @@ import { OutletVisitScreen } from './screens/OutletVisitScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { NotificationsScreen } from './screens/NotificationsScreen'
 import { LogOut } from 'lucide-react'
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { SyncEngine } from './sync/syncEngine'
 
@@ -26,15 +28,6 @@ function ProfileScreen() {
   return (
     <div className="p-4 space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
-      
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-        <Link
-          to="/attendance"
-          className="w-full flex items-center justify-center bg-blue-600 text-white px-4 py-3 rounded-lg text-lg font-bold hover:bg-blue-700 shadow-md transition-colors"
-        >
-          Daily Attendance (Start Day)
-        </Link>
-      </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <h3 className="font-semibold text-gray-900 mb-2">Sync Status</h3>
@@ -107,6 +100,8 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<HomeScreen />} />
             <Route path="/home" element={<HomeScreen />} />
+            <Route path="/beat" element={<TodaysBeatScreen />} />
+            <Route path="/orders" element={<OrdersScreen />} />
             <Route path="/outlets" element={<OutletsScreen />} />
             <Route path="/catalog" element={<CatalogScreen />} />
             <Route path="/cart" element={<CartScreen />} />

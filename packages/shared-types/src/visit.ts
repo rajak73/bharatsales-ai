@@ -9,4 +9,5 @@ export interface Visit {
   distanceFromOutlet?: number;
   isWithinGeofence?: boolean;
   status: 'Active' | 'Completed';
+  idempotencyKey?: string;
 }

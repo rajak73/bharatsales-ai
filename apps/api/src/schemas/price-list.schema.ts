@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class PriceList extends Document {
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   organizationId: string;
 
   @Prop({ required: true })

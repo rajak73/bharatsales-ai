@@ -79,7 +79,7 @@ export class FinanceService {
   }
 
   async createCreditNote(organizationId: string, outletId: string, amount: number, referenceId: string, session?: any): Promise<PaymentCollection> {
-    const outlet = await this.outletModel.findById(outletId).session(session);
+    const outlet = await this.outletModel.findOne({ _id: outletId, organizationId }).session(session);
     if (!outlet) {
       throw new NotFoundException('Outlet not found');
     }
@@ -109,7 +109,7 @@ export class FinanceService {
     const session = await this.connection.startSession();
     session.startTransaction();
     try {
-      const outlet = await this.outletModel.findById(data.outletId).session(session);
+      const outlet = await this.outletModel.findOne({ _id: data.outletId, organizationId }).session(session);
       if (!outlet) {
         throw new NotFoundException('Outlet not found');
       }
@@ -255,7 +255,7 @@ export class FinanceService {
       
       await reversal.save({ session });
 
-      const outlet = await this.outletModel.findById(original.outletId).session(session);
+      const outlet = await this.outletModel.findOne({ _id: original.outletId, organizationId }).session(session);
       if (outlet) {
         outlet.commercial.outstandingBalance += original.amount;
         await outlet.save({ session });
@@ -263,7 +263,7 @@ export class FinanceService {
 
       if (original.allocations && original.allocations.length > 0) {
         for (const alloc of original.allocations) {
-          const invoice = await this.invoiceModel.findById(alloc.invoiceId).session(session);
+          const invoice = await this.invoiceModel.findOne({ _id: alloc.invoiceId, organizationId }).session(session);
           if (invoice) {
             invoice.paidAmount -= alloc.amount;
             if (invoice.paidAmount <= 0) {
@@ -277,7 +277,7 @@ export class FinanceService {
         }
       } else if (original.invoiceId) {
         // Fallback for older data without allocations array
-        const invoice = await this.invoiceModel.findById(original.invoiceId).session(session);
+        const invoice = await this.invoiceModel.findOne({ _id: original.invoiceId, organizationId }).session(session);
         if (invoice) {
           invoice.paidAmount -= original.amount;
           if (invoice.paidAmount <= 0) {

@@ -2,13 +2,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../database/db';
 import { Search, ShoppingCart, Plus, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 
 import type { Product } from '@bharatsales/shared-types';
 
 export function CatalogScreen() {
   const { state } = useLocation();
+  const navigate = useNavigate();
   const outletId = state?.outletId;
   const [search, setSearch] = useState('');
   const [isDictating, setIsDictating] = useState(false);
@@ -77,14 +78,14 @@ export function CatalogScreen() {
     <div className="p-4 space-y-4">
       <div className="flex justify-between items-center mb-2">
         <h1 className="text-2xl font-bold text-gray-900">Catalog</h1>
-        <div className="bg-primary-100 text-primary-800 p-2 rounded-full relative">
+        <button onClick={() => navigate('/cart')} className="bg-primary-100 text-primary-800 p-2 rounded-full relative">
           <ShoppingCart className="w-5 h-5" />
           {totalItems > 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
               {totalItems}
             </span>
           )}
-        </div>
+        </button>
       </div>
 
       <div className="flex gap-2 mb-2">

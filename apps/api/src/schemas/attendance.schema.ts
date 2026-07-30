@@ -6,7 +6,7 @@ export class AttendanceSession extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   user: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Organization', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Organization', required: true, index: true })
   organizationId: Types.ObjectId;
 
   @Prop({ required: true })

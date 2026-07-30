@@ -41,9 +41,20 @@ export class Visit extends Document {
 
   @Prop({ type: [Object], default: [] })
   activities?: any[];
+
+  @Prop()
+  idempotencyKey?: string;
 }
 
 export const VisitSchema = SchemaFactory.createForClass(Visit);
 
 VisitSchema.index({ user: 1, checkInTime: -1 });
 VisitSchema.index({ checkInLocation: '2dsphere' });
+VisitSchema.index({ organizationId: 1, checkInTime: -1 });
+// partialFilterExpression (not sparse) is required here: since organizationId is
+// always present, a plain compound sparse index would still enforce uniqueness
+// across every document that omits idempotencyKey (they'd collide on `null`).
+VisitSchema.index(
+  { organizationId: 1, idempotencyKey: 1 },
+  { unique: true, partialFilterExpression: { idempotencyKey: { $exists: true } } }
+);

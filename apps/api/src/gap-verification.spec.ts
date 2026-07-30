@@ -93,9 +93,11 @@ describe('Gap Verification (e2e)', () => {
         status: 'Active'
       } as any);
 
+      // The hacker's own outlet, legitimately in their org (org-2) — isolates
+      // this test to product tenant-isolation rather than outlet isolation.
       await connection.collection('outlets').insertOne({
         _id: new Types.ObjectId(anyOutletId),
-        organizationId: 'org-1',
+        organizationId: 'org-2',
         territoryId: territoryId.toHexString(),
         status: 'Active'
       } as any);

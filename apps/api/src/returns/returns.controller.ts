@@ -19,7 +19,7 @@ export class ReturnsController {
 @RequirePermissions(Resource.Returns, Action.Read)
   @Get()
   async getReturns(@Request() req: any) {
-    return this.returnsService.getReturns(req.user.orgId);
+    return this.returnsService.getReturns(req.user.orgId, req.user);
   }
 
 @RequirePermissions(Resource.Returns, Action.Create)

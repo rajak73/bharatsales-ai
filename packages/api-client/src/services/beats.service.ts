@@ -20,4 +20,14 @@ export class BeatsService {
     const response = await apiClient.post<Beat>('/beats', data);
     return response.data;
   }
+
+  static async getTeamBeatCompletion(): Promise<{ teamCompletionPercentage: number; reps: any[] }> {
+    const response = await apiClient.get('/beats/team-today');
+    return response.data;
+  }
+
+  static async checkRouteDeviation(userId?: string, date?: string): Promise<any> {
+    const response = await apiClient.get('/beats/deviation', { params: { userId, date } });
+    return response.data;
+  }
 }

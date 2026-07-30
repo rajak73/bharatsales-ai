@@ -1,9 +1,17 @@
-import { Bell, Store, CheckCircle } from 'lucide-react';
+import { Bell, Store, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TargetsService } from '@bharatsales/api-client';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../database/db';import { useAttendance } from '../contexts/AttendanceContext';
+import { db } from '../database/db';
+import { useAttendance } from '../contexts/AttendanceContext';
+
+function isToday(dateValue: unknown): boolean {
+  if (!dateValue) return false;
+  const d = new Date(dateValue as string);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -68,13 +76,16 @@ export function HomeScreen() {
 
   const allOutlets = useLiveQuery(() => db.outlets.toArray(), []) ?? [];
   const beatSchedules = useLiveQuery(() => db.beatSchedules.toArray(), []) ?? [];
-  const todayBeat = beatSchedules[0];
+  const todayBeat = beatSchedules.find(s => isToday((s as any).date)) ?? beatSchedules[0];
 
-  let smartBeatOutlets: any[] = allOutlets.map(o => ({ ...o, visitStatus: 'upcoming', locationText: o.location?.address || 'Unknown' }));
+  let smartBeatOutlets: any[] = [];
   if (todayBeat && todayBeat.beat && typeof todayBeat.beat !== 'string') {
     const routeOutletIds = (todayBeat.beat as any).outlets.map((o: any) => o._id || o.id);
-    smartBeatOutlets = allOutlets.filter(o => routeOutletIds.includes(o.id)).map(o => ({ ...o, visitStatus: 'upcoming', locationText: o.location?.address || 'Unknown' }));
+    smartBeatOutlets = allOutlets
+      .filter(o => routeOutletIds.includes(o.id))
+      .map(o => ({ ...o, locationText: o.location?.address || 'Unknown' }));
   }
+  const beatPreview = smartBeatOutlets.slice(0, 3);
 
   return (
     <div className="bg-slate-50 min-h-screen font-sans pb-24">
@@ -92,7 +103,7 @@ export function HomeScreen() {
           </div>
           <h1 className="text-white text-xl font-bold tracking-tight">BharatSales AI</h1>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold backdrop-blur-sm border border-white/30">
             RA
@@ -112,11 +123,27 @@ export function HomeScreen() {
       )}
 
       <div className="px-5 py-6 space-y-6">
-        
+
+        {!activeSession && (
+          <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm font-medium border border-yellow-200 shadow-sm flex items-start gap-3">
+            <div className="mt-0.5">⚠️</div>
+            <div>
+              <p className="font-bold mb-1">You are Off Duty</p>
+              <p>Check in via the Attendance tab to start visiting outlets today.</p>
+              <button
+                onClick={() => navigate('/attendance')}
+                className="mt-3 bg-yellow-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm"
+              >
+                Go to Attendance
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Target Progress Card */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
           <h2 className="text-[#1E293B] text-lg font-bold mb-4">Today's Target Progress</h2>
-          
+
           {!targetData.hasTarget ? (
             <div className="text-center py-4">
               <p className="text-sm font-medium text-gray-500">No target assigned for today.</p>
@@ -136,14 +163,14 @@ export function HomeScreen() {
               </div>
 
               <div className="relative h-6 w-full bg-[#E2E8F0] rounded-full overflow-hidden mb-4 shadow-inner">
-                <div 
+                <div
                   className="absolute top-0 left-0 h-full bg-[#2D3A8C] rounded-full transition-all duration-1000 flex items-center justify-end pr-2"
                   style={{ width: `${targetData.percentage}%` }}
                 >
                   <span className="text-white text-xs font-bold">{targetData.percentage}%</span>
                 </div>
               </div>
-              
+
               <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
                 <p className="text-xs font-medium text-[#64748B]">Status: <span className="text-green-600 font-bold">On Track! Keep going!</span></p>
                 <p className="text-xs font-bold text-[#1E293B] bg-slate-100 px-2.5 py-1 rounded-lg">
@@ -154,95 +181,39 @@ export function HomeScreen() {
           )}
         </div>
 
-        {/* Smart Beat Section */}
+        {/* Today's Beat preview */}
         <div>
-          <h2 className="text-[#1E293B] text-xl font-bold">Smart Beat</h2>
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-[#1E293B] text-xl font-bold">Today's Beat</h2>
+            <button onClick={() => navigate('/beat')} className="flex items-center gap-1 text-xs font-bold text-[#2D3A8C]">
+              View All <ChevronRight size={14} />
+            </button>
+          </div>
           <p className="text-[#64748B] text-sm mt-1 mb-4">Retail shops on today's route</p>
 
-          {!activeSession ? (
-            <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm font-medium border border-yellow-200 shadow-sm flex items-start gap-3">
-              <div className="mt-0.5">⚠️</div>
-              <div>
-                <p className="font-bold mb-1">You are Off Duty</p>
-                <p>Please mark your Daily Attendance in the Profile tab to view your Smart Beat and start visiting outlets.</p>
-                <button 
-                  onClick={() => navigate('/profile')} 
-                  className="mt-3 bg-yellow-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm"
-                >
-                  Go to Profile
-                </button>
-              </div>
+          {!activeSession ? null : beatPreview.length === 0 ? (
+            <div className="bg-white rounded-2xl p-4 text-center border border-gray-100 shadow-sm">
+              <p className="text-sm font-medium text-gray-500">No beat assigned for today.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {smartBeatOutlets.map((outlet) => (
-                <div key={outlet.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative overflow-hidden">
-                  
-                  {/* High Value Badge */}
-                  {outlet.highValue && (
-                    <div className="absolute top-3 right-3 bg-[#1E293B] text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow-sm">
-                      ⭐ High Value
-                    </div>
-                  )}
-                
-                <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    outlet.visitStatus === 'visited' ? 'bg-green-100 text-green-600' :
-                    outlet.visitStatus === 'pending' ? 'bg-[#E0E7FF] text-[#2D3A8C]' :
-                    outlet.visitStatus === 'skipped' ? 'bg-red-50 text-red-500' :
-                    'bg-yellow-50 text-yellow-600'
-                  }`}>
+              {beatPreview.map((outlet) => (
+                <div key={outlet.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#E0E7FF] text-[#2D3A8C]">
                     <Store size={20} />
                   </div>
-                  
-                  <div className="flex-1 min-w-0 pr-16">
-                    <h3 className="font-bold text-[#1E293B] truncate pr-2">{outlet.name}</h3>
-                    
-                    {outlet.visitStatus === 'visited' && (
-                      <>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs text-[#64748B]">Visited {outlet.visitedAt}</p>
-                          <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                        </div>
-                        <p className="text-sm font-bold text-[#1E293B] mt-1 text-right absolute right-4 bottom-4">
-                          {formatCurrency(outlet.amount || 0)}
-                        </p>
-                      </>
-                    )}
-
-                    {outlet.visitStatus === 'pending' && (
-                      <>
-                        <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.locationText}</p>
-                        <p className="text-xs text-[#64748B] mt-1">
-                          Pending Order<br />
-                          Potential: <span className="font-bold text-[#1E293B]">{formatCurrency(outlet.potential || 0)}</span>
-                        </p>
-                        <button onClick={() => navigate('/visit', { state: { outlet } })} className="mt-3 bg-[#E0E7FF] text-[#2D3A8C] font-bold text-xs px-4 py-2 rounded-lg hover:bg-[#C7D2FE] transition-colors">
-                          Visit Now
-                        </button>
-                      </>
-                    )}
-
-                    {outlet.visitStatus === 'skipped' && (
-                      <>
-                        <p className="text-xs font-bold text-[#64748B] absolute right-4 top-4">Pending</p>
-                        <p className="text-xs text-[#64748B] mt-0.5">Visited {outlet.visitedAt}</p>
-                        <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.locationText}</p>
-                      </>
-                    )}
-
-                    {outlet.visitStatus === 'upcoming' || (!outlet.visitStatus && outlet.id) ? (
-                      <>
-                        <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.locationText}</p>
-                        <button onClick={() => navigate('/visit', { state: { outlet } })} className="mt-3 bg-[#E0E7FF] text-[#2D3A8C] font-bold text-xs px-4 py-2 rounded-lg hover:bg-[#C7D2FE] transition-colors">
-                          Visit Now
-                        </button>
-                      </>
-                    ) : null}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-[#1E293B] truncate">{outlet.name}</h3>
+                    <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.locationText}</p>
                   </div>
+                  <button
+                    onClick={() => navigate('/visit', { state: { outlet } })}
+                    className="bg-[#E0E7FF] text-[#2D3A8C] font-bold text-xs px-3 py-2 rounded-lg hover:bg-[#C7D2FE] transition-colors shrink-0"
+                  >
+                    Visit
+                  </button>
                 </div>
-              </div>
-            ))}
+              ))}
             </div>
           )}
         </div>
@@ -250,4 +221,3 @@ export function HomeScreen() {
     </div>
   );
 }
-

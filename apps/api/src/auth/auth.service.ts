@@ -115,7 +115,7 @@ export class AuthService {
       email,
       name: `${firstName} ${lastName}`.trim(),
       password: hashedPassword,
-      role: 'Super Admin',
+      role: 'Organization Admin',
       status: 'Active',
     });
     const savedUser = await newUser.save();
@@ -131,7 +131,7 @@ export class AuthService {
       throw new UnauthorizedException('User account is not active or not found');
     }
 
-    if (user.role !== 'Super Admin') {
+    if (!user.platformAdmin) {
       const tenant = await this.tenantModel.findById(user.organizationId).exec();
       if (!tenant || tenant.status === 'Suspended' || tenant.status === 'Archived') {
         throw new UnauthorizedException('Organization account is suspended or archived.');
@@ -383,9 +383,11 @@ export class AuthService {
       throw new UnauthorizedException('User account is not active');
     }
 
-    const tenant = await this.tenantModel.findById(user.organizationId).exec();
-    if (!tenant || tenant.status === 'Suspended' || tenant.status === 'Archived') {
-      throw new UnauthorizedException('Organization account is suspended or archived.');
+    if (!user.platformAdmin) {
+      const tenant = await this.tenantModel.findById(user.organizationId).exec();
+      if (!tenant || tenant.status === 'Suspended' || tenant.status === 'Archived') {
+        throw new UnauthorizedException('Organization account is suspended or archived.');
+      }
     }
 
     const newRefreshToken = crypto.randomBytes(40).toString('hex');
@@ -435,16 +437,18 @@ export class AuthService {
   }
 
   private async generateTokenResponse(user: UserDocument, refreshToken: string) {
-    const payload = { 
-      sub: user._id.toString(), 
-      email: user.email, 
-      orgId: user.organizationId, 
+    const payload = {
+      sub: user._id.toString(),
+      email: user.email,
+      orgId: user.organizationId,
       role: user.role,
+      platformAdmin: user.platformAdmin === true,
+      distributorId: user.distributorId,
       territoryIds: user.territoryIds || []
     };
-    
+
     const access_token = await this.jwtService.signAsync(payload, { expiresIn: '15m' });
-    
+
     return {
       access_token,
       refresh_token: refreshToken,
@@ -453,6 +457,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        platformAdmin: user.platformAdmin === true,
         organizationId: user.organizationId
       }
     };

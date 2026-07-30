@@ -61,7 +61,7 @@ export class SyncService {
         for (const order of payload.orders) {
           // If order exists and is newer on server, conflict
           if (order._id) {
-            const existing = await this.orderModel.findById(order._id).session(session);
+            const existing = await this.orderModel.findOne({ _id: order._id, organizationId }).session(session);
             if (existing && (existing as any).updatedAt > new Date(order.updatedAt)) {
               conflicts.push({ type: 'Order', id: order._id, reason: 'Newer version exists on server' });
               continue;
@@ -81,21 +81,37 @@ export class SyncService {
 
       if (payload.visits && payload.visits.length > 0) {
         for (const visit of payload.visits) {
-           await this.visitModel.findOneAndUpdate(
-            { _id: visit._id || new (this.visitModel.db as any).base.Types.ObjectId() },
-            { ...(() => { delete visit.organizationId; delete visit._id; delete visit.createdAt; delete visit.updatedAt; return visit; })(), organizationId, user: userId },
-            { upsert: true, new: true, session }
-          );
+          if (!visit.idempotencyKey) {
+            conflicts.push({ type: 'Visit', id: visit._id || 'new', reason: 'idempotencyKey is required' });
+            continue;
+          }
+          const existing = await this.visitModel.findOne({ organizationId, idempotencyKey: visit.idempotencyKey }).session(session);
+          if (existing) {
+            continue; // Already synced — idempotent no-op
+          }
+          delete visit.organizationId;
+          delete visit._id;
+          delete visit.createdAt;
+          delete visit.updatedAt;
+          await new this.visitModel({ ...visit, organizationId, user: userId }).save({ session });
         }
       }
 
       if (payload.collections && payload.collections.length > 0) {
         for (const collection of payload.collections) {
-           await this.collectionModel.findOneAndUpdate(
-            { _id: collection._id || new (this.collectionModel.db as any).base.Types.ObjectId() },
-            { ...(() => { delete collection.organizationId; delete collection._id; delete collection.createdAt; delete collection.updatedAt; return collection; })(), organizationId, collectedBy: userId },
-            { upsert: true, new: true, session }
-          );
+          if (!collection.idempotencyKey) {
+            conflicts.push({ type: 'Collection', id: collection._id || 'new', reason: 'idempotencyKey is required' });
+            continue;
+          }
+          const existing = await this.collectionModel.findOne({ organizationId, idempotencyKey: collection.idempotencyKey }).session(session);
+          if (existing) {
+            continue; // Already synced — idempotent no-op
+          }
+          delete collection.organizationId;
+          delete collection._id;
+          delete collection.createdAt;
+          delete collection.updatedAt;
+          await new this.collectionModel({ ...collection, organizationId, collectedByUserId: userId }).save({ session });
         }
       }
 

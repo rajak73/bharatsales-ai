@@ -36,8 +36,9 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
       return;
     }
 
+    const idempotencyKey = crypto.randomUUID();
     const collection: PaymentCollection = {
-      id: crypto.randomUUID(),
+      id: idempotencyKey,
       organizationId: outlet.organizationId,
       receiptNumber: `REC-${Date.now()}`,
       invoiceId: selectedInvoiceId || undefined,
@@ -48,6 +49,7 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
       referenceNumber: referenceNumber || undefined,
       status: 'Pending',
       collectionDate: new Date().toISOString(),
+      idempotencyKey,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

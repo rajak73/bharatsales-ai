@@ -8,7 +8,7 @@ import { useAuth } from './AuthContext';
 interface AttendanceContextType {
   activeSession: AttendanceSession | null;
   isLoading: boolean;
-  startDay: (location: { lat: number; lng: number; accuracy: number }) => Promise<void>;
+  startDay: (location: { lat: number; lng: number; accuracy: number }, photoUrl?: string) => Promise<void>;
   endDay: (location: { lat: number; lng: number; accuracy: number }) => Promise<void>;
   refreshSession: () => Promise<void>;
 }
@@ -74,13 +74,13 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [activeSession]);
 
-  const startDay = async (location: { lat: number; lng: number; accuracy: number }) => {
+  const startDay = async (location: { lat: number; lng: number; accuracy: number }, photoUrl?: string) => {
     setIsLoading(true);
     try {
       const session = await AttendanceService.startDay({
         ...location,
         deviceTimestamp: new Date().toISOString(),
-        photoUrl: 'https://example.com/dummy-selfie.jpg'
+        photoUrl
       });
       setActiveSession(session);
     } catch (error) {

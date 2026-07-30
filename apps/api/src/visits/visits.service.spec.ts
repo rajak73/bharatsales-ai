@@ -11,7 +11,7 @@ describe('VisitsService', () => {
   };
 
   const mockOutletModel = {
-    findById: jest.fn(),
+    findOne: jest.fn(),
   };
 
   class MockVisit {
@@ -55,7 +55,7 @@ describe('VisitsService', () => {
   describe('checkIn', () => {
     it('should throw BadRequestException if photoUrl is missing', async () => {
       mockVisitModel.findOne.mockResolvedValue(null);
-      mockOutletModel.findById.mockReturnValue({
+      mockOutletModel.findOne.mockReturnValue({
         lean: jest.fn().mockResolvedValue({
           location: { latitude: 1, longitude: 1 }
         })
@@ -68,7 +68,7 @@ describe('VisitsService', () => {
 
     it('should succeed if photoUrl is provided', async () => {
       mockVisitModel.findOne.mockResolvedValue(null);
-      mockOutletModel.findById.mockReturnValue({
+      mockOutletModel.findOne.mockReturnValue({
         lean: jest.fn().mockResolvedValue({
           location: { latitude: 1, longitude: 1 }
         })
