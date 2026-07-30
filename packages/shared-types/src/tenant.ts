@@ -1,7 +1,7 @@
 export interface Tenant {
   id: string;
   name: string;
-  status: 'Trial' | 'Active' | 'Past Due' | 'Suspended' | 'Archived';
+  status: 'Trial' | 'Active' | 'Past Due' | 'Suspended' | 'Archived' | 'Expired';
   plan: 'Starter' | 'Growth' | 'Enterprise';
   timezone?: string;
   currency?: string;
@@ -20,6 +20,18 @@ export interface Tenant {
     logoUrl?: string;
     primaryColor?: string;
   };
+  gstNumber?: string;
+  address?: string;
+  country?: string;
+  industry?: string;
+  geofenceRadius?: string;
+  gpsAccuracy?: string;
+  workingDays?: string[];
+  shiftStart?: string;
+  shiftEnd?: string;
+  orderApprovalThreshold?: string;
+  discountAuthority?: string;
+  fiscalYearStart?: string;
   createdAt: string;
   updatedAt: string;
 }

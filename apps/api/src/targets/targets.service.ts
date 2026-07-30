@@ -167,12 +167,20 @@ export class TargetsService {
       try {
         const actualValue = await this.calculateActualValue(target);
         const status = actualValue >= target.targetValue ? 'Achieved' : 'Missed';
-        
+
         await this.targetModel.updateOne(
           { _id: target._id },
           { $set: { actualValue, status } }
         );
         this.logger.log(`Rolled up target ${target._id} - Status: ${status}, Actual: ${actualValue}`);
+
+        if (status === 'Achieved' && (target as any).entityType === 'User' && (target as any).entityId) {
+          this.notificationsService.create((target as any).organizationId, (target as any).entityId, {
+            type: 'target_achieved',
+            title: 'Target Achieved',
+            message: `You achieved your ${(target as any).targetMetric || ''} target.`
+          }).catch(err => this.logger.error('Failed to create target-achieved notification', err));
+        }
       } catch (error) {
         this.logger.error(`Failed to rollup target ${target._id}`, error);
       }

@@ -30,8 +30,14 @@ export class ReportsService {
     { id: 'rep-12', organizationId: '', name: 'Audit Report', desc: 'Audit logs', category: 'Audit', lastRun: '-', status: 'Ready' },
   ];
 
-  async getReports(organizationId: string): Promise<Report[]> {
-    return this.predefinedReports.map(r => ({ ...r, organizationId }));
+  private static readonly DISTRIBUTOR_CATEGORIES = ['Supply Chain', 'Returns', 'Finance'];
+
+  async getReports(organizationId: string, role?: string): Promise<Report[]> {
+    const reports = this.predefinedReports.map(r => ({ ...r, organizationId }));
+    if (role === 'Distributor') {
+      return reports.filter(r => ReportsService.DISTRIBUTOR_CATEGORIES.includes(r.category));
+    }
+    return reports;
   }
 
   async getReportStats(organizationId: string): Promise<ReportStats> {

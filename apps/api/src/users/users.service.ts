@@ -56,7 +56,7 @@ export class UsersService {
     // Tier limit validation
     const tenant = await this.tenantModel.findById(organizationId).exec();
     if (tenant) {
-      const maxUsers = (tenant as any).commercialSettings?.maxUsers || 0;
+      const maxUsers = (tenant as any).subscriptionUsersLimit || 0;
       const currentUserCount = await this.userModel.countDocuments({ organizationId }).exec();
       if (maxUsers > 0 && currentUserCount >= maxUsers) {
         throw new BadRequestException(`Organization has reached its maximum user limit of ${maxUsers}. Please upgrade your plan.`);
@@ -95,7 +95,7 @@ export class UsersService {
     // Tier limit validation
     const tenant = await this.tenantModel.findById(organizationId).exec();
     if (tenant) {
-      const maxUsers = (tenant as any).commercialSettings?.maxUsers || 0;
+      const maxUsers = (tenant as any).subscriptionUsersLimit || 0;
       const currentUserCount = await this.userModel.countDocuments({ organizationId }).exec();
       if (maxUsers > 0 && currentUserCount >= maxUsers) {
         throw new BadRequestException(`Organization has reached its maximum user limit of ${maxUsers}. Please upgrade your plan.`);

@@ -11,8 +11,8 @@ export class LiveMapService {
   ) {}
 
   async getLiveReps(organizationId: string) {
-    const activeSessions = await this.attendanceModel.find({ status: { $in: ['Active', 'On_Break'] } }).populate('user', 'name');
-    
+    const activeSessions = await this.attendanceModel.find({ organizationId, status: { $in: ['Active', 'On_Break'] } }).populate('user', 'name');
+
     // Filter out any corrupted sessions where the user was deleted
     const validSessions = activeSessions.filter(session => session.user != null);
 
@@ -21,6 +21,7 @@ export class LiveMapService {
         // Find any active visits for this user
         const activeVisit = await this.visitModel.findOne({
           user: session.user._id,
+          organizationId,
           status: 'Active',
         }).populate('outlet', 'name').sort({ checkInTime: -1 });
 

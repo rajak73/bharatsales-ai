@@ -19,4 +19,9 @@ export class PerformanceService {
     const response = await apiClient.get<any>('/api/v1/performance/team-targets');
     return response.data;
   }
+
+  static async getMyTargets(): Promise<any> {
+    const response = await apiClient.get<any>('/api/v1/performance/targets');
+    return response.data;
+  }
 }

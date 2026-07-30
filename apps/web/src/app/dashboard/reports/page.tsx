@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { ReportsService } from '@bharatsales/api-client';
 import { Report, ReportStats } from '@bharatsales/shared-types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, TrendingUp } from 'lucide-react';
 
 export default function ReportsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,11 +19,11 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ role: string } | null>(null);
 
-  const DISTRIBUTOR_CATEGORIES = ['Distribution', 'Inventory', 'Finance'];
+  const DISTRIBUTOR_CATEGORIES = ['Supply Chain', 'Returns', 'Finance'];
   const isDistributor = user?.role === 'Distributor';
   const availableCategories = isDistributor
     ? DISTRIBUTOR_CATEGORIES
-    : ['Sales', 'HR', 'Execution', 'Distribution', 'Inventory', 'Performance', 'Finance', 'Admin'];
+    : ['Sales', 'HR', 'Execution', 'Supply Chain', 'Returns', 'Claims', 'Performance', 'Finance', 'Audit'];
 
   useEffect(() => {
     fetchData();
@@ -169,6 +170,21 @@ export default function ReportsPage() {
           <div className="text-sm text-gray-500">Pending Export</div>
         </div>
       </div>
+
+      {(user?.role === 'Organization Admin' || user?.role === 'Sales Manager') && (
+        <Link href="/dashboard/reports/dsr" className="card flex items-center justify-between hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center text-primary-600 border border-primary-200">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-gray-900">Daily Sales Report</p>
+              <p className="text-sm text-gray-500">Visit, order, and collection breakdown by rep for any day</p>
+            </div>
+          </div>
+          <span className="text-primary-600 text-sm font-medium">View →</span>
+        </Link>
+      )}
 
       {/* Filters */}
       <div className="card">

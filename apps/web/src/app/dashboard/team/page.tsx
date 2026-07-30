@@ -16,11 +16,20 @@ export default function TeamPage() {
   const [teamDSR, setTeamDSR] = useState<any>(null);
   const [teamTargets, setTeamTargets] = useState<any[]>([]);
   const [beatCompletion, setBeatCompletion] = useState<{ teamCompletionPercentage: number; reps: any[] } | null>(null);
+  const [role, setRole] = useState<string>('');
 
   useEffect(() => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) setRole(JSON.parse(userData).role || '');
+    } catch (e) {
+      // ignore
+    }
     fetchUsers();
     fetchTeamStats();
   }, []);
+
+  const isOrgAdmin = role === 'Organization Admin';
 
   const fetchUsers = async () => {
     try {
@@ -102,8 +111,10 @@ export default function TeamPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
-          <p className="text-gray-500">Manage your field sales team • {filteredMembers.length} members</p>
+          <h1 className="text-2xl font-bold text-gray-900">{isOrgAdmin ? 'Organization Team' : 'My Team'}</h1>
+          <p className="text-gray-500">
+            {isOrgAdmin ? 'Every employee across your organization' : 'Your direct reporting team'} • {filteredMembers.length} members
+          </p>
         </div>
         <div className="flex space-x-3">
           <button onClick={() => setShowAddModal(true)} className="btn-primary text-sm">+ Add Member</button>
@@ -111,7 +122,7 @@ export default function TeamPage() {
       </div>
 
       {/* Team Stats */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-6 gap-4">
         <div className="card text-center">
           <div className="text-2xl font-bold text-gray-900">{allMembers.length}</div>
           <div className="text-sm text-gray-500">Total Members</div>
@@ -132,6 +143,25 @@ export default function TeamPage() {
           <div className="text-2xl font-bold text-blue-600">{beatCompletion?.teamCompletionPercentage ?? 0}%</div>
           <div className="text-sm text-gray-500">Beat Completion (Today)</div>
         </div>
+        {isOrgAdmin ? (
+          <div className="card text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {(() => {
+                const totalTarget = teamTargets.reduce((sum, t) => sum + (t.targetValue || 0), 0);
+                const totalActual = teamTargets.reduce((sum, t) => sum + (t.actualValue || 0), 0);
+                return totalTarget > 0 ? Math.round((totalActual / totalTarget) * 100) : 0;
+              })()}%
+            </div>
+            <div className="text-sm text-gray-500">Org-Wide Target Achievement</div>
+          </div>
+        ) : (
+          <div className="card text-center">
+            <div className="text-2xl font-bold text-red-600">
+              {(beatCompletion?.reps || []).filter((r: any) => r.completionPercentage < 50).length}
+            </div>
+            <div className="text-sm text-gray-500">Reps Below 50% Beat Completion</div>
+          </div>
+        )}
       </div>
 
       {/* Filters */}

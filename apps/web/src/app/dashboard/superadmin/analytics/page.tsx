@@ -6,11 +6,18 @@ import { Loader2, TrendingUp, ShoppingCart, Users } from 'lucide-react';
 
 export default function PlatformAnalyticsPage() {
   const [data, setData] = useState<any>(null);
+  const [loginStats, setLoginStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    SuperadminService.getPlatformAnalytics()
-      .then(setData)
+    Promise.all([
+      SuperadminService.getPlatformAnalytics(),
+      SuperadminService.getLoginStatistics(),
+    ])
+      .then(([analytics, logins]) => {
+        setData(analytics);
+        setLoginStats(logins);
+      })
       .catch((err) => console.error('Failed to load platform analytics:', err))
       .finally(() => setLoading(false));
   }, []);
@@ -81,6 +88,40 @@ export default function PlatformAnalyticsPage() {
                 <div key={t.organizationId} className="flex justify-between items-center text-sm">
                   <span className="text-gray-700">{idx + 1}. {t.name}</span>
                   <span className="font-medium text-gray-900">₹{t.revenue.toLocaleString()} ({t.orderCount} orders)</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="card">
+          <h3 className="font-bold text-gray-900 mb-4">Login Activity (Last 30 Days)</h3>
+          {(!loginStats?.dailyLogins || loginStats.dailyLogins.length === 0) ? (
+            <p className="text-sm text-gray-400">No login activity in this period.</p>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {loginStats.dailyLogins.map((d: any) => (
+                <div key={d.date} className="flex justify-between text-sm">
+                  <span className="text-gray-500">{d.date}</span>
+                  <span className="font-medium text-gray-900">{d.count} logins</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h3 className="font-bold text-gray-900 mb-4">Logins by Organization</h3>
+          {(!loginStats?.byOrg || loginStats.byOrg.length === 0) ? (
+            <p className="text-sm text-gray-400">No login activity in this period.</p>
+          ) : (
+            <div className="space-y-3">
+              {loginStats.byOrg.map((o: any) => (
+                <div key={o.organizationId} className="flex justify-between items-center text-sm">
+                  <span className="text-gray-700">{o.organizationName}</span>
+                  <span className="font-medium text-gray-900">{o.count} logins</span>
                 </div>
               ))}
             </div>

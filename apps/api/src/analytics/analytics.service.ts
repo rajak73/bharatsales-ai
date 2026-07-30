@@ -24,15 +24,27 @@ export class AnalyticsService {
     today.setHours(0, 0, 0, 0);
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
+    const startOfPrevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
     // Total Revenue & Orders for this month
     const monthlyOrders = await this.orderModel.find({
       organizationId,
       createdAt: { $gte: startOfMonth.toISOString() }
     });
-    
+
     const totalRevenue = monthlyOrders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
     const totalOrders = monthlyOrders.length;
+
+    // Previous month, for real period-over-period growth %
+    const prevMonthOrders = await this.orderModel.find({
+      organizationId,
+      createdAt: { $gte: startOfPrevMonth.toISOString(), $lt: startOfMonth.toISOString() }
+    });
+    const prevRevenue = prevMonthOrders.reduce((sum, o) => sum + (o.totals?.grandTotal || 0), 0);
+    const prevOrders = prevMonthOrders.length;
+
+    const revenueGrowth = prevRevenue > 0 ? parseFloat((((totalRevenue - prevRevenue) / prevRevenue) * 100).toFixed(1)) : 0;
+    const orderGrowth = prevOrders > 0 ? parseFloat((((totalOrders - prevOrders) / prevOrders) * 100).toFixed(1)) : 0;
 
     // Active Outlets and Reps
     const activeOutlets = await this.outletModel.countDocuments({ organizationId, status: 'Active' });
@@ -41,9 +53,9 @@ export class AnalyticsService {
     // Build KPIs Object
     const kpis = {
       totalRevenue,
-      revenueGrowth: 12, // Mock trend for now
+      revenueGrowth,
       totalOrders,
-      orderGrowth: 8, // Mock trend for now
+      orderGrowth,
       activeOutlets,
       activeReps
     };
@@ -86,17 +98,17 @@ export class AnalyticsService {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
-    // Zone Performance (Extract from Users or mock from outlets)
     const activeUsers = await this.userModel.find({ organizationId, status: 'Active' });
+
+    // Zone Performance — User schema has no real "zone" field today, so orders
+    // are grouped as "Unassigned" until real hierarchy-based zone attribution
+    // is implemented, rather than fabricating a zone name.
     const zoneSales = new Map<string, number>();
     for (const order of monthlyOrders) {
-       const user = activeUsers.find(u => u._id.toString() === order.createdByUserId);
-       const zone = (user as any)?.zone || 'North Zone';
        const rev = order.totals?.grandTotal || 0;
-       zoneSales.set(zone, (zoneSales.get(zone) || 0) + rev);
+       zoneSales.set('Unassigned', (zoneSales.get('Unassigned') || 0) + rev);
     }
-    if (zoneSales.size === 0) zoneSales.set('Default Zone', totalRevenue);
-    
+
     const zonePerformance = Array.from(zoneSales.entries())
       .map(([zone, revenue]) => ({ zone, revenue }))
       .sort((a, b) => b.revenue - a.revenue);

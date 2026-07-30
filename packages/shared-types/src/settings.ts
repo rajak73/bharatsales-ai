@@ -12,4 +12,7 @@ export interface Settings {
   shiftEnd: string;
   orderApprovalThreshold: string;
   discountAuthority: string;
+  gstNumber?: string;
+  address?: string;
+  country?: string;
 }

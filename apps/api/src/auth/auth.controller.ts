@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Param, Body, HttpCode, HttpStatus, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Param, Body, HttpCode, HttpStatus, Req, UseGuards, ForbiddenException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt.guard';
 import { Request } from 'express';
@@ -7,9 +7,13 @@ import { Request } from 'express';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // Disabled: public self-serve signup bypasses the Super Admin tenant
+  // provisioning flow (subscription plan assignment, admin creation) that
+  // SuperadminService.createTenant() already handles. Organizations must be
+  // created by a platform administrator.
   @Post('register')
-  async register(@Body() registerDto: any) {
-    return this.authService.register(registerDto);
+  async register() {
+    throw new ForbiddenException('Public self-registration is disabled. Contact your platform administrator to create an organization.');
   }
 
   @HttpCode(HttpStatus.OK)

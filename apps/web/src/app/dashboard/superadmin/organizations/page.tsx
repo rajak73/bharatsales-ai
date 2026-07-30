@@ -10,7 +10,7 @@ export default function OrganizationsPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newTenant, setNewTenant] = useState({ name: '', plan: 'Starter' });
+  const [newTenant, setNewTenant] = useState({ name: '', plan: 'Starter', adminName: '', adminEmail: '', adminPassword: '' });
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
@@ -42,11 +42,11 @@ export default function OrganizationsPage() {
   };
 
   const handleCreateTenant = async () => {
-    if (!newTenant.name) return;
+    if (!newTenant.name || !newTenant.adminName || !newTenant.adminEmail || !newTenant.adminPassword) return;
     try {
       await SuperadminService.createTenant(newTenant as any);
       setShowCreateModal(false);
-      setNewTenant({ name: '', plan: 'Starter' });
+      setNewTenant({ name: '', plan: 'Starter', adminName: '', adminEmail: '', adminPassword: '' });
       setSuccessMessage('Organization created successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
       await fetchTenants();
@@ -176,12 +176,42 @@ export default function OrganizationsPage() {
                   <option>Enterprise</option>
                 </select>
               </div>
+              <div className="pt-2 border-t border-gray-100">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Organization Admin Account</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Name *</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={newTenant.adminName}
+                  onChange={(e) => setNewTenant({ ...newTenant, adminName: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email *</label>
+                <input
+                  type="email"
+                  className="input-field"
+                  value={newTenant.adminEmail}
+                  onChange={(e) => setNewTenant({ ...newTenant, adminEmail: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Password *</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  value={newTenant.adminPassword}
+                  onChange={(e) => setNewTenant({ ...newTenant, adminPassword: e.target.value })}
+                />
+              </div>
             </div>
             <div className="flex space-x-3 mt-6">
               <button onClick={() => setShowCreateModal(false)} className="flex-1 btn-secondary">Cancel</button>
               <button
                 onClick={handleCreateTenant}
-                disabled={!newTenant.name}
+                disabled={!newTenant.name || !newTenant.adminName || !newTenant.adminEmail || !newTenant.adminPassword}
                 className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Create

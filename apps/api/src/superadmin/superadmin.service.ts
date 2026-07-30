@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
+import * as bcrypt from 'bcryptjs';
 import { Tenant } from '../schemas/tenant.schema';
 import { User } from '../schemas/user.schema';
 import { PlatformSettings } from '../schemas/platform-settings.schema';
+import { Session } from '../schemas/session.schema';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SuperadminService {
@@ -20,8 +23,10 @@ export class SuperadminService {
     @InjectModel(Tenant.name) private tenantModel: Model<Tenant>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(PlatformSettings.name) private platformSettingsModel: Model<PlatformSettings>,
+    @InjectModel(Session.name) private sessionModel: Model<Session>,
     @InjectConnection() private connection: Connection,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private notificationsService: NotificationsService
   ) {}
 
   async getPlatformSettings() {
@@ -65,7 +70,7 @@ export class SuperadminService {
 
   async updateTenantStatus(id: string, status: string) {
     this.logger.log(`Updating tenant ${id} status to ${status}`);
-    const validStatuses = ['Trial', 'Active', 'Past Due', 'Suspended', 'Archived'];
+    const validStatuses = ['Trial', 'Active', 'Past Due', 'Suspended', 'Archived', 'Expired'];
     if (!validStatuses.includes(status)) {
       throw new NotFoundException(`Invalid status: ${status}`);
     }
@@ -75,18 +80,56 @@ export class SuperadminService {
       throw new NotFoundException('Organization not found');
     }
 
+    this.notifyOrgAdmins(id, {
+      type: 'org_status_changed',
+      title: 'Organization Status Updated',
+      message: `Your organization's status has been changed to "${status}" by the platform administrator.`
+    });
+
     return tenant;
   }
 
-  async createTenant(data: Partial<Tenant>) {
+  private async notifyOrgAdmins(organizationId: string, data: { type: string; title: string; message: string }) {
+    const admins = await this.userModel.find({ organizationId, role: 'Organization Admin' }).select('_id').exec();
+    for (const admin of admins) {
+      this.notificationsService.create(organizationId, (admin as any)._id.toString(), data)
+        .catch(err => this.logger.error('Failed to create platform notification for org admin', err));
+    }
+  }
+
+  async createTenant(data: Partial<Tenant> & { adminName?: string; adminEmail?: string; adminPassword?: string }) {
     this.logger.log(`Creating new tenant: ${data.name}`);
+    const { adminName, adminEmail, adminPassword, ...tenantData } = data;
+
+    if (adminEmail) {
+      const existing = await this.userModel.findOne({ email: adminEmail }).exec();
+      if (existing) {
+        throw new BadRequestException('A user with this admin email already exists');
+      }
+    }
+
     const newTenant = new this.tenantModel({
-      ...data,
-      status: data.status || 'Active',
-      plan: data.plan || 'Starter',
-      billingCycle: data.billingCycle || 'Annual',
+      ...tenantData,
+      status: tenantData.status || 'Active',
+      plan: tenantData.plan || 'Starter',
+      billingCycle: tenantData.billingCycle || 'Annual',
     });
-    return newTenant.save();
+    const savedTenant = await newTenant.save();
+
+    if (adminEmail && adminName) {
+      const hashedPassword = await bcrypt.hash(adminPassword || Math.random().toString(36).slice(-10), 10);
+      const adminUser = new this.userModel({
+        organizationId: savedTenant._id.toString(),
+        email: adminEmail,
+        name: adminName,
+        password: hashedPassword,
+        role: 'Organization Admin',
+        status: 'Active',
+      });
+      await adminUser.save();
+    }
+
+    return savedTenant;
   }
 
   async getGlobalAuditLogs(limit: number = 50) {
@@ -152,7 +195,45 @@ export class SuperadminService {
     if (!tenant) {
       throw new NotFoundException('Organization not found');
     }
+
+    this.notifyOrgAdmins(id, {
+      type: 'subscription_changed',
+      title: 'Subscription Updated',
+      message: `Your organization's subscription plan has been updated to "${tenant.plan}".`
+    });
+
     return tenant;
+  }
+
+  async getLoginStatistics() {
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const [dailyLogins, byOrg] = await Promise.all([
+      this.sessionModel.aggregate([
+        { $match: { createdAt: { $gte: since } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ]),
+      this.sessionModel.aggregate([
+        { $match: { createdAt: { $gte: since } } },
+        { $group: { _id: '$organizationId', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ])
+    ]);
+
+    const tenantIds = byOrg.map((o: any) => o._id);
+    const tenants = await this.tenantModel.find({ _id: { $in: tenantIds } }).select('name').lean().exec();
+    const tenantNameMap = new Map(tenants.map((t: any) => [t._id.toString(), t.name]));
+
+    return {
+      dailyLogins: dailyLogins.map((d: any) => ({ date: d._id, count: d.count })),
+      byOrg: byOrg.map((o: any) => ({
+        organizationId: o._id,
+        organizationName: tenantNameMap.get(o._id) || 'Unknown',
+        count: o.count
+      }))
+    };
   }
 
   async addBillingRecord(id: string, data: { amount: string; plan: string; status?: string }) {

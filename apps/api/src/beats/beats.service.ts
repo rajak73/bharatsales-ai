@@ -1,17 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Beat, BeatSchedule, Visit } from '../schemas';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BeatsService {
+  private readonly logger = new Logger(BeatsService.name);
+
   constructor(
     @InjectModel('Beat') private beatModel: Model<Beat>,
     @InjectModel('BeatSchedule') private beatScheduleModel: Model<BeatSchedule>,
     @InjectModel('Visit') private visitModel: Model<Visit>,
     @InjectModel('User') private userModel: Model<any>,
-    private hierarchyService: HierarchyService
+    private hierarchyService: HierarchyService,
+    private notificationsService: NotificationsService
   ) {}
 
   async getTodayBeat(userId: string, organizationId: string) {
@@ -103,6 +108,16 @@ export class BeatsService {
 
     if (!updated) {
       throw new Error(`Beat ${beatId} not found`);
+    }
+
+    const schedules = await this.beatScheduleModel.find({ beat: beatId, organizationId }).select('user').exec();
+    const assignedUserIds = [...new Set(schedules.map((s: any) => s.user.toString()))];
+    for (const userId of assignedUserIds) {
+      this.notificationsService.create(organizationId, userId, {
+        type: 'beat_assigned',
+        title: 'Beat Assigned',
+        message: `You have been assigned the "${updated.name}" beat.`
+      }).catch(err => this.logger.error('Failed to create beat-assigned notification', err));
     }
 
     return updated;
@@ -202,5 +217,50 @@ export class BeatsService {
         outOfSequenceOutlets: outOfSequence
       }
     };
+  }
+
+  // Notifies reps who left outlets un-visited on a completed beat day (BRD "missed outlet").
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async notifyMissedOutlets() {
+    this.logger.log('Running missed-outlet notification cron...');
+    const dayStart = new Date();
+    dayStart.setDate(dayStart.getDate() - 1);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const schedules = await this.beatScheduleModel.find({
+      date: { $gte: dayStart, $lte: dayEnd }
+    }).populate({ path: 'beat', match: { status: 'Active' } }).exec();
+
+    for (const schedule of schedules) {
+      try {
+        const beat = (schedule as any).beat;
+        if (!beat || !beat.outlets || beat.outlets.length === 0) continue;
+
+        const userId = (schedule as any).user.toString();
+        const organizationId = (schedule as any).organizationId.toString();
+        const plannedOutletIds = beat.outlets.map((o: any) => o.toString());
+
+        const visits = await this.visitModel.find({
+          user: userId,
+          organizationId,
+          status: 'Completed',
+          checkInTime: { $gte: dayStart, $lte: dayEnd }
+        }).select('outlet').exec();
+        const visitedOutletIds = new Set(visits.map((v: any) => v.outlet.toString()));
+
+        const missedCount = plannedOutletIds.filter((id: string) => !visitedOutletIds.has(id)).length;
+        if (missedCount > 0) {
+          await this.notificationsService.create(organizationId, userId, {
+            type: 'missed_outlet',
+            title: 'Missed Outlets',
+            message: `You missed ${missedCount} outlet${missedCount > 1 ? 's' : ''} on your beat yesterday.`
+          });
+        }
+      } catch (error) {
+        this.logger.error(`Failed to process missed-outlet check for schedule ${schedule._id}`, error);
+      }
+    }
   }
 }

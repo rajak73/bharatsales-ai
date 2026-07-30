@@ -4,6 +4,7 @@ import { BeatsController } from './beats.controller';
 import { BeatsService } from './beats.service';
 import { Beat, BeatSchema, BeatSchedule, BeatScheduleSchema, Visit, VisitSchema, UserSchema } from '../schemas';
 import { HierarchyModule } from '../hierarchy/hierarchy.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { HierarchyModule } from '../hierarchy/hierarchy.module';
       { name: 'User', schema: UserSchema }
     ]),
     HierarchyModule,
+    NotificationsModule,
   ],
   controllers: [BeatsController],
   providers: [BeatsService],

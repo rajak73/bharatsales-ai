@@ -319,22 +319,23 @@ export class OrdersService {
       throw new BadRequestException(`Order ${orderId} not found`);
     }
 
+    // Mirrors the real persisted status enum on the Order schema exactly
+    // (apps/api/src/schemas/order.schema.ts) — previously included
+    // 'Allocated'/'Damaged_Delivery'/'Returned'/'Closed' transitions that
+    // aren't valid enum values, so those states could never actually be
+    // reached (Mongoose validation would reject them).
     const validTransitions: Record<string, string[]> = {
       'Draft': ['Submitted', 'Cancelled'],
       'Submitted': ['Pending_Approval', 'Hold_Credit', 'Hold_Stock', 'Approved', 'Rejected', 'Cancelled'],
       'Pending_Approval': ['Approved', 'Rejected', 'Cancelled'],
       'Hold_Credit': ['Approved', 'Rejected', 'Cancelled'],
       'Hold_Stock': ['Approved', 'Rejected', 'Cancelled'],
-      'Approved': ['Allocated', 'Dispatched', 'Cancelled'],
-      'Allocated': ['Dispatched', 'Cancelled'],
-      'Dispatched': ['Delivered', 'Partial_Delivery', 'Damaged_Delivery', 'Cancelled'],
-      'Delivered': ['Returned'],
-      'Partial_Delivery': ['Returned'],
-      'Damaged_Delivery': ['Returned'],
-      'Returned': ['Closed'],
+      'Approved': ['Dispatched', 'Cancelled'],
+      'Dispatched': ['Delivered', 'Partial_Delivery', 'Cancelled'],
+      'Delivered': [],
+      'Partial_Delivery': [],
       'Rejected': [],
-      'Cancelled': [],
-      'Closed': []
+      'Cancelled': []
     };
 
     if (validTransitions[order.status as string] && !validTransitions[order.status as string].includes(status as string)) {

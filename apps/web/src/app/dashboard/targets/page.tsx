@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TargetsService } from '@bharatsales/api-client';
-import { SalesTarget } from '@bharatsales/shared-types';
+import { TargetsService, UsersService } from '@bharatsales/api-client';
+import { SalesTarget, User } from '@bharatsales/shared-types';
 import { Loader2 } from 'lucide-react';
 
 export default function TargetsPage() {
@@ -10,13 +10,18 @@ export default function TargetsPage() {
   const [showSetTargetModal, setShowSetTargetModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [newTarget, setNewTarget] = useState({ metric: '', user: '', target: '', period: 'July 2026' });
-  
+  const [orgUsers, setOrgUsers] = useState<User[]>([]);
+
   const [targets, setTargets] = useState<SalesTarget[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchTargets();
   }, [period]);
+
+  useEffect(() => {
+    UsersService.getUsers().then(setOrgUsers).catch(() => setOrgUsers([]));
+  }, []);
 
   const fetchTargets = async () => {
     try {
@@ -102,23 +107,40 @@ export default function TargetsPage() {
       </div>
 
       {/* Overall Progress */}
-      <div className="card gradient-primary text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-white/70 text-sm">Overall Achievement</div>
-            <div className="text-4xl font-bold mt-1">76%</div>
-            <div className="text-white/70 text-sm mt-1">₹18,25,000 of ₹25,00,000</div>
+      {(() => {
+        const totalActual = targets.reduce((sum, t) => sum + (t.actualValue || 0), 0);
+        const totalTarget = targets.reduce((sum, t) => sum + (t.targetValue || 0), 0);
+        const overallPercent = totalTarget > 0 ? Math.min(100, (totalActual / totalTarget) * 100) : 0;
+        const remainingTarget = Math.max(0, totalTarget - totalActual);
+
+        const now = Date.now();
+        const upcomingEndDates = targets
+          .map(t => new Date(t.endDate).getTime())
+          .filter(d => !isNaN(d) && d > now);
+        const nextEndDate = upcomingEndDates.length > 0 ? Math.min(...upcomingEndDates) : null;
+        const daysRemaining = nextEndDate ? Math.max(0, Math.ceil((nextEndDate - now) / (1000 * 60 * 60 * 24))) : 0;
+        const requiredPerDay = daysRemaining > 0 ? remainingTarget / daysRemaining : 0;
+
+        return (
+          <div className="card gradient-primary text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-white/70 text-sm">Overall Achievement</div>
+                <div className="text-4xl font-bold mt-1">{Math.round(overallPercent)}%</div>
+                <div className="text-white/70 text-sm mt-1">{formatCurrency(totalActual)} of {formatCurrency(totalTarget)}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-white/70 text-sm">Days Remaining</div>
+                <div className="text-4xl font-bold mt-1">{daysRemaining}</div>
+                <div className="text-white/70 text-sm mt-1">Required: {formatCurrency(requiredPerDay)}/day</div>
+              </div>
+            </div>
+            <div className="mt-4 w-full bg-white/20 rounded-full h-3">
+              <div className="bg-white rounded-full h-3" style={{width: `${overallPercent}%`}}></div>
+            </div>
           </div>
-          <div className="text-right">
-            <div className="text-white/70 text-sm">Days Remaining</div>
-            <div className="text-4xl font-bold mt-1">17</div>
-            <div className="text-white/70 text-sm mt-1">Required: ₹1,35,000/day</div>
-          </div>
-        </div>
-        <div className="mt-4 w-full bg-white/20 rounded-full h-3">
-          <div className="bg-white rounded-full h-3" style={{width: '76%'}}></div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Target Cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -130,10 +152,11 @@ export default function TargetsPage() {
           targets.map((t) => {
             const percent = (t.actualValue / t.targetValue) * 100;
             const remaining = Math.max(0, t.targetValue - t.actualValue);
+            const entityName = t.entityType === 'User' ? (orgUsers.find(u => u.id === t.entityId)?.name || t.entityId) : t.entityId;
             return (
               <div key={t.id} className="card hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-900">{t.entityId} ({t.entityType})</h3>
+                  <h3 className="font-bold text-gray-900">{entityName} ({t.entityType})</h3>
                   <span className={`text-sm font-medium px-2.5 py-1 rounded-full ${getStatusColor(t.status)}`}>
                     {t.status}
                   </span>
@@ -203,12 +226,9 @@ export default function TargetsPage() {
                   onChange={(e) => setNewTarget({ ...newTarget, user: e.target.value })}
                 >
                   <option value="">Select user</option>
-                  <option>All Team</option>
-                  <option>Amit Singh</option>
-                  <option>Priya Patel</option>
-                  <option>Rajesh Kumar</option>
-                  <option>Sneha Reddy</option>
-                  <option>Vikram Joshi</option>
+                  {orgUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
                 </select>
               </div>
               <div>

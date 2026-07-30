@@ -11,14 +11,14 @@ export class Outlet360Service {
     @InjectModel('Visit') private readonly visitModel: Model<any>,
   ) {}
 
-  private async getOutletByCode(code: string) {
-    const outlet = await this.outletModel.findOne({ code });
+  private async getOutletByCode(organizationId: string, code: string) {
+    const outlet = await this.outletModel.findOne({ code, organizationId });
     if (!outlet) throw new NotFoundException('Outlet not found');
     return outlet;
   }
 
   async getOutletDetails(organizationId: string, outletCode: string): Promise<Outlet360Details | null> {
-    const outlet = await this.outletModel.findOne({ code: outletCode });
+    const outlet = await this.outletModel.findOne({ code: outletCode, organizationId });
     if (!outlet) return null;
 
     return {
@@ -42,8 +42,8 @@ export class Outlet360Service {
   }
 
   async getOutletOrders(organizationId: string, outletCode: string): Promise<Outlet360Order[]> {
-    const outlet = await this.getOutletByCode(outletCode);
-    const orders = await this.orderModel.find({ outlet: outlet._id }).sort({ createdAt: -1 });
+    const outlet = await this.getOutletByCode(organizationId, outletCode);
+    const orders = await this.orderModel.find({ outlet: outlet._id, organizationId }).sort({ createdAt: -1 });
 
     return orders.map(o => ({
       id: o._id.toString(),
@@ -56,8 +56,8 @@ export class Outlet360Service {
   }
 
   async getOutletVisits(organizationId: string, outletCode: string): Promise<Outlet360Visit[]> {
-    const outlet = await this.getOutletByCode(outletCode);
-    const visits = await this.visitModel.find({ outlet: outlet._id }).populate('user', 'name').sort({ checkInTime: -1 });
+    const outlet = await this.getOutletByCode(organizationId, outletCode);
+    const visits = await this.visitModel.find({ outlet: outlet._id, organizationId }).populate('user', 'name').sort({ checkInTime: -1 });
 
     return visits.map(v => ({
       date: v.checkInTime.toISOString().split('T')[0],

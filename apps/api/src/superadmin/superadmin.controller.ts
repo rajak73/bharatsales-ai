@@ -41,7 +41,7 @@ export class SuperadminController {
   }
 
   @Post('tenants')
-  async createTenant(@Request() req: any, @Body() body: Partial<Tenant>) {
+  async createTenant(@Request() req: any, @Body() body: Partial<Tenant> & { adminName?: string; adminEmail?: string; adminPassword?: string }) {
     this.checkSuperAdmin(req);
     return this.superadminService.createTenant(body);
   }
@@ -76,6 +76,12 @@ export class SuperadminController {
   async getPlatformAnalytics(@Request() req: any) {
     this.checkSuperAdmin(req);
     return this.superadminService.getPlatformAnalytics();
+  }
+
+  @Get('reports/logins')
+  async getLoginStatistics(@Request() req: any) {
+    this.checkSuperAdmin(req);
+    return this.superadminService.getLoginStatistics();
   }
 
   @Get('tickets')

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SettingsService, SupportService } from '@bharatsales/api-client';
+import { SettingsService, SupportService, AuthService } from '@bharatsales/api-client';
 import { Settings } from '@bharatsales/shared-types';
 import { Loader2 } from 'lucide-react';
 
@@ -27,9 +27,34 @@ export default function SettingsPage() {
     discountAuthority: '10',
   });
 
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchSettings();
+    fetchSessions();
   }, []);
+
+  const fetchSessions = async () => {
+    try {
+      const data = await AuthService.getActiveSessions();
+      setSessions(data || []);
+    } catch (error) {
+      console.error('Failed to fetch active sessions:', error);
+    }
+  };
+
+  const handleRevokeSession = async (sessionId: string) => {
+    try {
+      setRevokingId(sessionId);
+      await AuthService.revokeSession(sessionId);
+      await fetchSessions();
+    } catch (error) {
+      console.error('Failed to revoke session:', error);
+    } finally {
+      setRevokingId(null);
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -87,6 +112,7 @@ export default function SettingsPage() {
     { id: 'company', label: 'Company Profile', icon: '🏢' },
     { id: 'attendance', label: 'Attendance & Geofence', icon: '📍' },
     { id: 'order', label: 'Order & Approval', icon: '📋' },
+    { id: 'sessions', label: 'Active Sessions', icon: '🔐' },
     { id: 'support', label: 'Support', icon: '🎫' },
   ];
 
@@ -209,6 +235,33 @@ export default function SettingsPage() {
                     <option value="01-01">January (01-01)</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">GST / VAT Number</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={settings.gstNumber || ''}
+                    onChange={(e) => setSettings({ ...settings, gstNumber: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={settings.country || ''}
+                    onChange={(e) => setSettings({ ...settings, country: e.target.value })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={settings.address || ''}
+                    onChange={(e) => setSettings({ ...settings, address: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -320,6 +373,37 @@ export default function SettingsPage() {
                   <li>• Large order threshold</li>
                 </ul>
               </div>
+            </div>
+          )}
+
+          {/* Active Sessions */}
+          {activeSection === 'sessions' && (
+            <div className="card space-y-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">Active Sessions</h3>
+                <p className="text-sm text-gray-500 mb-4">Devices currently signed in to your account. Revoke any session you don't recognize.</p>
+              </div>
+              {sessions.length === 0 ? (
+                <p className="text-sm text-gray-400">No active sessions found.</p>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {sessions.map((s: any) => (
+                    <div key={s._id} className="py-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{s.deviceInfo || 'Unknown device'}</p>
+                        <p className="text-xs text-gray-500">{s.ipAddress || 'Unknown IP'} · Expires {new Date(s.expiresAt).toLocaleString()}</p>
+                      </div>
+                      <button
+                        onClick={() => handleRevokeSession(s._id)}
+                        disabled={revokingId === s._id}
+                        className="text-sm text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+                      >
+                        {revokingId === s._id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Revoke'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

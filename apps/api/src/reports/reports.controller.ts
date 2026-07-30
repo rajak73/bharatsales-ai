@@ -18,7 +18,7 @@ export class ReportsController {
 @RequirePermissions(Resource.Reports, Action.Read)
   @Get()
   getReports(@Request() req: any) {
-    return this.reportsService.getReports(req.user.orgId);
+    return this.reportsService.getReports(req.user.orgId, req.user.role);
   }
 
 @RequirePermissions(Resource.Reports, Action.Read)

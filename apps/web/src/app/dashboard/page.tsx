@@ -5,6 +5,12 @@ import { AnalyticsService } from '@bharatsales/api-client';
 import { Loader2, TrendingUp, TrendingDown, Users, ShoppingCart, DollarSign } from 'lucide-react';
 import { Card, Button } from '@bharatsales/ui';
 import { DistributorDashboard } from './_components/DistributorDashboard';
+import { SuperAdminDashboard } from './_components/SuperAdminDashboard';
+import { OrgAdminDashboard } from './_components/OrgAdminDashboard';
+import { SalesManagerDashboard } from './_components/SalesManagerDashboard';
+import { SalesRepDashboard } from './_components/SalesRepDashboard';
+
+const ROLE_SPECIFIC_ROLES = ['Distributor', 'Super Admin', 'Organization Admin', 'Sales Manager', 'Sales Representative'];
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ name: string; role: string; organizationId: string } | null>(null);
@@ -16,8 +22,8 @@ export default function DashboardPage() {
     if (userData) {
       const parsed = JSON.parse(userData);
       setUser(parsed);
-      if (parsed.role === 'Distributor') {
-        setLoading(false); // DistributorDashboard fetches its own data
+      if (ROLE_SPECIFIC_ROLES.includes(parsed.role)) {
+        setLoading(false); // Role-specific dashboard components fetch their own data
       } else {
         fetchDashboardData(parsed.organizationId);
       }
@@ -86,6 +92,18 @@ export default function DashboardPage() {
 
   if (user?.role === 'Distributor') {
     return <DistributorDashboard userName={user.name} />;
+  }
+  if (user?.role === 'Super Admin') {
+    return <SuperAdminDashboard userName={user.name} />;
+  }
+  if (user?.role === 'Organization Admin') {
+    return <OrgAdminDashboard userName={user.name} />;
+  }
+  if (user?.role === 'Sales Manager') {
+    return <SalesManagerDashboard userName={user.name} />;
+  }
+  if (user?.role === 'Sales Representative') {
+    return <SalesRepDashboard userName={user.name} />;
   }
 
   const maxOrders = dashboardData ? Math.max(...(dashboardData.salesData?.map((d: any) => d.orders) || [0])) : 10;

@@ -32,8 +32,8 @@ export class Tenant implements Omit<ITenant, 'id' | 'createdAt' | 'updatedAt'> {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true, enum: ['Trial', 'Active', 'Past Due', 'Suspended', 'Archived'], default: 'Trial' })
-  status: 'Trial' | 'Active' | 'Past Due' | 'Suspended' | 'Archived';
+  @Prop({ required: true, enum: ['Trial', 'Active', 'Past Due', 'Suspended', 'Archived', 'Expired'], default: 'Trial' })
+  status: 'Trial' | 'Active' | 'Past Due' | 'Suspended' | 'Archived' | 'Expired';
 
   @Prop({ required: true, enum: ['Starter', 'Growth', 'Enterprise'], default: 'Starter' })
   plan: 'Starter' | 'Growth' | 'Enterprise';
@@ -61,6 +61,45 @@ export class Tenant implements Omit<ITenant, 'id' | 'createdAt' | 'updatedAt'> {
 
   @Prop({ type: Branding })
   branding?: Branding;
+
+  // Organization profile (BRD Section 11)
+  @Prop()
+  gstNumber?: string;
+
+  @Prop()
+  address?: string;
+
+  @Prop()
+  country?: string;
+
+  // Settings page fields — must be declared here or Mongoose strict mode
+  // silently strips them from `$set` on findByIdAndUpdate.
+  @Prop()
+  industry?: string;
+
+  @Prop()
+  geofenceRadius?: string;
+
+  @Prop()
+  gpsAccuracy?: string;
+
+  @Prop({ type: [String] })
+  workingDays?: string[];
+
+  @Prop()
+  shiftStart?: string;
+
+  @Prop()
+  shiftEnd?: string;
+
+  @Prop()
+  orderApprovalThreshold?: string;
+
+  @Prop()
+  discountAuthority?: string;
+
+  @Prop()
+  fiscalYearStart?: string;
 }
 
 export const TenantSchema = SchemaFactory.createForClass(Tenant);

@@ -55,15 +55,30 @@ describe('ReportsService Engine', () => {
 
   it('should generate real CSV data from MongoDB rather than returning hardcoded strings', async () => {
     const { jobId } = await service.runReport('org-1', { reportId: 'rep-01' });
-    
+
     // Give it a tiny tick to resolve the fire-and-forget promise
     await new Promise(resolve => setTimeout(resolve, 50));
-    
+
     const exportData = await service.getExport('org-1', jobId);
-    
+
     expect(exportData.data).toContain('ORD-001');
     expect(exportData.data).toContain('Test Outlet');
     expect(exportData.data).toContain('5000');
     expect(exportData.data).not.toContain('Outlet A'); // Ensure hardcoded mock is gone
+  });
+
+  describe('getReports category restriction', () => {
+    it('should return every report category for a non-Distributor role', async () => {
+      const reports = await service.getReports('org-1', 'Organization Admin');
+      expect(reports.some(r => r.category === 'HR')).toBe(true);
+      expect(reports.some(r => r.category === 'Sales')).toBe(true);
+    });
+
+    it('should restrict a Distributor to Supply Chain, Returns, and Finance categories server-side regardless of caller intent', async () => {
+      const reports = await service.getReports('org-1', 'Distributor');
+      const categories = new Set(reports.map(r => r.category));
+      expect(categories).toEqual(new Set(['Supply Chain', 'Returns', 'Finance']));
+      expect(reports.some(r => r.category === 'HR')).toBe(false);
+    });
   });
 });

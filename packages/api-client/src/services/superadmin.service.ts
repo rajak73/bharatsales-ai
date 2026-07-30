@@ -17,7 +17,7 @@ export class SuperadminService {
     return response.data;
   }
 
-  static async createTenant(data: Partial<Tenant>): Promise<Tenant> {
+  static async createTenant(data: Partial<Tenant> & { adminName?: string; adminEmail?: string; adminPassword?: string }): Promise<Tenant> {
     const response = await apiClient.post<Tenant>('/superadmin/tenants', data);
     return response.data;
   }
@@ -69,6 +69,11 @@ export class SuperadminService {
 
   static async getMetrics(): Promise<any> {
     const response = await apiClient.get('/superadmin/metrics');
+    return response.data;
+  }
+
+  static async getLoginStatistics(): Promise<any> {
+    const response = await apiClient.get('/superadmin/reports/logins');
     return response.data;
   }
 }
