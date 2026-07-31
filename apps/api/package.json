@@ -9,6 +9,7 @@
     "start:prod": "node dist/main.js",
     "seed": "ts-node --transpile-only src/seed.ts",
     "seed:platform-admin": "ts-node --transpile-only src/seed-platform-admin.ts",
+    "seed:demo-data": "ts-node src/seed-demo-data.ts",
     "lint": "echo 'No linting required'",
     "test": "jest --runInBand --detectOpenHandles --forceExit",
     "type-check": "tsc --noEmit"
