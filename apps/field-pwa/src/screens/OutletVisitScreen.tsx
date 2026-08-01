@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAttendance } from '../contexts/AttendanceContext';
 import { VisitsService, UploadsService } from '@bharatsales/api-client';
 import type { Outlet } from '@bharatsales/shared-types';
-import { MapPin, CheckCircle2, AlertTriangle, Loader2, Navigation, ShoppingCart, IndianRupee, Camera } from 'lucide-react';
+import { MapPin, CheckCircle2, AlertTriangle, Loader2, Navigation, ShoppingCart, IndianRupee, Camera, ChevronLeft } from 'lucide-react';
 import CollectionScreen from './CollectionScreen';
 import { compressImage } from '../utils/image';
 
@@ -113,9 +113,9 @@ export function OutletVisitScreen() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
-      <div className="bg-blue-600 px-6 pt-12 pb-6 text-white shadow-md rounded-b-3xl">
-        <button onClick={() => navigate(-1)} className="mb-4 flex items-center text-blue-100 hover:text-white">
-          ← Back
+      <div className="bg-primary-600 px-6 pt-12 pb-6 text-white shadow-md rounded-b-3xl">
+        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1 text-primary-100 hover:text-white">
+          <ChevronLeft className="w-4 h-4" /> Back
         </button>
         <h1 className="text-2xl font-bold">{outlet.name}</h1>
         <p className="opacity-90 flex items-center gap-1 mt-1">
@@ -153,7 +153,7 @@ export function OutletVisitScreen() {
                   onClick={() => navigate('/catalog', { state: { outletId: outlet.id } })}
                   className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100"
                 >
-                  <ShoppingCart className="w-6 h-6 text-blue-600 mb-2" />
+                  <ShoppingCart className="w-6 h-6 text-primary-600 mb-2" />
                   <span className="text-sm font-medium text-gray-700">Book Order</span>
                 </button>
                 <button 
@@ -198,7 +198,7 @@ export function OutletVisitScreen() {
               <button
                 onClick={handleCheckIn}
                 disabled={visitStatus === 'checking_in' || !shopfrontPhoto}
-                className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-lg font-bold shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-lg font-bold shadow-lg shadow-primary-600/20 disabled:opacity-50"
               >
                 {visitStatus === 'checking_in' ? (
                   <><Loader2 className="w-6 h-6 animate-spin" /> Checking in...</>

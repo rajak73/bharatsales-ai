@@ -1,12 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../database/db';
 import type { Outlet, Invoice, PaymentCollection } from '@bharatsales/shared-types';
-import { ChevronLeft, CheckCircle } from 'lucide-react';
+import { ChevronLeft, CheckCircle, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+
+function getCurrentUserId(): string {
+  try {
+    const raw = localStorage.getItem('user');
+    return raw ? JSON.parse(raw).id || 'local-user' : 'local-user';
+  } catch {
+    return 'local-user';
+  }
+}
 
 export default function CollectionScreen({ outletId, onBack }: { outletId: string, onBack: () => void }) {
   const [outlet, setOutlet] = useState<Outlet | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   // Form State
   const [amount, setAmount] = useState('');
@@ -18,7 +30,7 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
     const fetchData = async () => {
       const o = await db.outlets.get(outletId);
       if (o) setOutlet(o);
-      
+
       const invs = await db.invoices.where('outletId').equals(outletId).toArray();
       setInvoices(invs.filter(i => i.status !== 'Paid'));
       setLoading(false);
@@ -32,9 +44,12 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
 
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      alert("Please enter a valid amount.");
+      setFormError('Please enter a valid amount.');
       return;
     }
+
+    setFormError('');
+    setSubmitting(true);
 
     const idempotencyKey = crypto.randomUUID();
     const collection: PaymentCollection = {
@@ -43,7 +58,7 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
       receiptNumber: `REC-${Date.now()}`,
       invoiceId: selectedInvoiceId || undefined,
       outletId: outlet.id,
-      collectedByUserId: 'local-user', // would come from auth context
+      collectedByUserId: getCurrentUserId(),
       amount: numericAmount,
       paymentMode,
       referenceNumber: referenceNumber || undefined,
@@ -56,7 +71,7 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
 
     // Save locally
     await db.collections.add(collection);
-    
+
     // Queue for sync
     await db.syncQueue.add({
       action: 'CREATE_PAYMENT',
@@ -65,16 +80,31 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
       createdAt: Date.now()
     });
 
-    alert('Payment recorded successfully and queued for sync!');
-    onBack();
+    setSubmitting(false);
+    setIsSubmitted(true);
+    setTimeout(onBack, 2000);
   };
 
   if (loading || !outlet) {
-    return <div className="p-4 text-center">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <Loader2 className="w-6 h-6 animate-spin text-primary-600" />
+      </div>
+    );
+  }
+
+  if (isSubmitted) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 p-6 text-center">
+        <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
+        <h2 className="text-xl font-bold text-gray-900 mb-1">Payment Recorded</h2>
+        <p className="text-sm text-gray-500">Queued for sync — will upload automatically once online.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <header className="bg-white px-4 py-3 flex items-center shadow-sm">
         <button onClick={onBack} className="p-2 -ml-2 mr-2">
           <ChevronLeft className="w-6 h-6 text-gray-700" />
@@ -85,7 +115,14 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4">
+      <main className="flex-1 overflow-y-auto p-4 pb-8">
+        {formError && (
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            {formError}
+          </div>
+        )}
+
         <div className="bg-white rounded-xl p-4 shadow-sm mb-4 border border-gray-100">
           <div className="flex justify-between items-center mb-1">
             <span className="text-sm text-gray-500">Outstanding Balance</span>
@@ -163,10 +200,15 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
 
           <button
             type="submit"
-            className="w-full bg-primary-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:bg-primary-700 active:transform active:scale-95 transition-all flex items-center justify-center"
+            disabled={submitting}
+            className="w-full bg-primary-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:bg-primary-700 active:transform active:scale-95 transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <CheckCircle className="w-5 h-5 mr-2" />
-            Record Payment
+            {submitting ? (
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            ) : (
+              <CheckCircle className="w-5 h-5 mr-2" />
+            )}
+            {submitting ? 'Saving...' : 'Record Payment'}
           </button>
         </form>
       </main>

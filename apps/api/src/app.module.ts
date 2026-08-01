@@ -21,7 +21,6 @@ import { DistributorsModule } from './distributors/distributors.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { ReturnsModule } from './returns/returns.module';
 import { LiveMapModule } from './live-map/live-map.module';
-import { Outlet360Module } from './outlet-360/outlet-360.module';
 import { TargetsModule } from './targets/targets.module';
 import { BeatsModule } from './beats/beats.module';
 import { TrackingModule } from './tracking/tracking.module';
@@ -106,7 +105,6 @@ import { SupportModule } from './support/support.module';
     InventoryModule,
     ReturnsModule,
     LiveMapModule,
-    Outlet360Module,
     TargetsModule,
     BeatsModule,
     TrackingModule,

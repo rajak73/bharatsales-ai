@@ -37,7 +37,7 @@ export function OrdersScreen() {
 
   return (
     <div className="bg-slate-50 min-h-screen font-sans pb-24">
-      <div className="bg-[#2D3A8C] px-5 pt-12 pb-6 shadow-md sticky top-0 z-40">
+      <div className="bg-primary-600 px-5 pt-12 pb-6 shadow-md sticky top-0 z-40">
         <h1 className="text-white text-xl font-bold tracking-tight">My Orders</h1>
         <p className="text-white/80 text-sm mt-1">Orders you've booked</p>
       </div>
@@ -57,12 +57,12 @@ export function OrdersScreen() {
             <div key={order.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-start justify-between">
                 <div className="min-w-0">
-                  <h3 className="font-bold text-[#1E293B] truncate">{outletName(order.outletId)}</h3>
-                  <p className="text-xs text-[#64748B] mt-0.5">{order.orderNumber}</p>
-                  <p className="text-xs text-[#64748B] mt-0.5">{new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  <h3 className="font-bold text-slate-800 truncate">{outletName(order.outletId)}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">{order.orderNumber}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-[#1E293B]">{formatCurrency(order.totals?.grandTotal || 0)}</p>
+                  <p className="font-bold text-slate-800">{formatCurrency(order.totals?.grandTotal || 0)}</p>
                   <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded ${STATUS_STYLES[order.status] || 'bg-gray-100 text-gray-600'}`}>
                     {order.status.replace(/_/g, ' ')}
                   </span>

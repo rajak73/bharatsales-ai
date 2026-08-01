@@ -19,7 +19,7 @@ export function DistributorDashboard({ userName }: { userName: string }) {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
       </div>
     );
   }

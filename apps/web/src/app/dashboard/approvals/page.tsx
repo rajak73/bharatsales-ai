@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ApprovalsService } from '@bharatsales/api-client';
 import { Approval, ApprovalRule } from '@bharatsales/shared-types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle, X } from 'lucide-react';
 
 export default function ApprovalsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -13,6 +13,8 @@ export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [approvalRules, setApprovalRules] = useState<ApprovalRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -21,6 +23,7 @@ export default function ApprovalsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setFetchError('');
       const [approvalsData, rulesData] = await Promise.all([
         ApprovalsService.getApprovals(),
         ApprovalsService.getApprovalRules()
@@ -29,6 +32,7 @@ export default function ApprovalsPage() {
       setApprovalRules(rulesData || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      setFetchError('Failed to load approvals. Please refresh the page.');
     } finally {
       setLoading(false);
     }
@@ -46,16 +50,36 @@ export default function ApprovalsPage() {
   const pendingApprovals = filteredApprovals.filter(a => a.status === 'Pending');
   const totalPendingValue = pendingApprovals.reduce((sum, a) => sum + a.amount, 0);
 
-  const handleApprove = (id: string) => {
-    setApprovals(approvals.map(a => a.id === id ? { ...a, status: 'Approved' } : a));
-    setSuccessMessage(`Approval ${id} has been approved!`);
-    setTimeout(() => setSuccessMessage(''), 3000);
+  const handleApprove = async (id: string) => {
+    setProcessingId(id);
+    setFetchError('');
+    try {
+      await ApprovalsService.updateApproval(id, { status: 'Approved' });
+      setApprovals(approvals.map(a => a.id === id ? { ...a, status: 'Approved' } : a));
+      setSuccessMessage(`Approval ${id} has been approved!`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error('Failed to approve:', error);
+      setFetchError('Failed to approve. Please try again.');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
-  const handleReject = (id: string) => {
-    setApprovals(approvals.map(a => a.id === id ? { ...a, status: 'Rejected' } : a));
-    setSuccessMessage(`Approval ${id} has been rejected.`);
-    setTimeout(() => setSuccessMessage(''), 3000);
+  const handleReject = async (id: string) => {
+    setProcessingId(id);
+    setFetchError('');
+    try {
+      await ApprovalsService.updateApproval(id, { status: 'Rejected' });
+      setApprovals(approvals.map(a => a.id === id ? { ...a, status: 'Rejected' } : a));
+      setSuccessMessage(`Approval ${id} has been rejected.`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error('Failed to reject:', error);
+      setFetchError('Failed to reject. Please try again.');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -68,10 +92,17 @@ export default function ApprovalsPage() {
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span className="text-green-600">✅</span>
+            <CheckCircle className="w-4 h-4 text-green-600" />
             <span className="text-sm text-green-800 font-medium">{successMessage}</span>
           </div>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {fetchError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-sm text-red-700 font-medium">{fetchError}</span>
+          <button onClick={() => setFetchError('')} className="text-red-600 hover:text-red-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -164,15 +195,17 @@ export default function ApprovalsPage() {
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleApprove(approval.id)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                        disabled={processingId === approval.id}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Approve
+                        {processingId === approval.id ? 'Approving...' : 'Approve'}
                       </button>
                       <button
                         onClick={() => handleReject(approval.id)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                        disabled={processingId === approval.id}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Reject
+                        {processingId === approval.id ? 'Rejecting...' : 'Reject'}
                       </button>
                     </div>
                   </div>
@@ -181,7 +214,7 @@ export default function ApprovalsPage() {
             ))
           ) : (
             <div className="p-12 text-center text-gray-400">
-              <div className="text-4xl mb-2">✅</div>
+              <CheckCircle className="w-10 h-10 mx-auto mb-2 opacity-40" />
               <p className="text-sm">No pending approvals!</p>
               <p className="text-xs mt-1">All approvals have been processed.</p>
             </div>

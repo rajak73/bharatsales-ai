@@ -42,8 +42,8 @@ export class OutletsService {
   async getOutlet360(organizationId: string, outletId: string) {
     const [outlet, recentOrders, recentVisits] = await Promise.all([
       this.outletModel.findOne({ _id: outletId, organizationId }).exec(),
-      this.orderModel.find({ outletId, organizationId }).sort({ orderDate: -1 }).limit(5).exec(),
-      this.visitModel.find({ outlet: outletId, organizationId }).sort({ checkInTime: -1 }).limit(5).exec(),
+      this.orderModel.find({ outletId, organizationId }).sort({ createdAt: -1 }).limit(5).exec(),
+      this.visitModel.find({ outlet: outletId, organizationId }).populate('user', 'name').sort({ checkInTime: -1 }).limit(5).exec(),
     ]);
 
     if (!outlet) {
@@ -56,9 +56,39 @@ export class OutletsService {
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     return {
-      outlet,
-      recentOrders,
-      recentVisits,
+      outlet: {
+        id: (outlet as any)._id.toString(),
+        code: outlet.code,
+        name: outlet.name,
+        owner: outlet.ownerName,
+        status: outlet.status,
+        tier: outlet.tier,
+        category: outlet.category,
+        mobile: outlet.mobile,
+        address: outlet.location?.address || 'N/A',
+        state: outlet.location?.state || 'Unknown',
+        pin: outlet.location?.pinCode || 'Unknown',
+        gstin: outlet.tax?.gstin || 'N/A',
+        creditLimit: outlet.commercial?.creditLimit || 0,
+        outstanding: outlet.commercial?.outstandingBalance || 0,
+        distributorId: outlet.commercial?.assignedDistributorId || null,
+      },
+      recentOrders: recentOrders.map((o: any) => ({
+        id: o._id.toString(),
+        orderNumber: o.orderNumber,
+        date: o.createdAt.toISOString().split('T')[0],
+        amount: o.totals?.grandTotal || 0,
+        items: o.items?.length || 0,
+        status: o.status,
+      })),
+      recentVisits: recentVisits.map((v: any) => ({
+        date: v.checkInTime.toISOString().split('T')[0],
+        rep: v.user?.name || 'Unknown Rep',
+        duration: v.checkOutTime
+          ? `${Math.max(1, Math.round((new Date(v.checkOutTime).getTime() - new Date(v.checkInTime).getTime()) / 60000))} mins`
+          : 'In Progress',
+        verified: v.isWithinGeofence !== false,
+      })),
       analytics: {
         totalOrders,
         totalRevenue,

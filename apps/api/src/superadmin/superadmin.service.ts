@@ -70,7 +70,7 @@ export class SuperadminService {
 
   async updateTenantStatus(id: string, status: string) {
     this.logger.log(`Updating tenant ${id} status to ${status}`);
-    const validStatuses = ['Trial', 'Active', 'Past Due', 'Suspended', 'Archived', 'Expired'];
+    const validStatuses = ['Pending Approval', 'Trial', 'Active', 'Past Due', 'Suspended', 'Archived', 'Expired'];
     if (!validStatuses.includes(status)) {
       throw new NotFoundException(`Invalid status: ${status}`);
     }

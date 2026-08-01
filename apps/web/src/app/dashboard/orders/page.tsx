@@ -22,6 +22,8 @@ export default function OrdersPage() {
   // Detail view state
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [productBatches, setProductBatches] = useState<Record<string, Inventory[]>>({});
+  const [actionError, setActionError] = useState('');
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedOrder && user?.role === 'Distributor' && selectedOrder.status === 'Submitted') {
@@ -76,35 +78,39 @@ export default function OrdersPage() {
 
   const handleApprove = async (orderId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    setActionError('');
     try {
       await OrdersService.approveOrder(orderId);
       await fetchOrders();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to approve order:', error);
-      alert('Failed to approve order. Please check inventory stock.');
+      setActionError(error?.response?.data?.message || 'Failed to approve order. Please check inventory stock.');
     }
   };
 
   const handleReject = async (orderId: string) => {
+    setActionError('');
     const reason = window.prompt('Reason for rejecting this order (optional):') || undefined;
     try {
       await OrdersService.rejectOrder(orderId, reason);
       await fetchOrders();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to reject order:', error);
-      alert('Failed to reject order.');
+      setActionError(error?.response?.data?.message || 'Failed to reject order.');
     }
   };
 
   const handleCancel = async (orderId: string) => {
-    if (!confirm('Are you sure you want to cancel this order?')) return;
+    setActionError('');
     const reason = window.prompt('Reason for cancelling this order (optional):') || undefined;
     try {
       await OrdersService.cancelOrder(orderId, reason);
       await fetchOrders();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to cancel order:', error);
-      alert('Failed to cancel order.');
+      setActionError(error?.response?.data?.message || 'Failed to cancel order.');
+    } finally {
+      setConfirmCancelId(null);
     }
   };
 
@@ -115,7 +121,7 @@ export default function OrdersPage() {
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
-      case 'Submitted': return 'bg-blue-100 text-blue-800';
+      case 'Submitted': return 'bg-primary-100 text-primary-800';
       case 'Approved': return 'bg-yellow-100 text-yellow-800';
       case 'Dispatched': return 'bg-purple-100 text-purple-800';
       case 'Delivered': return 'bg-green-100 text-green-800';
@@ -132,10 +138,16 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
           <p className="text-gray-500">Track and manage incoming orders from field reps.</p>
         </div>
-        <div className="flex space-x-3">
-          <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">📥 Export Report</button>
-        </div>
       </div>
+
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-sm text-red-700 font-medium">{actionError}</span>
+          <button onClick={() => setActionError('')} className="text-red-600 hover:text-red-800">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
@@ -143,7 +155,7 @@ export default function OrdersPage() {
           <div className="text-sm text-gray-500">Total Orders</div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
-          <div className="text-2xl font-bold text-blue-600">{orders.filter(o => o.status === 'Submitted').length}</div>
+          <div className="text-2xl font-bold text-primary-600">{orders.filter(o => o.status === 'Submitted').length}</div>
           <div className="text-sm text-gray-500">Pending Review</div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
@@ -320,7 +332,7 @@ export default function OrdersPage() {
                   )}
                   {['Draft', 'Submitted'].includes(selectedOrder.status) && (
                     <button
-                      onClick={() => handleCancel(selectedOrder.id!)}
+                      onClick={() => setConfirmCancelId(selectedOrder.id!)}
                       className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50"
                     >
                       Cancel Order
@@ -329,7 +341,7 @@ export default function OrdersPage() {
                   {selectedOrder.status === 'Submitted' && (
                     <button
                       onClick={() => handleApprove(selectedOrder.id!)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center"
+                      className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 flex items-center"
                     >
                       <Check className="w-4 h-4 mr-2" />
                       {user?.role === 'Distributor' ? 'Confirm & Allocate' : 'Approve Order'}
@@ -339,15 +351,34 @@ export default function OrdersPage() {
               </div>
 
               {user?.role === 'Distributor' && selectedOrder.status === 'Submitted' && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-6">
-                  <h4 className="font-medium text-blue-800 mb-1 text-sm">FEFO Allocation active</h4>
-                  <p className="text-xs text-blue-700">Batches are automatically allocated using First-Expired-First-Out logic based on inventory ledgers.</p>
+                <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mt-6">
+                  <h4 className="font-medium text-primary-800 mb-1 text-sm">FEFO Allocation active</h4>
+                  <p className="text-xs text-primary-700">Batches are automatically allocated using First-Expired-First-Out logic based on inventory ledgers.</p>
                 </div>
               )}
             </div>
           </div>
         )}
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {confirmCancelId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Cancel this order?</h3>
+            <p className="text-sm text-gray-500 mb-6">This action cannot be undone.</p>
+            <div className="flex space-x-3">
+              <button onClick={() => setConfirmCancelId(null)} className="flex-1 btn-secondary">Keep Order</button>
+              <button
+                onClick={() => handleCancel(confirmCancelId)}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-2.5 text-sm"
+              >
+                Cancel Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ProductsService } from '@bharatsales/api-client';
 import { Product } from '@bharatsales/shared-types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle, X, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -81,10 +81,10 @@ export default function ProductsPage() {
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span className="text-green-600">✅</span>
+            <CheckCircle className="w-4 h-4 text-green-600" />
             <span className="text-sm text-green-800 font-medium">{successMessage}</span>
           </div>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -95,8 +95,6 @@ export default function ProductsPage() {
           <p className="text-gray-500">Product master, pricing & inventory • {filteredProducts.length} products found</p>
         </div>
         <div className="flex space-x-3">
-          <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">📥 Import</button>
-          <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">📤 Export</button>
           <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">+ Add Product</button>
         </div>
       </div>
@@ -210,7 +208,7 @@ export default function ProductsPage() {
                 <tr>
                   <td colSpan={9} className="px-6 py-12 text-center">
                     <div className="text-gray-400">
-                      <div className="text-4xl mb-2">📦</div>
+                      <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
                       <p className="text-sm">No products found</p>
                     </div>
                   </td>
@@ -219,6 +217,29 @@ export default function ProductsPage() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+            <p className="text-sm text-gray-500">
+              Page {currentPage} of {totalPages} • {filteredProducts.length} products
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Product Modal */}
@@ -227,7 +248,7 @@ export default function ProductsPage() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900">Add New Product</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { SettingsService, SupportService, AuthService } from '@bharatsales/api-client';
 import { Settings } from '@bharatsales/shared-types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Building2, MapPin, ClipboardList, Lock, Ticket, Save, CheckCircle, X } from 'lucide-react';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('company');
@@ -109,11 +109,11 @@ export default function SettingsPage() {
   };
 
   const sections = [
-    { id: 'company', label: 'Company Profile', icon: '🏢' },
-    { id: 'attendance', label: 'Attendance & Geofence', icon: '📍' },
-    { id: 'order', label: 'Order & Approval', icon: '📋' },
-    { id: 'sessions', label: 'Active Sessions', icon: '🔐' },
-    { id: 'support', label: 'Support', icon: '🎫' },
+    { id: 'company', label: 'Company Profile', icon: Building2 },
+    { id: 'attendance', label: 'Attendance & Geofence', icon: MapPin },
+    { id: 'order', label: 'Order & Approval', icon: ClipboardList },
+    { id: 'sessions', label: 'Active Sessions', icon: Lock },
+    { id: 'support', label: 'Support', icon: Ticket },
   ];
 
   return (
@@ -122,10 +122,10 @@ export default function SettingsPage() {
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span className="text-green-600">✅</span>
+            <CheckCircle className="w-4 h-4 text-green-600" />
             <span className="text-sm text-green-800 font-medium">{successMessage}</span>
           </div>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -135,7 +135,9 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
           <p className="text-gray-500">Configure your organization, policies, and integrations</p>
         </div>
-        <button onClick={handleSave} disabled={loading} className="btn-primary text-sm disabled:opacity-50">💾 Save Changes</button>
+        <button onClick={handleSave} disabled={loading} className="btn-primary text-sm disabled:opacity-50 flex items-center gap-2">
+          <Save className="w-4 h-4" /> Save Changes
+        </button>
       </div>
 
       <div className="grid lg:grid-cols-4 gap-6">
@@ -153,7 +155,7 @@ export default function SettingsPage() {
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <span>{section.icon}</span>
+                  <section.icon className="w-4 h-4" />
                   <span>{section.label}</span>
                 </button>
               ))}

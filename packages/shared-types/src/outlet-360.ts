@@ -1,4 +1,5 @@
 export interface Outlet360Details {
+  id: string;
   code: string;
   name: string;
   owner: string;
@@ -6,19 +7,18 @@ export interface Outlet360Details {
   tier: string;
   status: string;
   mobile: string;
-  email: string;
-  language: string;
   address: string;
   state: string;
   pin: string;
   gstin: string;
-  creditLimit: string;
-  outstanding: string;
-  distributor: string;
+  creditLimit: number;
+  outstanding: number;
+  distributorId: string | null;
 }
 
 export interface Outlet360Order {
   id: string;
+  orderNumber: string;
   date: string;
   amount: number;
   items: number;
@@ -29,6 +29,5 @@ export interface Outlet360Visit {
   date: string;
   rep: string;
   duration: string;
-  order: number;
   verified: boolean;
 }

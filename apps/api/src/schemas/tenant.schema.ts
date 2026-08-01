@@ -32,8 +32,8 @@ export class Tenant implements Omit<ITenant, 'id' | 'createdAt' | 'updatedAt'> {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true, enum: ['Trial', 'Active', 'Past Due', 'Suspended', 'Archived', 'Expired'], default: 'Trial' })
-  status: 'Trial' | 'Active' | 'Past Due' | 'Suspended' | 'Archived' | 'Expired';
+  @Prop({ required: true, enum: ['Pending Approval', 'Trial', 'Active', 'Past Due', 'Suspended', 'Archived', 'Expired'], default: 'Trial' })
+  status: 'Pending Approval' | 'Trial' | 'Active' | 'Past Due' | 'Suspended' | 'Archived' | 'Expired';
 
   @Prop({ required: true, enum: ['Starter', 'Growth', 'Enterprise'], default: 'Starter' })
   plan: 'Starter' | 'Growth' | 'Enterprise';

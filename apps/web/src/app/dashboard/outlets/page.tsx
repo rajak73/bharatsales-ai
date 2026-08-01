@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, Button } from '@bharatsales/ui';
 import { OutletsService, DistributorsService } from '@bharatsales/api-client';
 import { Outlet, Distributor } from '@bharatsales/shared-types';
-import { Plus, Search, MapPin, Phone, MoreVertical, Store, Loader2 } from 'lucide-react';
+import { Plus, Search, MapPin, Phone, MoreVertical, Store, Loader2, X, CheckCircle, Power, Trash2 } from 'lucide-react';
 
 export default function OutletsPage() {
   const [outlets, setOutlets] = useState<Outlet[]>([]);
@@ -17,6 +17,17 @@ export default function OutletsPage() {
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
   const [selectedDistributorId, setSelectedDistributorId] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [confirmDeleteOutlet, setConfirmDeleteOutlet] = useState<Outlet | null>(null);
+  const [newOutlet, setNewOutlet] = useState({
+    name: '', code: '', ownerName: '', category: 'Grocery', tier: 'B' as 'A' | 'B' | 'C' | 'D',
+    mobile: '', address: '', state: '', pinCode: '', creditLimit: '10000', paymentTermsDays: '7',
+  });
 
   useEffect(() => {
     fetchData();
@@ -63,19 +74,90 @@ export default function OutletsPage() {
     }
   };
 
-  const filteredOutlets = outlets.filter(o => 
+  const handleCreateOutlet = async () => {
+    if (!newOutlet.name || !newOutlet.code || !newOutlet.ownerName || !newOutlet.mobile) return;
+    setCreating(true);
+    setFormError('');
+    try {
+      await OutletsService.createOutlet({
+        name: newOutlet.name,
+        code: newOutlet.code,
+        ownerName: newOutlet.ownerName,
+        category: newOutlet.category,
+        tier: newOutlet.tier,
+        status: 'Active',
+        mobile: newOutlet.mobile,
+        location: {
+          address: newOutlet.address,
+          state: newOutlet.state,
+          pinCode: newOutlet.pinCode,
+          latitude: 0,
+          longitude: 0,
+          geofenceRadiusMeters: 100,
+        },
+        commercial: {
+          creditLimit: Number(newOutlet.creditLimit) || 0,
+          paymentTermsDays: Number(newOutlet.paymentTermsDays) || 0,
+          outstandingBalance: 0,
+        },
+        tax: {},
+      } as any);
+      setShowAddModal(false);
+      setNewOutlet({ name: '', code: '', ownerName: '', category: 'Grocery', tier: 'B', mobile: '', address: '', state: '', pinCode: '', creditLimit: '10000', paymentTermsDays: '7' });
+      setSuccessMessage(`Outlet "${newOutlet.name}" added successfully!`);
+      setTimeout(() => setSuccessMessage(''), 4000);
+      await fetchData();
+    } catch (error: any) {
+      setFormError(error?.response?.data?.message || 'Failed to add outlet.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleToggleStatus = async (outlet: Outlet) => {
+    setOpenMenuId(null);
+    const newStatus = outlet.status === 'Active' ? 'Inactive' : 'Active';
+    try {
+      await OutletsService.updateOutlet(outlet.id, { status: newStatus });
+      setOutlets(outlets.map(o => o.id === outlet.id ? { ...o, status: newStatus } : o));
+    } catch (error) {
+      console.error('Failed to update outlet status', error);
+    }
+  };
+
+  const handleDeleteOutlet = async (outlet: Outlet) => {
+    try {
+      await OutletsService.deleteOutlet(outlet.id);
+      setOutlets(outlets.filter(o => o.id !== outlet.id));
+      setConfirmDeleteOutlet(null);
+    } catch (error) {
+      console.error('Failed to delete outlet', error);
+    }
+  };
+
+  const filteredOutlets = outlets.filter(o =>
     o.name.toLowerCase().includes(search.toLowerCase()) || 
     (o.ownerName && o.ownerName.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
     <div className="space-y-6">
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <CheckCircle className="w-4 h-4 text-green-600" />
+            <span className="text-sm text-green-800 font-medium">{successMessage}</span>
+          </div>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Outlets</h1>
           <p className="text-gray-500 text-sm mt-1">Manage your retail store network across all territories.</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowAddModal(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Add Outlet
         </Button>
@@ -105,7 +187,7 @@ export default function OutletsPage() {
             <h3 className="mt-2 text-sm font-semibold text-gray-900">No outlets found</h3>
             <p className="mt-1 text-sm text-gray-500">Get started by creating a new outlet.</p>
             <div className="mt-6">
-              <Button>
+              <Button onClick={() => setShowAddModal(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Outlet
               </Button>
@@ -178,9 +260,32 @@ export default function OutletsPage() {
                       >
                         Assign Distributor
                       </button>
-                      <button className="text-gray-400 hover:text-gray-600">
-                        <MoreVertical className="w-5 h-5 inline-block" />
-                      </button>
+                      <div className="relative inline-block">
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === outlet.id ? null : outlet.id)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <MoreVertical className="w-5 h-5 inline-block" />
+                        </button>
+                        {openMenuId === outlet.id && (
+                          <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10 text-left">
+                            <button
+                              onClick={() => handleToggleStatus(outlet)}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                            >
+                              <Power className="w-3.5 h-3.5" />
+                              {outlet.status === 'Active' ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => { setOpenMenuId(null); setConfirmDeleteOutlet(outlet); }}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-xs text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -226,6 +331,116 @@ export default function OutletsPage() {
                 className="flex-1 py-2 px-4 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 flex justify-center items-center"
               >
                 {isAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Assign'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Outlet Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-900">Add Outlet</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {formError && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">{formError}</div>
+            )}
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Outlet Name *</label>
+                  <input type="text" className="input-field" value={newOutlet.name} onChange={(e) => setNewOutlet({ ...newOutlet, name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Outlet Code *</label>
+                  <input type="text" className="input-field" value={newOutlet.code} onChange={(e) => setNewOutlet({ ...newOutlet, code: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Owner Name *</label>
+                  <input type="text" className="input-field" value={newOutlet.ownerName} onChange={(e) => setNewOutlet({ ...newOutlet, ownerName: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile *</label>
+                  <input type="tel" className="input-field" value={newOutlet.mobile} onChange={(e) => setNewOutlet({ ...newOutlet, mobile: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <input type="text" className="input-field" value={newOutlet.category} onChange={(e) => setNewOutlet({ ...newOutlet, category: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tier</label>
+                  <select className="input-field" value={newOutlet.tier} onChange={(e) => setNewOutlet({ ...newOutlet, tier: e.target.value as any })}>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <input type="text" className="input-field" value={newOutlet.address} onChange={(e) => setNewOutlet({ ...newOutlet, address: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                  <input type="text" className="input-field" value={newOutlet.state} onChange={(e) => setNewOutlet({ ...newOutlet, state: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pin Code</label>
+                  <input type="text" className="input-field" value={newOutlet.pinCode} onChange={(e) => setNewOutlet({ ...newOutlet, pinCode: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Credit Limit (₹)</label>
+                  <input type="number" className="input-field" value={newOutlet.creditLimit} onChange={(e) => setNewOutlet({ ...newOutlet, creditLimit: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms (days)</label>
+                  <input type="number" className="input-field" value={newOutlet.paymentTermsDays} onChange={(e) => setNewOutlet({ ...newOutlet, paymentTermsDays: e.target.value })} />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <button onClick={() => setShowAddModal(false)} className="flex-1 btn-secondary">Cancel</button>
+              <button
+                onClick={handleCreateOutlet}
+                disabled={creating || !newOutlet.name || !newOutlet.code || !newOutlet.ownerName || !newOutlet.mobile}
+                className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creating ? 'Adding...' : 'Add Outlet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDeleteOutlet && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete outlet?</h3>
+            <p className="text-sm text-gray-500 mb-6">This will permanently delete "{confirmDeleteOutlet.name}". This cannot be undone.</p>
+            <div className="flex space-x-3">
+              <button onClick={() => setConfirmDeleteOutlet(null)} className="flex-1 btn-secondary">Cancel</button>
+              <button
+                onClick={() => handleDeleteOutlet(confirmDeleteOutlet)}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-2.5 text-sm"
+              >
+                Delete
               </button>
             </div>
           </div>

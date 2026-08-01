@@ -5,7 +5,7 @@ import { AnalyticsService } from '@bharatsales/api-client';
 import { Loader2, TrendingUp, TrendingDown, Users, ShoppingCart, DollarSign, Target, RefreshCw, BarChart2, Activity } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
+const COLORS = ['#2563eb', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null);
@@ -137,7 +137,7 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip formatter={(val: any) => [`₹${Number(val).toLocaleString()}`, 'Revenue']} />
-                <Line type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2.5} dot={{ fill: '#6366f1', r: 4 }} />
+                <Line type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={2.5} dot={{ fill: '#2563eb', r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           ) : (
@@ -186,7 +186,7 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
-                <Bar dataKey="orders" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="orders" fill="#2563eb" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

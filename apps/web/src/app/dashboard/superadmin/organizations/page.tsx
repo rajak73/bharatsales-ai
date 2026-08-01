@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { SuperadminService } from '@bharatsales/api-client';
 import { Tenant } from '@bharatsales/shared-types';
-import { Loader2, ShieldAlert, CheckCircle, PauseCircle, Activity } from 'lucide-react';
+import { Loader2, ShieldAlert, CheckCircle, PauseCircle, Activity, Clock, X } from 'lucide-react';
 
 export default function OrganizationsPage() {
   const [tenants, setTenants] = useState<(Tenant & { userCount: number })[]>([]);
@@ -57,6 +57,7 @@ export default function OrganizationsPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'Pending Approval': return <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium flex items-center w-fit"><Clock className="w-3 h-3 mr-1"/> Pending Approval</span>;
       case 'Active': return <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium flex items-center w-fit"><CheckCircle className="w-3 h-3 mr-1"/> Active</span>;
       case 'Suspended': return <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium flex items-center w-fit"><PauseCircle className="w-3 h-3 mr-1"/> Suspended</span>;
       case 'Trial': return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium flex items-center w-fit"><Activity className="w-3 h-3 mr-1"/> Trial</span>;
@@ -78,7 +79,7 @@ export default function OrganizationsPage() {
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
           <span className="text-sm text-green-800 font-medium">{successMessage}</span>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -122,7 +123,12 @@ export default function OrganizationsPage() {
                       <Loader2 className="w-4 h-4 animate-spin inline-block text-primary-600" />
                     ) : (
                       <>
-                        {tenant.status !== 'Active' && (
+                        {tenant.status === 'Pending Approval' && (
+                          <button onClick={() => updateStatus(tenant.id, 'Active')} className="text-amber-600 hover:text-amber-800 text-xs font-bold">
+                            Approve
+                          </button>
+                        )}
+                        {tenant.status !== 'Active' && tenant.status !== 'Pending Approval' && (
                           <button onClick={() => updateStatus(tenant.id, 'Active')} className="text-green-600 hover:text-green-800 text-xs font-medium">
                             Activate
                           </button>
@@ -152,7 +158,7 @@ export default function OrganizationsPage() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900">Create Organization</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div>

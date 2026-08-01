@@ -5,11 +5,9 @@ import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UserDocument, TenantDocument, SessionDocument, TokenDocument } from '../schemas';
-
-export interface IEmailProvider {
-  sendEmail(to: string, subject: string, body: string): Promise<boolean>;
-}
+import { SendGridEmailProvider } from '../common/email.provider';
 
 export interface ISMSProvider {
   sendSMS(to: string, message: string): Promise<boolean>;
@@ -21,21 +19,6 @@ export interface ISSOProvider {
 }
 
 import { Logger } from '@nestjs/common';
-
-class SendGridEmailProvider implements IEmailProvider {
-  private readonly logger = new Logger(SendGridEmailProvider.name);
-  private apiKey = process.env.SENDGRID_API_KEY;
-
-  async sendEmail(to: string, subject: string, body: string): Promise<boolean> {
-    if (this.apiKey) {
-      this.logger.log(`Sending email to ${to} via SendGrid...`);
-      // Simulating real API call
-      return true;
-    }
-    this.logger.debug(`[Development Mode] Email to ${to}. Subject: ${subject}`);
-    return true;
-  }
-}
 
 class TwilioSMSProvider implements ISMSProvider {
   private readonly logger = new Logger(TwilioSMSProvider.name);
@@ -79,7 +62,6 @@ class MockMicrosoftSSOProvider implements ISSOProvider {
 
 @Injectable()
 export class AuthService {
-  private emailProvider: IEmailProvider = new SendGridEmailProvider();
   private smsProvider: ISMSProvider = new TwilioSMSProvider();
   public googleSSO: ISSOProvider = new MockGoogleSSOProvider();
   public microsoftSSO: ISSOProvider = new MockMicrosoftSSOProvider();
@@ -90,7 +72,9 @@ export class AuthService {
     @InjectModel('Session') private sessionModel: Model<SessionDocument>,
     @InjectModel('Token') private tokenModel: Model<TokenDocument>,
     private jwtService: JwtService,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private notificationsService: NotificationsService,
+    private emailProvider: SendGridEmailProvider
   ) {}
 
   async register(registerDto: any) {
@@ -103,7 +87,7 @@ export class AuthService {
 
     const newTenant = new this.tenantModel({
       name: companyName,
-      status: 'Trial',
+      status: 'Pending Approval',
       plan: 'Starter',
     });
     const savedTenant = await newTenant.save();
@@ -118,9 +102,18 @@ export class AuthService {
       role: 'Organization Admin',
       status: 'Active',
     });
-    const savedUser = await newUser.save();
+    await newUser.save();
 
-    return { success: true, message: 'User registered successfully.' };
+    const platformAdmins = await this.userModel.find({ platformAdmin: true }).select('_id organizationId').exec();
+    for (const admin of platformAdmins) {
+      this.notificationsService.create((admin as any).organizationId, (admin as any)._id.toString(), {
+        type: 'org_registered',
+        title: 'New Organization Registered',
+        message: `"${companyName}" has self-registered and is awaiting your approval.`
+      }).catch(() => {});
+    }
+
+    return { success: true, message: 'Registration submitted. Your organization is awaiting platform administrator approval — you will be notified once approved.' };
   }
 
   async login(loginDto: { email: string; password?: string; otp?: string; deviceInfo?: string }, ipAddress?: string) {
@@ -135,6 +128,9 @@ export class AuthService {
       const tenant = await this.tenantModel.findById(user.organizationId).exec();
       if (!tenant || tenant.status === 'Suspended' || tenant.status === 'Archived') {
         throw new UnauthorizedException('Organization account is suspended or archived.');
+      }
+      if (tenant.status === 'Pending Approval') {
+        throw new UnauthorizedException('Your organization is awaiting platform administrator approval.');
       }
     }
 
@@ -385,8 +381,8 @@ export class AuthService {
 
     if (!user.platformAdmin) {
       const tenant = await this.tenantModel.findById(user.organizationId).exec();
-      if (!tenant || tenant.status === 'Suspended' || tenant.status === 'Archived') {
-        throw new UnauthorizedException('Organization account is suspended or archived.');
+      if (!tenant || tenant.status === 'Suspended' || tenant.status === 'Archived' || tenant.status === 'Pending Approval') {
+        throw new UnauthorizedException('Organization account is suspended, archived, or pending approval.');
       }
     }
 

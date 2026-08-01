@@ -1,7 +1,7 @@
 export interface Tenant {
   id: string;
   name: string;
-  status: 'Trial' | 'Active' | 'Past Due' | 'Suspended' | 'Archived' | 'Expired';
+  status: 'Pending Approval' | 'Trial' | 'Active' | 'Past Due' | 'Suspended' | 'Archived' | 'Expired';
   plan: 'Starter' | 'Growth' | 'Enterprise';
   timezone?: string;
   currency?: string;

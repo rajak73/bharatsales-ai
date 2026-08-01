@@ -3,7 +3,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { HierarchyService, UsersService } from '@bharatsales/api-client';
 import { HierarchyNode, HierarchyLevel, User } from '@bharatsales/shared-types';
-import { Network, Plus, Map, MapPin, ChevronRight, Users as UsersIcon, Loader2 } from 'lucide-react';
+import { Network, Plus, Map, MapPin, ChevronRight, Users as UsersIcon, Loader2, Pencil, Trash2, CheckCircle, X } from 'lucide-react';
+
+const PARENT_LEVEL: Record<HierarchyLevel, HierarchyLevel | null> = {
+  Zone: null,
+  Region: 'Zone',
+  Area: 'Region',
+  Territory: 'Area',
+};
 
 export default function HierarchyPage() {
   const [nodes, setNodes] = useState<HierarchyNode[]>([]);
@@ -11,7 +18,12 @@ export default function HierarchyPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [deletingNodeId, setDeletingNodeId] = useState<string | null>(null);
+  const [confirmDeleteNode, setConfirmDeleteNode] = useState<HierarchyNode | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [modalError, setModalError] = useState('');
+
   // Selection state
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
@@ -55,7 +67,8 @@ export default function HierarchyPage() {
   const handleAddNode = async () => {
     try {
       if (!newNode.name) return;
-      
+      setModalError('');
+
       await HierarchyService.createNode({
         name: newNode.name,
         level: newNode.level,
@@ -63,21 +76,81 @@ export default function HierarchyPage() {
         managerId: newNode.managerId || undefined,
         status: 'Active'
       });
-      
+
       setSuccessMessage(`${newNode.level} "${newNode.name}" created successfully!`);
       setShowAddModal(false);
       setNewNode({ name: '', level: 'Zone', parentId: '', managerId: '' });
       fetchData();
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating node:', error);
-      alert('Failed to create node');
+      setModalError(error?.response?.data?.message || 'Failed to create node');
     }
   };
 
   const openModalFor = (level: HierarchyLevel, parentId: string) => {
+    setEditingNodeId(null);
+    setModalError('');
     setNewNode({ name: '', level, parentId, managerId: '' });
     setShowAddModal(true);
+  };
+
+  const openEditModal = (node: HierarchyNode) => {
+    setEditingNodeId(node.id);
+    setModalError('');
+    setNewNode({
+      name: node.name,
+      level: node.level,
+      parentId: node.parentId || '',
+      managerId: node.managerId || '',
+    });
+    setShowAddModal(true);
+  };
+
+  const handleUpdateNode = async () => {
+    if (!editingNodeId || !newNode.name) return;
+    setModalError('');
+    try {
+      await HierarchyService.updateNode(editingNodeId, {
+        name: newNode.name,
+        parentId: newNode.parentId || undefined,
+        managerId: newNode.managerId || undefined,
+      });
+      setSuccessMessage(`${newNode.level} "${newNode.name}" updated successfully!`);
+      setShowAddModal(false);
+      setEditingNodeId(null);
+      setNewNode({ name: '', level: 'Zone', parentId: '', managerId: '' });
+      fetchData();
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error: any) {
+      setModalError(error?.response?.data?.message || 'Failed to update node');
+    }
+  };
+
+  const handleDeleteNode = async (node: HierarchyNode) => {
+    setErrorMessage('');
+    setDeletingNodeId(node.id);
+    try {
+      await HierarchyService.deleteNode(node.id);
+      if (selectedZone === node.id) setSelectedZone(null);
+      if (selectedRegion === node.id) setSelectedRegion(null);
+      if (selectedArea === node.id) setSelectedArea(null);
+      if (selectedTerritory === node.id) setSelectedTerritory(null);
+      setSuccessMessage(`${node.level} "${node.name}" deleted successfully!`);
+      fetchData();
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || 'Failed to delete node. Reassign or delete its children first.');
+    } finally {
+      setDeletingNodeId(null);
+      setConfirmDeleteNode(null);
+    }
+  };
+
+  const parentOptionsFor = (level: HierarchyLevel) => {
+    const parentLevel = PARENT_LEVEL[level];
+    if (!parentLevel) return [];
+    return nodes.filter(n => n.level === parentLevel);
   };
 
   const getManagerName = (managerId?: string) => {
@@ -99,10 +172,17 @@ export default function HierarchyPage() {
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
            <div className="flex items-center space-x-2">
-             <span className="text-green-600">✅</span>
+             <CheckCircle className="w-4 h-4 text-green-600" />
              <span className="text-sm text-green-800 font-medium">{successMessage}</span>
            </div>
-           <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+           <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-sm text-red-700 font-medium">{errorMessage}</span>
+          <button onClick={() => setErrorMessage('')} className="text-red-600 hover:text-red-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -140,7 +220,15 @@ export default function HierarchyPage() {
                >
                  <div className="flex justify-between items-center mb-1">
                    <span className="font-bold text-sm text-gray-900">{zone.name}</span>
-                   <ChevronRight className={`w-4 h-4 ${selectedZone === zone.id ? 'text-primary-600' : 'text-gray-400'}`} />
+                   <div className="flex items-center gap-1">
+                     <button onClick={(e) => { e.stopPropagation(); openEditModal(zone); }} className="text-gray-400 hover:text-primary-600 p-1 rounded">
+                       <Pencil className="w-3.5 h-3.5" />
+                     </button>
+                     <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteNode(zone); }} disabled={deletingNodeId === zone.id} className="text-gray-400 hover:text-red-600 p-1 rounded disabled:opacity-50">
+                       {deletingNodeId === zone.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                     </button>
+                     <ChevronRight className={`w-4 h-4 ${selectedZone === zone.id ? 'text-primary-600' : 'text-gray-400'}`} />
+                   </div>
                  </div>
                  <div className="flex items-center gap-1 text-xs text-gray-500">
                    <UsersIcon className="w-3 h-3" /> {getManagerName(zone.managerId)}
@@ -179,7 +267,15 @@ export default function HierarchyPage() {
                   >
                     <div className="flex justify-between items-center mb-1">
                       <span className="font-bold text-sm text-gray-900">{region.name}</span>
-                      <ChevronRight className={`w-4 h-4 ${selectedRegion === region.id ? 'text-primary-600' : 'text-gray-400'}`} />
+                      <div className="flex items-center gap-1">
+                        <button onClick={(e) => { e.stopPropagation(); openEditModal(region); }} className="text-gray-400 hover:text-primary-600 p-1 rounded">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteNode(region); }} disabled={deletingNodeId === region.id} className="text-gray-400 hover:text-red-600 p-1 rounded disabled:opacity-50">
+                          {deletingNodeId === region.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                        <ChevronRight className={`w-4 h-4 ${selectedRegion === region.id ? 'text-primary-600' : 'text-gray-400'}`} />
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <UsersIcon className="w-3 h-3" /> {getManagerName(region.managerId)}
@@ -219,7 +315,15 @@ export default function HierarchyPage() {
                   >
                     <div className="flex justify-between items-center mb-1">
                       <span className="font-bold text-sm text-gray-900">{area.name}</span>
-                      <ChevronRight className={`w-4 h-4 ${selectedArea === area.id ? 'text-primary-600' : 'text-gray-400'}`} />
+                      <div className="flex items-center gap-1">
+                        <button onClick={(e) => { e.stopPropagation(); openEditModal(area); }} className="text-gray-400 hover:text-primary-600 p-1 rounded">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteNode(area); }} disabled={deletingNodeId === area.id} className="text-gray-400 hover:text-red-600 p-1 rounded disabled:opacity-50">
+                          {deletingNodeId === area.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                        <ChevronRight className={`w-4 h-4 ${selectedArea === area.id ? 'text-primary-600' : 'text-gray-400'}`} />
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <UsersIcon className="w-3 h-3" /> {getManagerName(area.managerId)}
@@ -259,6 +363,14 @@ export default function HierarchyPage() {
                   >
                     <div className="flex justify-between items-center mb-1">
                       <span className="font-bold text-sm text-gray-900">{territory.name}</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={(e) => { e.stopPropagation(); openEditModal(territory); }} className="text-gray-400 hover:text-primary-600 p-1 rounded">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteNode(territory); }} disabled={deletingNodeId === territory.id} className="text-gray-400 hover:text-red-600 p-1 rounded disabled:opacity-50">
+                          {deletingNodeId === territory.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <UsersIcon className="w-3 h-3" /> {getManagerName(territory.managerId)}
@@ -276,10 +388,14 @@ export default function HierarchyPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-gray-900">Add New {newNode.level}</h3>
-                <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                <h3 className="text-lg font-bold text-gray-900">{editingNodeId ? `Edit ${newNode.level}` : `Add New ${newNode.level}`}</h3>
+                <button onClick={() => { setShowAddModal(false); setEditingNodeId(null); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
              </div>
-             
+
+             {modalError && (
+               <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">{modalError}</div>
+             )}
+
              <div className="space-y-4">
                 <div>
                    <label className="block text-sm font-medium text-gray-700 mb-1">{newNode.level} Name *</label>
@@ -291,6 +407,23 @@ export default function HierarchyPage() {
                      onChange={e => setNewNode({ ...newNode, name: e.target.value })}
                    />
                 </div>
+
+                {editingNodeId && PARENT_LEVEL[newNode.level] && (
+                  <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">Parent {PARENT_LEVEL[newNode.level]}</label>
+                     <select
+                       className="input-field"
+                       value={newNode.parentId}
+                       onChange={e => setNewNode({ ...newNode, parentId: e.target.value })}
+                     >
+                       <option value="">-- None --</option>
+                       {parentOptionsFor(newNode.level).map(p => (
+                         <option key={p.id} value={p.id}>{p.name}</option>
+                       ))}
+                     </select>
+                     <p className="text-xs text-gray-400 mt-1">Reparenting moves this node (and its descendants) elsewhere in the tree.</p>
+                  </div>
+                )}
 
                 <div>
                    <label className="block text-sm font-medium text-gray-700 mb-1">Assign Manager</label>
@@ -309,15 +442,37 @@ export default function HierarchyPage() {
              </div>
 
              <div className="flex space-x-3 mt-8">
-               <button onClick={() => setShowAddModal(false)} className="flex-1 btn-secondary">Cancel</button>
-               <button 
-                 onClick={handleAddNode}
+               <button onClick={() => { setShowAddModal(false); setEditingNodeId(null); }} className="flex-1 btn-secondary">Cancel</button>
+               <button
+                 onClick={editingNodeId ? handleUpdateNode : handleAddNode}
                  disabled={!newNode.name}
                  className="flex-1 btn-primary disabled:opacity-50"
                >
-                 Create {newNode.level}
+                 {editingNodeId ? 'Save Changes' : `Create ${newNode.level}`}
                </button>
              </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDeleteNode && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete {confirmDeleteNode.level}?</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              This will permanently delete "{confirmDeleteNode.name}". This cannot be undone.
+            </p>
+            <div className="flex space-x-3">
+              <button onClick={() => setConfirmDeleteNode(null)} className="flex-1 btn-secondary">Cancel</button>
+              <button
+                onClick={() => handleDeleteNode(confirmDeleteNode)}
+                disabled={deletingNodeId === confirmDeleteNode.id}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-2.5 text-sm disabled:opacity-50"
+              >
+                {deletingNodeId === confirmDeleteNode.id ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}

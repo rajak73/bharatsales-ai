@@ -52,6 +52,56 @@ describe('HierarchyService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('createNode — manager territory propagation', () => {
+    it('should additively grant the assigned manager access to the new node', async () => {
+      (service as any).hierarchyModel = function (data: any) {
+        this.save = jest.fn().mockResolvedValue({ ...data, _id: 'newNodeId' });
+      };
+      Object.assign((service as any).hierarchyModel, mockHierarchyModel);
+
+      const mockUserModel = { updateOne: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }) };
+      (service as any).userModel = mockUserModel;
+
+      await service.createNode('org1', { name: 'Territory X', level: 'Territory', managerId: 'manager1' } as any);
+
+      expect(mockUserModel.updateOne).toHaveBeenCalledWith(
+        { _id: 'manager1', organizationId: 'org1' },
+        { $addToSet: { territoryIds: 'newNodeId' } }
+      );
+    });
+
+    it('should not touch territoryIds when no manager is assigned', async () => {
+      (service as any).hierarchyModel = function (data: any) {
+        this.save = jest.fn().mockResolvedValue({ ...data, _id: 'newNodeId' });
+      };
+      Object.assign((service as any).hierarchyModel, mockHierarchyModel);
+
+      const mockUserModel = { updateOne: jest.fn() };
+      (service as any).userModel = mockUserModel;
+
+      await service.createNode('org1', { name: 'Territory X', level: 'Territory' } as any);
+
+      expect(mockUserModel.updateOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateNode — manager territory propagation', () => {
+    it('should additively grant a reassigned manager access to the node', async () => {
+      mockHierarchyModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'node1', parentId: null, level: 'Zone' }) });
+      mockHierarchyModel.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'node1' }) });
+
+      const mockUserModel = { updateOne: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }) };
+      (service as any).userModel = mockUserModel;
+
+      await service.updateNode('org1', 'node1', { managerId: 'manager2' } as any);
+
+      expect(mockUserModel.updateOne).toHaveBeenCalledWith(
+        { _id: 'manager2', organizationId: 'org1' },
+        { $addToSet: { territoryIds: 'node1' } }
+      );
+    });
+  });
+
   describe('updateNode', () => {
     it('should throw cyclical loop error if target parent is a descendant', async () => {
       // id = "A", trying to set parentId to "C"

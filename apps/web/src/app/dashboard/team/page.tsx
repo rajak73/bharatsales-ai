@@ -1,22 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UsersService, PerformanceService, BeatsService } from '@bharatsales/api-client';
-import { User, UserRole } from '@bharatsales/shared-types';
-import { Loader2 } from 'lucide-react';
+import { UsersService, PerformanceService, BeatsService, HierarchyService } from '@bharatsales/api-client';
+import { User, UserRole, HierarchyNode } from '@bharatsales/shared-types';
+import { Loader2, Users, X } from 'lucide-react';
 
 export default function TeamPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [newMember, setNewMember] = useState({ name: '', role: 'Sales Representative' as UserRole, territory: '', mobile: '', email: '' });
+  const [newMember, setNewMember] = useState({ name: '', role: 'Sales Representative' as UserRole, territoryId: '', mobile: '', email: '' });
   const [allMembers, setAllMembers] = useState<User[]>([]);
+  const [hierarchyNodes, setHierarchyNodes] = useState<HierarchyNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamDSR, setTeamDSR] = useState<any>(null);
   const [teamTargets, setTeamTargets] = useState<any[]>([]);
   const [beatCompletion, setBeatCompletion] = useState<{ teamCompletionPercentage: number; reps: any[] } | null>(null);
   const [role, setRole] = useState<string>('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteError, setInviteError] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     try {
@@ -27,6 +31,7 @@ export default function TeamPage() {
     }
     fetchUsers();
     fetchTeamStats();
+    fetchHierarchyNodes();
   }, []);
 
   const isOrgAdmin = role === 'Organization Admin';
@@ -40,6 +45,15 @@ export default function TeamPage() {
       console.error('Failed to fetch team members:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHierarchyNodes = async () => {
+    try {
+      const data = await HierarchyService.getHierarchyNodes();
+      setHierarchyNodes(data || []);
+    } catch (error) {
+      console.error('Failed to fetch hierarchy nodes:', error);
     }
   };
 
@@ -70,23 +84,25 @@ export default function TeamPage() {
   });
 
   const handleAddMember = async () => {
-    if (newMember.name && newMember.mobile) {
-      try {
-        await UsersService.createUser({
-          name: newMember.name,
-          role: newMember.role,
-          mobile: newMember.mobile,
-          email: newMember.email,
-          status: 'Active',
-          });
-        setSuccessMessage(`Team member "${newMember.name}" added successfully!`);
-        setShowAddModal(false);
-        setNewMember({ name: '', role: 'Sales Representative', territory: '', mobile: '', email: '' });
-        fetchUsers(); // Refresh list
-        setTimeout(() => setSuccessMessage(''), 3000);
-      } catch (err) {
-        console.error('Failed to create user', err);
-      }
+    if (!newMember.name || !newMember.email || !newMember.territoryId) return;
+
+    setInviteError('');
+    setInviting(true);
+    try {
+      const result = await UsersService.inviteUser({
+        name: newMember.name,
+        email: newMember.email,
+        role: newMember.role,
+        territoryIds: [newMember.territoryId],
+      });
+      setInviteLink(`${window.location.origin}/invite?token=${result.inviteToken}`);
+      setShowAddModal(false);
+      setNewMember({ name: '', role: 'Sales Representative', territoryId: '', mobile: '', email: '' });
+      fetchUsers(); // Refresh list
+    } catch (err: any) {
+      setInviteError(err?.response?.data?.message || err.message || 'Failed to send invitation.');
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -97,17 +113,6 @@ export default function TeamPage() {
 
   return (
     <div className="space-y-6">
-      {/* Success Message */}
-      {successMessage && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <span className="text-green-600">✅</span>
-            <span className="text-sm text-green-800 font-medium">{successMessage}</span>
-          </div>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -140,7 +145,7 @@ export default function TeamPage() {
           <div className="text-sm text-gray-500">Team Revenue (Today)</div>
         </div>
         <div className="card text-center">
-          <div className="text-2xl font-bold text-blue-600">{beatCompletion?.teamCompletionPercentage ?? 0}%</div>
+          <div className="text-2xl font-bold text-primary-600">{beatCompletion?.teamCompletionPercentage ?? 0}%</div>
           <div className="text-sm text-gray-500">Beat Completion (Today)</div>
         </div>
         {isOrgAdmin ? (
@@ -239,7 +244,7 @@ export default function TeamPage() {
           })
         ) : (
           <div className="card text-center py-12">
-            <div className="text-4xl mb-2">👥</div>
+            <Users className="w-10 h-10 mx-auto mb-2 opacity-40" />
             <p className="text-gray-500">No team members found</p>
             <button onClick={() => { setSearchTerm(''); setStatusFilter('All Status'); }} className="mt-2 text-primary-600 text-sm font-medium">
               Clear filters
@@ -254,7 +259,7 @@ export default function TeamPage() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900">Add Team Member</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div>
@@ -282,17 +287,20 @@ export default function TeamPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Territory *</label>
                 <select
                   className="input-field"
-                  value={newMember.territory}
-                  onChange={(e) => setNewMember({ ...newMember, territory: e.target.value })}
+                  value={newMember.territoryId}
+                  onChange={(e) => setNewMember({ ...newMember, territoryId: e.target.value })}
                 >
                   <option value="">Select territory</option>
-                  <option>Zone A</option>
-                  <option>Zone B</option>
-                  <option>Zone C</option>
+                  {hierarchyNodes.map((node) => (
+                    <option key={node.id} value={node.id}>{node.level}: {node.name}</option>
+                  ))}
                 </select>
+                {hierarchyNodes.length === 0 && (
+                  <p className="text-xs text-orange-500 mt-1">No hierarchy nodes exist yet — create one from the Hierarchy page first.</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                 <input
                   type="tel"
                   className="input-field"
@@ -302,7 +310,7 @@ export default function TeamPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                 <input
                   type="email"
                   className="input-field"
@@ -311,6 +319,9 @@ export default function TeamPage() {
                   onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
                 />
               </div>
+              {inviteError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{inviteError}</div>
+              )}
             </div>
             <div className="flex space-x-3 mt-6">
               <button onClick={() => setShowAddModal(false)} className="flex-1 btn-secondary">
@@ -318,10 +329,38 @@ export default function TeamPage() {
               </button>
               <button
                 onClick={handleAddMember}
-                disabled={!newMember.name || !newMember.territory || !newMember.mobile}
+                disabled={!newMember.name || !newMember.territoryId || !newMember.email || inviting}
                 className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Add Member
+                {inviting ? 'Sending Invite...' : 'Send Invitation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Link Modal */}
+      {inviteLink && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Invitation Sent</h3>
+              <button onClick={() => { setInviteLink(''); setLinkCopied(false); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Share this link with the new team member so they can set their password and activate their account. This link expires in 72 hours.
+            </p>
+            <div className="flex items-center gap-2">
+              <input readOnly className="input-field flex-1 text-xs" value={inviteLink} onFocus={(e) => e.target.select()} />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(inviteLink);
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 2000);
+                }}
+                className="btn-primary text-sm shrink-0"
+              >
+                {linkCopied ? 'Copied!' : 'Copy'}
               </button>
             </div>
           </div>

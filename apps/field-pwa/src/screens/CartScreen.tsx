@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useCart } from '../contexts/CartContext';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../database/db';
-import { Trash2, Plus, Minus, CheckCircle2, ChevronLeft, Search, ArrowRight, Image as ImageIcon } from 'lucide-react';
+import { Trash2, Plus, Minus, CheckCircle2, ChevronLeft, Search, ArrowRight, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import type { Scheme } from '@bharatsales/shared-types';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,8 +20,8 @@ export function CartScreen() {
   const distributors = useLiveQuery(() => db.distributors.toArray(), []) ?? EMPTY_DISTRIBUTORS;
   const schemes = useLiveQuery(() => db.schemes.filter(s => s.isActive).toArray(), []) ?? EMPTY_SCHEMES;
 
-  // Default to first outlet if none selected (for testing UI, should normally let user pick)
-  const currentOutletId = selectedOutletId || (outlets.length > 0 ? outlets[0].id : '');
+  // Auto-select when there's only one outlet in context; otherwise the picker below requires an explicit choice.
+  const currentOutletId = selectedOutletId || (outlets.length === 1 ? outlets[0].id : '');
   const selectedOutlet = outlets.find(o => o.id === currentOutletId);
   const assignedDistributor = distributors.find(d => d.id === selectedOutlet?.commercial?.assignedDistributorId);
 
@@ -149,11 +149,11 @@ export function CartScreen() {
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4">
         <div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center max-w-sm w-full text-center">
           <CheckCircle2 className="w-20 h-20 text-green-500 mb-6" />
-          <h2 className="text-2xl font-bold text-[#1E293B] mb-2">Order Placed!</h2>
-          <p className="text-[#64748B] mb-6">
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Order Placed!</h2>
+          <p className="text-slate-500 mb-6">
             The order has been saved offline and will automatically sync when connected.
           </p>
-          <button onClick={() => navigate('/outlets')} className="w-full py-3 bg-[#2D3A8C] text-white rounded-xl font-bold">
+          <button onClick={() => navigate('/outlets')} className="w-full py-3 bg-primary-600 text-white rounded-xl font-bold">
             Back to Outlets
           </button>
         </div>
@@ -166,11 +166,11 @@ export function CartScreen() {
       
       {/* Top Header */}
       <div className="bg-white px-4 py-4 flex items-center justify-between sticky top-0 z-50">
-        <button onClick={() => navigate(-1)} className="p-2 text-[#1E293B]">
+        <button onClick={() => navigate(-1)} className="p-2 text-slate-800">
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-lg font-bold text-[#1E293B]">Order Booking</h1>
-        <button className="p-2 text-[#1E293B]">
+        <h1 className="text-lg font-bold text-slate-800">Order Booking</h1>
+        <button className="p-2 text-slate-800">
           <Search size={20} />
         </button>
       </div>
@@ -178,9 +178,9 @@ export function CartScreen() {
       <div className="flex-1 px-4 py-2 space-y-4">
         {cart.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-2xl shadow-sm mt-4">
-            <h3 className="text-sm font-bold text-[#1E293B]">Cart is empty</h3>
-            <p className="text-sm text-[#64748B] mt-1">Add items from the catalog to book an order.</p>
-            <button onClick={() => navigate('/catalog')} className="mt-4 px-6 py-2 bg-[#2D3A8C] text-white rounded-lg text-sm font-bold">
+            <h3 className="text-sm font-bold text-slate-800">Cart is empty</h3>
+            <p className="text-sm text-slate-500 mt-1">Add items from the catalog to book an order.</p>
+            <button onClick={() => navigate('/catalog')} className="mt-4 px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold">
               Browse Catalog
             </button>
           </div>
@@ -192,13 +192,20 @@ export function CartScreen() {
                 <select 
                   value={selectedOutletId}
                   onChange={(e) => setSelectedOutletId(e.target.value)}
-                  className="w-full text-sm text-[#1E293B] font-medium outline-none bg-transparent"
+                  className="w-full text-sm text-slate-800 font-medium outline-none bg-transparent"
                 >
                   <option value="">Select Outlet</option>
                   {outlets.map(outlet => (
                     <option key={outlet.id} value={outlet.id}>{outlet.name}</option>
                   ))}
                 </select>
+              </div>
+            )}
+
+            {creditExceeded && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl flex items-start gap-3 text-sm">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>This order exceeds the outlet's available credit limit. Reduce the order or collect an outstanding payment first.</span>
               </div>
             )}
 
@@ -216,25 +223,25 @@ export function CartScreen() {
 
                     <div className="flex-1 min-w-0 flex flex-col justify-between h-16">
                       <div>
-                        <h4 className="font-bold text-[#1E293B] text-sm leading-tight truncate">{item.product.name}</h4>
-                        <p className="text-xs text-[#64748B] mt-0.5">{item.product.sku}</p>
+                        <h4 className="font-bold text-slate-800 text-sm leading-tight truncate">{item.product.name}</h4>
+                        <p className="text-xs text-slate-500 mt-0.5">{item.product.sku}</p>
                       </div>
-                      <div className="font-bold text-[#1E293B] text-sm">
+                      <div className="font-bold text-slate-800 text-sm">
                         {formatCurrency(item.product.pricing.basePrice)}
                       </div>
                     </div>
                     
                     <div className="flex flex-col items-end justify-between h-16">
-                      <div className="flex items-center bg-[#F1F5F9] rounded-lg p-0.5">
-                        <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} className="p-1 text-[#64748B] hover:text-[#1E293B]">
+                      <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                        <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} className="p-1 text-slate-500 hover:text-slate-800">
                           {item.quantity === 1 ? <Trash2 size={16} className="text-red-500" /> : <Minus size={16} />}
                         </button>
-                        <span className="w-8 text-center text-sm font-bold text-[#1E293B]">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)} className="p-1 bg-[#2D3A8C] text-white rounded-md shadow-sm">
+                        <span className="w-8 text-center text-sm font-bold text-slate-800">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)} className="p-1 bg-primary-600 text-white rounded-md shadow-sm">
                           <Plus size={16} />
                         </button>
                       </div>
-                      <div className="font-bold text-[#1E293B] text-sm mt-1">
+                      <div className="font-bold text-slate-800 text-sm mt-1">
                         {formatCurrency(calcItem?.total || 0)}
                       </div>
                     </div>
@@ -244,43 +251,43 @@ export function CartScreen() {
             </div>
 
             {/* Order Summary */}
-            <div className="bg-[#F8FAFC] rounded-3xl p-5 border border-gray-100 shadow-sm mt-6">
-              <h3 className="font-bold text-[#1E293B] text-base mb-4">Order Summary</h3>
+            <div className="bg-slate-50 rounded-3xl p-5 border border-gray-100 shadow-sm mt-6">
+              <h3 className="font-bold text-slate-800 text-base mb-4">Order Summary</h3>
               
               <div className="space-y-3 mb-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#64748B] font-medium">Subtotal ({cart.length} Items)</span>
-                  <span className="text-[#1E293B] font-bold">{formatCurrency(totals.subTotal)}</span>
+                  <span className="text-slate-500 font-medium">Subtotal ({cart.length} Items)</span>
+                  <span className="text-slate-800 font-bold">{formatCurrency(totals.subTotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#64748B] font-medium">Delivery Charges</span>
-                  <span className="text-[#1E293B] font-bold">{formatCurrency(totals.deliveryCharges)}</span>
+                  <span className="text-slate-500 font-medium">Delivery Charges</span>
+                  <span className="text-slate-800 font-bold">{formatCurrency(totals.deliveryCharges)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#64748B] font-medium">Discount</span>
-                  <span className="text-[#1E293B] font-bold">- {formatCurrency(totals.discountTotal)}</span>
+                  <span className="text-slate-500 font-medium">Discount</span>
+                  <span className="text-slate-800 font-bold">- {formatCurrency(totals.discountTotal)}</span>
                 </div>
               </div>
 
               <div className="flex justify-between text-sm border-t border-gray-200 pt-3 mb-6">
-                <span className="text-[#1E293B] font-bold">Total Before Tax</span>
-                <span className="text-[#1E293B] font-bold">{formatCurrency(totals.totalBeforeTax)}</span>
+                <span className="text-slate-800 font-bold">Total Before Tax</span>
+                <span className="text-slate-800 font-bold">{formatCurrency(totals.totalBeforeTax)}</span>
               </div>
 
-              <h3 className="font-bold text-[#1E293B] text-base mb-4">Tax Summary</h3>
+              <h3 className="font-bold text-slate-800 text-base mb-4">Tax Summary</h3>
               
               <div className="space-y-3 mb-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#64748B] font-medium">CGST (9.0%)</span>
-                  <span className="text-[#1E293B] font-bold">{formatCurrency(totals.cgstTotal)}</span>
+                  <span className="text-slate-500 font-medium">CGST (9.0%)</span>
+                  <span className="text-slate-800 font-bold">{formatCurrency(totals.cgstTotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#64748B] font-medium">SGST (9.0%)</span>
-                  <span className="text-[#1E293B] font-bold">{formatCurrency(totals.sgstTotal)}</span>
+                  <span className="text-slate-500 font-medium">SGST (9.0%)</span>
+                  <span className="text-slate-800 font-bold">{formatCurrency(totals.sgstTotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#64748B] font-medium">Integrated GST (0%)</span>
-                  <span className="text-[#1E293B] font-bold">{formatCurrency(totals.igstTotal)}</span>
+                  <span className="text-slate-500 font-medium">Integrated GST (0%)</span>
+                  <span className="text-slate-800 font-bold">{formatCurrency(totals.igstTotal)}</span>
                 </div>
               </div>
             </div>
@@ -293,14 +300,14 @@ export function CartScreen() {
         <div className="fixed bottom-16 left-0 w-full bg-white px-5 py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] border-t border-gray-100 z-50">
           <div className="max-w-sm mx-auto flex items-center justify-between">
             <div>
-              <p className="text-xs text-[#64748B] font-medium uppercase tracking-wider mb-0.5">Total Amount</p>
-              <p className="text-xl font-bold text-[#1E293B]">{formatCurrency(totals.grandTotal)}</p>
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-0.5">Total Amount</p>
+              <p className="text-xl font-bold text-slate-800">{formatCurrency(totals.grandTotal)}</p>
             </div>
             <button 
               onClick={handleSubmitOrder}
               disabled={!currentOutletId || creditExceeded}
               className={`flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-white shadow-md transition-all ${
-                !currentOutletId || creditExceeded ? 'bg-gray-400' : 'bg-[#007AFF] hover:bg-blue-600 active:scale-[0.98]'
+                !currentOutletId || creditExceeded ? 'bg-gray-400' : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'
               }`}
             >
               Place Order <ArrowRight size={18} />

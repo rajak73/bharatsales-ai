@@ -1,4 +1,4 @@
-import { Store, CheckCircle } from 'lucide-react';
+import { Store, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../database/db';
@@ -29,7 +29,7 @@ export function TodaysBeatScreen() {
 
   return (
     <div className="bg-slate-50 min-h-screen font-sans pb-24">
-      <div className="bg-[#2D3A8C] px-5 pt-12 pb-6 shadow-md sticky top-0 z-40">
+      <div className="bg-primary-600 px-5 pt-12 pb-6 shadow-md sticky top-0 z-40">
         <h1 className="text-white text-xl font-bold tracking-tight">Today's Beat</h1>
         <p className="text-white/80 text-sm mt-1">Retail shops on today's route</p>
       </div>
@@ -37,14 +37,14 @@ export function TodaysBeatScreen() {
       <div className="px-5 py-6 space-y-3">
         <button
           onClick={() => navigate('/outlets')}
-          className="w-full text-center text-xs font-bold text-[#2D3A8C] bg-[#E0E7FF] px-4 py-2 rounded-lg mb-2"
+          className="w-full text-center text-xs font-bold text-primary-600 bg-primary-100 px-4 py-2 rounded-lg mb-2"
         >
           Browse All Outlets
         </button>
 
         {!activeSession ? (
           <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm font-medium border border-yellow-200 shadow-sm flex items-start gap-3">
-            <div className="mt-0.5">⚠️</div>
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
               <p className="font-bold mb-1">You are Off Duty</p>
               <p>Please check in via the Attendance tab to view your beat and start visiting outlets.</p>
@@ -64,22 +64,22 @@ export function TodaysBeatScreen() {
           smartBeatOutlets.map((outlet) => (
             <div key={outlet.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative overflow-hidden">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#E0E7FF] text-[#2D3A8C]">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary-100 text-primary-600">
                   <Store size={20} />
                 </div>
                 <div className="flex-1 min-w-0 pr-16">
-                  <h3 className="font-bold text-[#1E293B] truncate pr-2">{outlet.name}</h3>
+                  <h3 className="font-bold text-slate-800 truncate pr-2">{outlet.name}</h3>
                   {outlet.visitStatus === 'visited' ? (
                     <div className="flex items-center gap-2 mt-1">
-                      <p className="text-xs text-[#64748B]">Visited</p>
+                      <p className="text-xs text-slate-500">Visited</p>
                       <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                     </div>
                   ) : (
                     <>
-                      <p className="text-xs text-[#64748B] mt-0.5 truncate">{outlet.locationText}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 truncate">{outlet.locationText}</p>
                       <button
                         onClick={() => navigate('/visit', { state: { outlet } })}
-                        className="mt-3 bg-[#E0E7FF] text-[#2D3A8C] font-bold text-xs px-4 py-2 rounded-lg hover:bg-[#C7D2FE] transition-colors"
+                        className="mt-3 bg-primary-100 text-primary-600 font-bold text-xs px-4 py-2 rounded-lg hover:bg-primary-200 transition-colors"
                       >
                         Visit Now
                       </button>

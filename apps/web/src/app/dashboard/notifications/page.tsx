@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { NotificationsService } from '@bharatsales/api-client';
 import { AppNotification } from '@bharatsales/shared-types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle, X, ClipboardList, AlertTriangle, RefreshCw, Target, Clock, Wallet, Bell, BellOff } from 'lucide-react';
 
 export default function NotificationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,7 +20,8 @@ export default function NotificationsPage() {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const data = await NotificationsService.getNotifications('user-1');
+      // The server derives the user from the auth token — this param is unused by the API.
+      const data = await NotificationsService.getNotifications('');
       setNotifications(data || []);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
@@ -50,7 +51,7 @@ export default function NotificationsPage() {
 
   const handleMarkAllRead = async () => {
     try {
-      await NotificationsService.markAllAsRead('user-1');
+      await NotificationsService.markAllAsRead('');
       setSuccessMessage('All notifications marked as read!');
       fetchNotifications();
       setTimeout(() => setSuccessMessage(''), 2000);
@@ -61,13 +62,13 @@ export default function NotificationsPage() {
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'order': return '📋';
-      case 'approval': return '⚠️';
-      case 'sync': return '🔄';
-      case 'target': return '🎯';
-      case 'expiry': return '⏰';
-      case 'collection': return '💰';
-      default: return '📢';
+      case 'order': return ClipboardList;
+      case 'approval': return AlertTriangle;
+      case 'sync': return RefreshCw;
+      case 'target': return Target;
+      case 'expiry': return Clock;
+      case 'collection': return Wallet;
+      default: return Bell;
     }
   };
 
@@ -75,8 +76,8 @@ export default function NotificationsPage() {
     <div className="space-y-6">
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2"><span className="text-green-600">✅</span><span className="text-sm text-green-800 font-medium">{successMessage}</span></div>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+          <div className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-green-600" /><span className="text-sm text-green-800 font-medium">{successMessage}</span></div>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -84,15 +85,13 @@ export default function NotificationsPage() {
         <div><h1 className="text-2xl font-bold text-gray-900">Notifications</h1><p className="text-gray-500">{unreadCount} unread notifications</p></div>
         <div className="flex space-x-3">
           <button onClick={handleMarkAllRead} className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Mark All Read</button>
-          <button className="btn-primary text-sm">Settings</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="card text-center"><div className="text-2xl font-bold text-gray-900">{notifications.length}</div><div className="text-sm text-gray-500">Total</div></div>
         <div className="card text-center"><div className="text-2xl font-bold text-red-600">{unreadCount}</div><div className="text-sm text-gray-500">Unread</div></div>
         <div className="card text-center"><div className="text-2xl font-bold text-green-600">{notifications.filter(n => n.read).length}</div><div className="text-sm text-gray-500">Read</div></div>
-        <div className="card text-center"><div className="text-2xl font-bold text-primary-600">6</div><div className="text-sm text-gray-500">Templates</div></div>
       </div>
 
       <div className="card">
@@ -109,9 +108,11 @@ export default function NotificationsPage() {
               <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
             </div>
           ) : filteredNotifications.length > 0 ? (
-            filteredNotifications.map((notif) => (
+            filteredNotifications.map((notif) => {
+              const Icon = getIcon(notif.type);
+              return (
               <div key={notif.id} className={`px-6 py-4 flex items-start space-x-3 ${!notif.read ? 'bg-primary-50' : ''}`}>
-                <span className="text-xl mt-0.5">{getIcon(notif.type)}</span>
+                <Icon className="w-5 h-5 mt-0.5 text-gray-500 shrink-0" />
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <span className={`text-sm ${!notif.read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>{notif.title}</span>
@@ -124,9 +125,10 @@ export default function NotificationsPage() {
                   <button onClick={() => handleMarkAsRead(notif.id)} className="text-primary-600 text-xs font-medium hover:text-primary-700">Mark Read</button>
                 )}
               </div>
-            ))
+              );
+            })
           ) : (
-            <div className="p-12 text-center text-gray-400"><div className="text-4xl mb-2">🔔</div><p className="text-sm">No notifications found</p></div>
+            <div className="p-12 text-center text-gray-400"><BellOff className="w-10 h-10 mx-auto mb-2 opacity-40" /><p className="text-sm">No notifications found</p></div>
           )}
         </div>
       </div>

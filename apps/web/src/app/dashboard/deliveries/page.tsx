@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Truck, Package, CheckCircle2 } from 'lucide-react';
+import { Truck, Package, CheckCircle2, X } from 'lucide-react';
 import { OrdersService, DispatchService, OutletsService } from '@bharatsales/api-client';
 import type { Order, Dispatch, Outlet } from '@bharatsales/shared-types';
 
@@ -17,6 +17,7 @@ export default function DeliveriesPage() {
 
   const [deliveryTarget, setDeliveryTarget] = useState<Dispatch | null>(null);
   const [deliveryItems, setDeliveryItems] = useState<Record<string, { deliveredQty: number; damagedQty: number; reason: string }>>({});
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -54,13 +55,14 @@ export default function DeliveriesPage() {
 
   const handleDispatch = async () => {
     if (!dispatchTarget || !vehicle || !driver) return;
+    setErrorMessage('');
     try {
       await DispatchService.createDispatch({ orderId: dispatchTarget.id, vehicle, driver });
       setDispatchTarget(null);
       await fetchData();
     } catch (error) {
       console.error('Failed to dispatch order', error);
-      alert('Failed to dispatch order. Please check reserved stock.');
+      setErrorMessage('Failed to dispatch order. Please check reserved stock.');
     }
   };
 
@@ -76,6 +78,7 @@ export default function DeliveriesPage() {
 
   const handleConfirmDelivery = async () => {
     if (!deliveryTarget) return;
+    setErrorMessage('');
     try {
       const items = Object.entries(deliveryItems).map(([productId, v]) => ({
         productId,
@@ -88,7 +91,7 @@ export default function DeliveriesPage() {
       await fetchData();
     } catch (error) {
       console.error('Failed to confirm delivery', error);
-      alert('Failed to confirm delivery.');
+      setErrorMessage('Failed to confirm delivery.');
     }
   };
 
@@ -101,13 +104,20 @@ export default function DeliveriesPage() {
         <p className="text-gray-500">Dispatch approved orders and confirm deliveries to your outlets.</p>
       </div>
 
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-sm text-red-700 font-medium">{errorMessage}</span>
+          <button onClick={() => setErrorMessage('')} className="text-red-600 hover:text-red-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
           <div className="text-2xl font-bold text-amber-600">{pendingDispatchOrders.length}</div>
           <div className="text-sm text-gray-500">Pending Dispatch</div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
-          <div className="text-2xl font-bold text-blue-600">{activeDispatches.length}</div>
+          <div className="text-2xl font-bold text-primary-600">{activeDispatches.length}</div>
           <div className="text-sm text-gray-500">In Transit</div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">

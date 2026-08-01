@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../database/db';
-import { MapPin, Search, ChevronRight, Route } from 'lucide-react';
+import { MapPin, Search, ChevronRight, Route, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAttendance } from '../contexts/AttendanceContext';
@@ -26,7 +26,7 @@ export function OutletsScreen() {
   const filteredOutlets = displayOutlets.filter(o => o.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="p-4 space-y-4 pb-24">
+    <div className="px-4 pt-8 pb-24 space-y-4">
       <div className="flex justify-between items-center mb-2">
         <h1 className="text-2xl font-bold text-gray-900">My Outlets</h1>
         <span className="bg-primary-100 text-primary-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
@@ -38,7 +38,7 @@ export function OutletsScreen() {
         <button
           onClick={() => setViewMode('route')}
           className={`flex-1 py-2 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition-all ${
-            viewMode === 'route' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'
+            viewMode === 'route' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500'
           }`}
         >
           <Route className="w-4 h-4" /> Today's Route
@@ -46,7 +46,7 @@ export function OutletsScreen() {
         <button
           onClick={() => setViewMode('all')}
           className={`flex-1 py-2 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition-all ${
-            viewMode === 'all' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'
+            viewMode === 'all' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500'
           }`}
         >
           <MapPin className="w-4 h-4" /> All Outlets
@@ -66,7 +66,7 @@ export function OutletsScreen() {
 
       {!activeSession ? (
         <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm font-medium border border-yellow-200 shadow-sm flex items-start gap-3 mt-4">
-          <div className="mt-0.5">⚠️</div>
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
           <div>
             <p className="font-bold mb-1">You are Off Duty</p>
             <p>Please mark your Daily Attendance in the Profile tab to view assigned outlets.</p>

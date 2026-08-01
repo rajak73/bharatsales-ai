@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { TargetsService, UsersService } from '@bharatsales/api-client';
 import { SalesTarget, User } from '@bharatsales/shared-types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle, X } from 'lucide-react';
 
 export default function TargetsPage() {
   const [period, setPeriod] = useState('July 2026');
@@ -79,10 +79,10 @@ export default function TargetsPage() {
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span className="text-green-600">✅</span>
+            <CheckCircle className="w-4 h-4 text-green-600" />
             <span className="text-sm text-green-800 font-medium">{successMessage}</span>
           </div>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -199,7 +199,7 @@ export default function TargetsPage() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900">Set Target</h3>
-              <button onClick={() => setShowSetTargetModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowSetTargetModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-4">
               <div>

@@ -3,17 +3,21 @@
 import { useState, useEffect } from 'react';
 import { ReturnsService } from '@bharatsales/api-client';
 import { ReturnOrder } from '@bharatsales/shared-types';
+import { CheckCircle, X } from 'lucide-react';
 
 export default function ReturnsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [returns, setReturns] = useState<ReturnOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [classification, setClassification] = useState<Record<string, string>>({});
 
   // New Return Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formError, setFormError] = useState('');
   const [newReturn, setNewReturn] = useState({
     outlet: '',
     reason: 'Quality',
@@ -42,6 +46,7 @@ export default function ReturnsPage() {
   });
 
   const handleApprove = async (id: string) => {
+    setErrorMessage('');
     try {
       const updated = await ReturnsService.approveReturn(id);
       setReturns(returns.map(r => r.id === id ? updated : r));
@@ -49,11 +54,12 @@ export default function ReturnsPage() {
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error('Failed to approve return', error);
-      alert('Failed to approve return');
+      setErrorMessage('Failed to approve return.');
     }
   };
 
   const handleReject = async (id: string) => {
+    setErrorMessage('');
     try {
       const updated = await ReturnsService.rejectReturn(id);
       setReturns(returns.map(r => r.id === id ? updated : r));
@@ -61,29 +67,31 @@ export default function ReturnsPage() {
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error('Failed to reject return', error);
-      alert('Failed to reject return');
+      setErrorMessage('Failed to reject return.');
     }
   };
 
-  const handleUpdateStatus = async (id: string, status: string, classification?: string) => {
+  const handleUpdateStatus = async (id: string, status: string, classificationValue?: string) => {
+    setErrorMessage('');
     try {
-      const updated = await ReturnsService.updateReturnStatus(id, status, classification);
+      const updated = await ReturnsService.updateReturnStatus(id, status, classificationValue);
       setReturns(returns.map(r => r.id === id ? updated : r));
       setSuccessMessage(`Return ${id} marked as ${status}!`);
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error(`Failed to mark return as ${status}`, error);
-      alert(`Failed to update status`);
+      setErrorMessage('Failed to update status.');
     }
   };
 
   const handleCreateReturn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReturn.outlet || !newReturn.items[0].product) {
-      alert('Outlet and Product are required.');
+      setFormError('Outlet and Product are required.');
       return;
     }
-    
+    setFormError('');
+
     try {
       setIsSubmitting(true);
       // Construct payload according to shared-types (using basic defaults for missing fields)
@@ -95,7 +103,7 @@ export default function ReturnsPage() {
         value: newReturn.value || '0',
         createdAt: new Date().toISOString()
       };
-      
+
       const created = await ReturnsService.createReturn(payload);
       setReturns([created, ...returns]);
       setSuccessMessage('Return created successfully!');
@@ -104,7 +112,7 @@ export default function ReturnsPage() {
       setNewReturn({ outlet: '', reason: 'Quality', items: [{ product: '', qty: 1 }], value: '' });
     } catch (error) {
       console.error('Failed to create return:', error);
-      alert('Failed to create return.');
+      setFormError('Failed to create return.');
     } finally {
       setIsSubmitting(false);
     }
@@ -114,8 +122,15 @@ export default function ReturnsPage() {
     <div className="space-y-6">
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2"><span className="text-green-600">✅</span><span className="text-sm text-green-800 font-medium">{successMessage}</span></div>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+          <div className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-green-600" /><span className="text-sm text-green-800 font-medium">{successMessage}</span></div>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-sm text-red-700 font-medium">{errorMessage}</span>
+          <button onClick={() => setErrorMessage('')} className="text-red-600 hover:text-red-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -170,17 +185,23 @@ export default function ReturnsPage() {
                       )}
                       {ret.status === 'Received' && (
                         <div className="flex items-center space-x-2">
-                          <select id={`class-${ret.id}`} className="text-xs border rounded p-1" defaultValue="saleable">
+                          <select
+                            className="text-xs border rounded p-1"
+                            value={classification[ret.id] || 'saleable'}
+                            onChange={(e) => setClassification({ ...classification, [ret.id]: e.target.value })}
+                          >
                             <option value="saleable">Saleable</option>
                             <option value="damaged">Damaged</option>
                             <option value="quarantine">Quarantine</option>
                             <option value="expired">Expired</option>
                             <option value="return-to-vendor">Return to Vendor</option>
                           </select>
-                          <button onClick={() => {
-                            const val = (document.getElementById(`class-${ret.id}`) as HTMLSelectElement).value;
-                            handleUpdateStatus(ret.id, 'Inspected', val);
-                          }} className="text-purple-600 text-xs font-medium hover:text-purple-700">Inspect</button>
+                          <button
+                            onClick={() => handleUpdateStatus(ret.id, 'Inspected', classification[ret.id] || 'saleable')}
+                            className="text-purple-600 text-xs font-medium hover:text-purple-700"
+                          >
+                            Inspect
+                          </button>
                         </div>
                       )}
                       {ret.status === 'Inspected' && (
@@ -200,6 +221,9 @@ export default function ReturnsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Create New Return</h3>
+            {formError && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{formError}</div>
+            )}
             <form onSubmit={handleCreateReturn} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Outlet ID / Name</label>

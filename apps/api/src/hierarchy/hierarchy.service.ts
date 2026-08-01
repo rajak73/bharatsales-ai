@@ -46,7 +46,23 @@ export class HierarchyService {
       organizationId,
       status: nodeData.status || 'Active',
     });
-    return newNode.save();
+    const saved = await newNode.save();
+
+    if (nodeData.managerId) {
+      await this.grantManagerAccess(organizationId, nodeData.managerId as string, saved._id.toString());
+    }
+
+    return saved;
+  }
+
+  // Additive-only: assigning a manager to a node grants them visibility over
+  // it via getDescendantTerritoryIds, without ever stripping access from a
+  // prior assignment (avoids silently revoking a manager's other legitimate access).
+  private async grantManagerAccess(organizationId: string, managerId: string, nodeId: string) {
+    await this.userModel.updateOne(
+      { _id: managerId, organizationId },
+      { $addToSet: { territoryIds: nodeId } }
+    ).exec();
   }
 
   async updateNode(organizationId: string, id: string, updateData: Partial<HierarchyNode>) {
@@ -89,7 +105,11 @@ export class HierarchyService {
       { $set: updateData },
       { new: true }
     ).exec();
-    
+
+    if (updateData.managerId) {
+      await this.grantManagerAccess(organizationId, updateData.managerId as string, id);
+    }
+
     return node;
   }
 

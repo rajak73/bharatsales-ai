@@ -78,7 +78,7 @@ export class UsersService {
     return result;
   }
 
-  async inviteUser(organizationId: string, actorRole: string, email: string, role: string) {
+  async inviteUser(organizationId: string, actorRole: string, email: string, role: string, name?: string, territoryIds?: string[]) {
     if (role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can invite other Super Admins.');
     }
@@ -108,7 +108,8 @@ export class UsersService {
     const newUser = new this.userModel({
       email,
       role,
-      name: 'Invited User',
+      name: name || 'Invited User',
+      territoryIds: territoryIds || [],
       password: randomPassword,
       organizationId,
       status: 'Invited'

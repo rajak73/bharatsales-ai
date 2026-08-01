@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { SuperadminService } from '@bharatsales/api-client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Ticket } from 'lucide-react';
 
 export default function SupportPage() {
   const [tickets, setTickets] = useState<any[]>([]);
@@ -66,7 +66,7 @@ export default function SupportPage() {
 
       {tickets.length === 0 ? (
         <div className="card text-center py-12">
-          <div className="text-4xl mb-2">🎫</div>
+          <Ticket className="w-10 h-10 mx-auto mb-2 opacity-40" />
           <p className="text-gray-500">No support tickets raised yet.</p>
         </div>
       ) : (

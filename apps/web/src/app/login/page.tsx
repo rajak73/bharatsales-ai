@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { AuthService } from '@bharatsales/api-client';
 import { 
   Store as StoreBase, 
@@ -22,6 +23,7 @@ const Eye = EyeBase as any;
 const EyeOff = EyeOffBase as any;
 const ArrowRight = ArrowRightBase as any;
 const QrCode = QrCodeBase as any;
+const NavLink = Link as any;
 import Image from 'next/image';
 
 export default function LoginPage() {
@@ -214,7 +216,10 @@ export default function LoginPage() {
 
 
 
-          <div className="mt-8 text-center">
+          <div className="mt-8 text-center space-y-2">
+            <p className="text-sm text-slate-600">
+              New organization? <NavLink href="/signup" className="font-semibold text-[#2D3A8C] hover:underline">Create an account</NavLink>
+            </p>
             <p className="text-xs text-slate-500">
               Need assistance? <a href="mailto:support@bharatsales.com" className="font-semibold text-[#2D3A8C] hover:underline">Contact Support</a>
             </p>

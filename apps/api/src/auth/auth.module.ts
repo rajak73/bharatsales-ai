@@ -4,6 +4,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UserSchema, TenantSchema, SessionSchema, TokenSchema } from '../schemas';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { UserSchema, TenantSchema, SessionSchema, TokenSchema } from '../schemas
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '7d' },
     }),
+    NotificationsModule,
+    CommonModule,
   ],
   controllers: [AuthController],
   providers: [AuthService],

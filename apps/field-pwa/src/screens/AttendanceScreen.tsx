@@ -69,13 +69,13 @@ export function AttendanceScreen() {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 pb-24">
+    <div className="min-h-screen bg-gray-50 px-6 pt-8 pb-24">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Daily Attendance</h1>
       
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -102,8 +102,8 @@ export function AttendanceScreen() {
             </div>
           )}
 
-          <div className="flex items-start gap-4 mb-8 p-4 bg-blue-50 rounded-xl border border-blue-100 text-blue-800">
-            <MapPin className="w-6 h-6 flex-shrink-0 mt-0.5 text-blue-600" />
+          <div className="flex items-start gap-4 mb-8 p-4 bg-primary-50 rounded-xl border border-primary-100 text-primary-800">
+            <MapPin className="w-6 h-6 flex-shrink-0 mt-0.5 text-primary-600" />
             <p className="text-sm">
               Your location is recorded during attendance to verify your starting and ending territory.
             </p>
@@ -139,7 +139,7 @@ export function AttendanceScreen() {
             className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl text-lg font-bold transition-all
               ${activeSession 
                 ? 'bg-red-50 text-red-600 hover:bg-red-100 border-2 border-red-200' 
-                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl shadow-blue-600/20'
+                : 'bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-xl shadow-primary-600/20'
               }
               disabled:opacity-50 disabled:cursor-not-allowed`}
           >

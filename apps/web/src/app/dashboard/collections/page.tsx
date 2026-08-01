@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { IndianRupee, Search, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { IndianRupee, Search, ChevronRight, CheckCircle2, CheckCircle, X } from 'lucide-react';
 import { PaymentCollection, Outlet, Invoice } from '@bharatsales/shared-types';
 import { CollectionsService, OutletsService } from '@bharatsales/api-client';
 
@@ -19,6 +19,10 @@ export default function CollectionsPage() {
     paymentMode: 'Cash' as any,
     referenceNumber: ''
   });
+  const [formError, setFormError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [confirmReverseId, setConfirmReverseId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCollections();
@@ -43,10 +47,11 @@ export default function CollectionsPage() {
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPayment.outletId || !newPayment.amount) {
-      alert('Outlet and Amount are required.');
+      setFormError('Outlet and Amount are required.');
       return;
     }
-    
+    setFormError('');
+
     try {
       await CollectionsService.createCollection({
         outletId: newPayment.outletId,
@@ -58,40 +63,63 @@ export default function CollectionsPage() {
         status: 'Cleared', // auto-settle since admin is entering it
         collectionDate: new Date().toISOString()
       });
-      
+
       setShowModal(false);
       setNewPayment({ outletId: '', invoiceId: '', amount: '', paymentMode: 'Cash', referenceNumber: '' });
+      setSuccessMessage('Payment recorded successfully.');
+      setTimeout(() => setSuccessMessage(''), 3000);
       await fetchCollections();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to record payment', error);
-      alert('Failed to record payment.');
+      setFormError(error?.response?.data?.message || 'Failed to record payment.');
     }
   };
 
   const handleVerify = async (id: string) => {
+    setActionError('');
     try {
       await CollectionsService.updateCollectionStatus(id, 'Cleared');
       setCollections(collections.map(c => c.id === id ? { ...c, status: 'Cleared' } : c));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to verify collection', error);
-      alert('Failed to verify collection.');
+      setActionError(error?.response?.data?.message || 'Failed to verify collection.');
     }
   };
 
   const handleReverse = async (id: string) => {
-    if (!confirm('Are you sure you want to reverse this payment? This will reinstate invoice balances.')) return;
+    setActionError('');
     try {
       await CollectionsService.reverseCollection(id);
       setCollections(collections.map(c => c.id === id ? { ...c, status: 'Bounced' } : c));
-      alert('Payment reversed successfully.');
-    } catch (error) {
+      setSuccessMessage('Payment reversed successfully.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error: any) {
       console.error('Failed to reverse collection', error);
-      alert('Failed to reverse collection.');
+      setActionError(error?.response?.data?.message || 'Failed to reverse collection.');
+    } finally {
+      setConfirmReverseId(null);
     }
   };
 
   return (
     <div className="space-y-6">
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <CheckCircle className="w-4 h-4 text-green-600" />
+            <span className="text-sm text-green-800 font-medium">{successMessage}</span>
+          </div>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-sm text-red-700 font-medium">{actionError}</span>
+          <button onClick={() => setActionError('')} className="text-red-600 hover:text-red-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
@@ -150,7 +178,7 @@ export default function CollectionsPage() {
                           <button onClick={() => handleVerify(col.id)} className="text-green-600 hover:text-green-800 text-xs font-medium">Verify</button>
                         )}
                         {col.status === 'Cleared' && col.amount > 0 && (
-                          <button onClick={() => handleReverse(col.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Reverse</button>
+                          <button onClick={() => setConfirmReverseId(col.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Reverse</button>
                         )}
                       </div>
                     </td>
@@ -179,7 +207,11 @@ export default function CollectionsPage() {
         <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Record Payment</h2>
-            
+
+            {formError && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{formError}</div>
+            )}
+
             <form onSubmit={handleRecordPayment} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Outlet</label>
@@ -255,6 +287,30 @@ export default function CollectionsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reverse Confirmation Modal */}
+      {confirmReverseId && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Reverse this payment?</h3>
+            <p className="text-sm text-gray-500 mb-6">This will reinstate invoice balances. This cannot be undone.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setConfirmReverseId(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleReverse(confirmReverseId)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+              >
+                Reverse Payment
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { BeatsService, UsersService } from '@bharatsales/api-client';
 import type { Beat, User } from '@bharatsales/shared-types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle, X, Target } from 'lucide-react';
 
 export default function BeatsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +16,10 @@ export default function BeatsPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ role: string } | null>(null);
   const canManage = user?.role !== 'Sales Representative';
+  const [viewingBeat, setViewingBeat] = useState<Beat | null>(null);
+  const [editingBeat, setEditingBeat] = useState<Beat | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     fetchBeats();
@@ -84,16 +88,65 @@ export default function BeatsPage() {
     }
   };
 
+  const openEditModal = (beat: Beat) => {
+    setEditingBeat(beat);
+    setNewBeat({ name: beat.name, day: beat.day, outlets: beat.outlets, rep: beat.rep, distributor: '' });
+  };
+
+  const handleUpdateBeat = async () => {
+    if (!editingBeat || !newBeat.name || !newBeat.day || !newBeat.rep) return;
+    setActionError('');
+    try {
+      await BeatsService.updateBeat(editingBeat.id, {
+        name: newBeat.name,
+        day: newBeat.day,
+        rep: newBeat.rep,
+        outlets: Number(newBeat.outlets),
+      });
+      setSuccessMessage(`Beat "${newBeat.name}" updated successfully!`);
+      setEditingBeat(null);
+      setNewBeat({ name: '', day: '', outlets: 0, rep: '', distributor: '' });
+      fetchBeats();
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      console.error('Failed to update beat', err);
+      setActionError('Failed to update beat.');
+    }
+  };
+
+  const handlePublish = async (beat: Beat) => {
+    setPublishingId(beat.id);
+    setActionError('');
+    try {
+      await BeatsService.publishBeat(beat.id);
+      setSuccessMessage(`Beat "${beat.name}" published!`);
+      fetchBeats();
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      console.error('Failed to publish beat', err);
+      setActionError('Failed to publish beat.');
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Success Message */}
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span className="text-green-600">✅</span>
+            <CheckCircle className="w-4 h-4 text-green-600" />
             <span className="text-sm text-green-800 font-medium">{successMessage}</span>
           </div>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-sm text-red-700 font-medium">{actionError}</span>
+          <button onClick={() => setActionError('')} className="text-red-600 hover:text-red-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -184,11 +237,17 @@ export default function BeatsPage() {
                 </div>
               </div>
               <div className="flex space-x-2 mt-4 pt-4 border-t border-gray-100">
-                <button className="flex-1 text-center text-sm text-primary-600 hover:text-primary-700 font-medium">View</button>
+                <button onClick={() => setViewingBeat(beat)} className="flex-1 text-center text-sm text-primary-600 hover:text-primary-700 font-medium">View</button>
                 {canManage && (
                   <>
-                    <button className="flex-1 text-center text-sm text-gray-500 hover:text-gray-700">Edit</button>
-                    <button className="flex-1 text-center text-sm text-gray-500 hover:text-gray-700">Publish</button>
+                    <button onClick={() => openEditModal(beat)} className="flex-1 text-center text-sm text-gray-500 hover:text-gray-700">Edit</button>
+                    <button
+                      onClick={() => handlePublish(beat)}
+                      disabled={beat.status === 'Published' || publishingId === beat.id}
+                      className="flex-1 text-center text-sm text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {publishingId === beat.id ? 'Publishing...' : 'Publish'}
+                    </button>
                   </>
                 )}
               </div>
@@ -196,19 +255,24 @@ export default function BeatsPage() {
           ))
         ) : (
           <div className="col-span-2 card text-center py-12">
-            <div className="text-4xl mb-2">🎯</div>
+            <Target className="w-10 h-10 mx-auto mb-2 opacity-40 text-gray-400" />
             <p className="text-gray-500">No beats found</p>
           </div>
         )}
       </div>
 
-      {/* Create Beat Modal */}
-      {showCreateModal && canManage && (
+      {/* Create / Edit Beat Modal */}
+      {(showCreateModal || editingBeat) && canManage && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900">Create Beat</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <h3 className="text-lg font-bold text-gray-900">{editingBeat ? 'Edit Beat' : 'Create Beat'}</h3>
+              <button
+                onClick={() => { setShowCreateModal(false); setEditingBeat(null); setNewBeat({ name: '', day: '', outlets: 0, rep: '', distributor: '' }); }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             <div className="space-y-4">
               <div>
@@ -262,14 +326,40 @@ export default function BeatsPage() {
               </div>
             </div>
             <div className="flex space-x-3 mt-6">
-              <button onClick={() => setShowCreateModal(false)} className="flex-1 btn-secondary">Cancel</button>
               <button
-                onClick={handleCreateBeat}
+                onClick={() => { setShowCreateModal(false); setEditingBeat(null); setNewBeat({ name: '', day: '', outlets: 0, rep: '', distributor: '' }); }}
+                className="flex-1 btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={editingBeat ? handleUpdateBeat : handleCreateBeat}
                 disabled={!newBeat.name || !newBeat.day || !newBeat.rep}
                 className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Beat
+                {editingBeat ? 'Save Changes' : 'Create Beat'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Beat Modal */}
+      {viewingBeat && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-900">{viewingBeat.name}</h3>
+              <button onClick={() => setViewingBeat(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Day</span><span className="font-medium text-gray-900">{viewingBeat.day}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Rep</span><span className="font-medium text-gray-900">{viewingBeat.rep}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Status</span><span className="font-medium text-gray-900">{viewingBeat.status}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Outlets</span><span className="font-medium text-gray-900">{viewingBeat.outlets}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Visited</span><span className="font-medium text-gray-900">{viewingBeat.visited}/{viewingBeat.assigned}</span></div>
             </div>
           </div>
         </div>

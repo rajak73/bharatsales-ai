@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { LiveMapService, BeatsService } from '@bharatsales/api-client';
 import { LiveRep } from '@bharatsales/shared-types';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle, X, RefreshCw, BatteryMedium } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const LiveMap = dynamic(() => import('./LiveMapComponent'), {
@@ -77,8 +77,8 @@ export default function LiveMapPage() {
     <div className="space-y-6">
       {successMessage && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2"><span className="text-green-600">✅</span><span className="text-sm text-green-800 font-medium">{successMessage}</span></div>
-          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800">✕</button>
+          <div className="flex items-center space-x-2"><CheckCircle className="w-4 h-4 text-green-600" /><span className="text-sm text-green-800 font-medium">{successMessage}</span></div>
+          <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -86,7 +86,9 @@ export default function LiveMapPage() {
         <div><h1 className="text-2xl font-bold text-gray-900">Live Team Tracking</h1><p className="text-gray-500">Live Map View • Real-time field team locations • {liveReps.length} reps active</p></div>
         <div className="flex items-center space-x-3">
           <span className="flex items-center space-x-2 text-sm text-green-600"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span><span>{liveReps.length} reps active</span></span>
-          <button onClick={handleRefresh} className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">🔄 Refresh</button>
+          <button onClick={handleRefresh} className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
         </div>
       </div>
 
@@ -123,7 +125,7 @@ export default function LiveMapPage() {
                 <div className="text-sm text-gray-500 mb-2">{rep.outlet}</div>
                 <div className="flex items-center justify-between">
                   <span className={`text-xs font-medium ${rep.status === 'At Outlet' ? 'text-green-600' : rep.status === 'Traveling' ? 'text-blue-600' : rep.status === 'Offline' ? 'text-gray-600' : 'text-yellow-600'}`}>{rep.status}</span>
-                  <span className="text-xs text-gray-400">🔋 {rep.battery}%</span>
+                  <span className="text-xs text-gray-400 flex items-center gap-1"><BatteryMedium className="w-3.5 h-3.5" /> {rep.battery}%</span>
                 </div>
 
                 {deviations[rep.id] ? (

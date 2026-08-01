@@ -50,9 +50,9 @@ export class UsersController {
 @RequirePermissions(Resource.Users, Action.Create)
   @Post('invites')
     @AuditEntity('User_Invite')
-  async inviteUser(@Request() req: any, @Body() data: { email: string; role: string }) {
+  async inviteUser(@Request() req: any, @Body() data: { email: string; role: string; name?: string; territoryIds?: string[] }) {
     const orgId = req.user.orgId;
     const actorRole = req.user.role;
-    return this.usersService.inviteUser(orgId, actorRole, data.email, data.role);
+    return this.usersService.inviteUser(orgId, actorRole, data.email, data.role, data.name, data.territoryIds);
   }
 }
