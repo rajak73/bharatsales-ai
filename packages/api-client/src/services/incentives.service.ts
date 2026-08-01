@@ -16,4 +16,9 @@ export class IncentivesService {
     const response = await apiClient.post<IncentivePlan>('/incentives/plans', data);
     return response.data;
   }
+
+  static async createIncentivePayout(data: Partial<IncentivePayout>): Promise<IncentivePayout> {
+    const response = await apiClient.post<IncentivePayout>('/incentives/payouts', data);
+    return response.data;
+  }
 }

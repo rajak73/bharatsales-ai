@@ -11,4 +11,9 @@ export const VisitsService = {
     const response = await apiClient.post(`/visits/${visitId}/check-out`);
     return response.data;
   },
+
+  addActivity: async (visitId: string, activity: any): Promise<Visit> => {
+    const response = await apiClient.post(`/visits/${visitId}/activities`, activity);
+    return response.data;
+  },
 };

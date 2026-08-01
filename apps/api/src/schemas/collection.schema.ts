@@ -12,7 +12,10 @@ export class PaymentCollection implements Omit<IPaymentCollection, 'id' | 'creat
   @Prop({ required: true, index: true }) outletId: string;
   @Prop({ required: true, index: true }) collectedByUserId: string;
   
-  @Prop({ required: true, min: 0 }) amount: number;
+  // Negative amounts are valid: a reversal entry is recorded as a
+  // negative-amount collection against the original receipt (see
+  // CollectionsService.reverseCollection), not a mutation of the original.
+  @Prop({ required: true }) amount: number;
   @Prop({ required: true, enum: ['Cash', 'Cheque', 'UPI', 'Bank Transfer'] }) paymentMode: 'Cash' | 'Cheque' | 'UPI' | 'Bank Transfer';
   @Prop() referenceNumber?: string;
   

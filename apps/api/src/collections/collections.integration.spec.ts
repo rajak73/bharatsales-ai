@@ -121,5 +121,49 @@ describe('Finance Collections Verification (e2e)', () => {
       outlet = await connection.collection('outlets').findOne({ _id: new (require('mongoose').Types.ObjectId)(outletId) });
       expect(outlet!.commercial.outstandingBalance).toBe(500);
     });
+
+    it('should reverse a cleared Cash collection via a real negative-amount ledger entry, not a silent status flip', async () => {
+      await connection.collection('outlets').updateOne(
+        { _id: new (require('mongoose').Types.ObjectId)(outletId) },
+        { $set: { 'commercial.outstandingBalance': 1000 } }
+      );
+
+      const createRes = await request(app.getHttpServer())
+        .post('/collections')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          outletId,
+          receiptNumber: `RCPT-${Date.now()}-3`,
+          amount: 400,
+          paymentMode: 'Cash'
+        })
+        .expect(201);
+      const collectionId = createRes.body._id;
+
+      // Balance drops to 600 on the cleared cash payment.
+      let outlet = await connection.collection('outlets').findOne({ _id: new (require('mongoose').Types.ObjectId)(outletId) });
+      expect(outlet!.commercial.outstandingBalance).toBe(600);
+
+      const reverseRes = await request(app.getHttpServer())
+        .post(`/collections/${collectionId}/reverse`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(201);
+
+      expect(reverseRes.body.amount).toBe(-400);
+      expect(reverseRes.body.receiptNumber).toContain('REV-');
+
+      const original = await connection.collection('collections').findOne({ _id: new (require('mongoose').Types.ObjectId)(collectionId) });
+      expect(original!.status).toBe('Bounced');
+
+      // Balance is restored to 1000.
+      outlet = await connection.collection('outlets').findOne({ _id: new (require('mongoose').Types.ObjectId)(outletId) });
+      expect(outlet!.commercial.outstandingBalance).toBe(1000);
+
+      // Reversing an already-reversed collection is rejected.
+      await request(app.getHttpServer())
+        .post(`/collections/${collectionId}/reverse`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+    });
   });
 });

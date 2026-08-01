@@ -21,6 +21,16 @@ export class BeatsService {
     return response.data;
   }
 
+  static async updateBeat(id: string, data: Partial<Beat>): Promise<Beat> {
+    const response = await apiClient.patch<Beat>(`/beats/${id}`, data);
+    return response.data;
+  }
+
+  static async publishBeat(id: string): Promise<Beat> {
+    const response = await apiClient.post<Beat>(`/beats/${id}/publish`);
+    return response.data;
+  }
+
   static async getTeamBeatCompletion(): Promise<{ teamCompletionPercentage: number; reps: any[] }> {
     const response = await apiClient.get('/beats/team-today');
     return response.data;

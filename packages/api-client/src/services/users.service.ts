@@ -11,4 +11,19 @@ export class UsersService {
     const response = await apiClient.post<User>('/users', data);
     return response.data;
   }
+
+  static async updateUser(id: string, data: Partial<User> & { password?: string }): Promise<User> {
+    const response = await apiClient.put<User>(`/users/${id}`, data);
+    return response.data;
+  }
+
+  static async deleteUser(id: string): Promise<{ deleted: boolean }> {
+    const response = await apiClient.delete<{ deleted: boolean }>(`/users/${id}`);
+    return response.data;
+  }
+
+  static async inviteUser(email: string, role: string): Promise<User> {
+    const response = await apiClient.post<User>('/users/invites', { email, role });
+    return response.data;
+  }
 }

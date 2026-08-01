@@ -43,6 +43,12 @@ export class CollectionsController {
     return this.collectionsService.update(req.user.orgId, id, data);
   }
 
+@RequirePermissions(Resource.Collections, Action.Update)
+  @Post(':id/reverse')
+  async reverseCollection(@Request() req: any, @Param('id') id: string) {
+    return this.collectionsService.reverseCollection(req.user.orgId, id, req.user.sub);
+  }
+
 @RequirePermissions(Resource.Collections, Action.Delete)
   @Delete(':id')
   async deleteCollection(@Request() req: any, @Param('id') id: string) {

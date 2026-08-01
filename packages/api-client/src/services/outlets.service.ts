@@ -16,4 +16,14 @@ export class OutletsService {
     const response = await apiClient.patch<Outlet>(`/outlets/${id}`, data);
     return response.data;
   }
+
+  static async deleteOutlet(id: string): Promise<{ deleted: boolean }> {
+    const response = await apiClient.delete<{ deleted: boolean }>(`/outlets/${id}`);
+    return response.data;
+  }
+
+  static async approveOutlet(id: string): Promise<Outlet> {
+    const response = await apiClient.post<Outlet>(`/outlets/${id}/approve`);
+    return response.data;
+  }
 }

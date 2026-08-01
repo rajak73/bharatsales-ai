@@ -85,6 +85,29 @@ export default function OrdersPage() {
     }
   };
 
+  const handleReject = async (orderId: string) => {
+    const reason = window.prompt('Reason for rejecting this order (optional):') || undefined;
+    try {
+      await OrdersService.rejectOrder(orderId, reason);
+      await fetchOrders();
+    } catch (error) {
+      console.error('Failed to reject order:', error);
+      alert('Failed to reject order.');
+    }
+  };
+
+  const handleCancel = async (orderId: string) => {
+    if (!confirm('Are you sure you want to cancel this order?')) return;
+    const reason = window.prompt('Reason for cancelling this order (optional):') || undefined;
+    try {
+      await OrdersService.cancelOrder(orderId, reason);
+      await fetchOrders();
+    } catch (error) {
+      console.error('Failed to cancel order:', error);
+      alert('Failed to cancel order.');
+    }
+  };
+
   const filteredOrders = orders.filter(order => 
     order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.outletId?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -287,7 +310,24 @@ export default function OrdersPage() {
                 </div>
                 <div className="flex space-x-3">
                   {selectedOrder.status === 'Submitted' && (
-                    <button 
+                    <button
+                      onClick={() => handleReject(selectedOrder.id!)}
+                      className="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 flex items-center"
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Reject
+                    </button>
+                  )}
+                  {['Draft', 'Submitted'].includes(selectedOrder.status) && (
+                    <button
+                      onClick={() => handleCancel(selectedOrder.id!)}
+                      className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50"
+                    >
+                      Cancel Order
+                    </button>
+                  )}
+                  {selectedOrder.status === 'Submitted' && (
+                    <button
                       onClick={() => handleApprove(selectedOrder.id!)}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center"
                     >

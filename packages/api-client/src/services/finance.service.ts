@@ -1,22 +1,22 @@
 import { apiClient } from '../index';
-import type { PaymentCollection } from '@bharatsales/shared-types';
+import type { Invoice } from '@bharatsales/shared-types';
 
+// Collection/payment operations live in CollectionsService — the org/role-scoped
+// implementation (see apps/api/src/collections). This module only covers the
+// invoice/ledger endpoints that are genuinely distinct (apps/api/src/finance).
 export class FinanceService {
-
-  static async getCollections(): Promise<PaymentCollection[]> {
-    const response = await apiClient.get<PaymentCollection[]>('/api/v1/finance/collections');
+  static async getInvoices(): Promise<Invoice[]> {
+    const response = await apiClient.get<Invoice[]>('/api/v1/finance/invoices');
     return response.data;
   }
 
-  static async recordCollection(data: Partial<PaymentCollection>): Promise<PaymentCollection> {
-    const response = await apiClient.post<PaymentCollection>('/api/v1/finance/collections', data);
+  static async generateInvoice(orderId: string): Promise<Invoice> {
+    const response = await apiClient.post<Invoice>('/api/v1/finance/invoices', { orderId });
     return response.data;
   }
 
-  static async reverseCollection(collectionId: string): Promise<PaymentCollection> {
-    const response = await apiClient.post<PaymentCollection>(`/api/v1/finance/collections/${collectionId}/reverse`);
+  static async getLedger(outletId: string): Promise<any[]> {
+    const response = await apiClient.get<any[]>(`/api/v1/finance/ledger/${outletId}`);
     return response.data;
   }
-
-
 }

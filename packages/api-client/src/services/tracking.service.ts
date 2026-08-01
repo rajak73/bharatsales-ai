@@ -6,4 +6,9 @@ export class TrackingService {
     const response = await apiClient.post('/tracking/bulk', { pings });
     return response.data;
   }
+
+  static async getLatestPings(): Promise<LocationPing[]> {
+    const response = await apiClient.get<LocationPing[]>('/tracking');
+    return response.data;
+  }
 }
