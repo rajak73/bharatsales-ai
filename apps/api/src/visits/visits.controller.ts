@@ -24,12 +24,12 @@ export class VisitsController {
 @RequirePermissions(Resource.Visits, Action.Create)
   @Post(':id/check-out')
   checkOut(@Request() req: any, @Param('id') visitId: string) {
-    return this.visitsService.checkOut(req.user.sub, visitId);
+    return this.visitsService.checkOut(req.user.sub, req.user.orgId, visitId);
   }
 
 @RequirePermissions(Resource.Visits, Action.Create)
   @Post(':id/activities')
   addActivity(@Request() req: any, @Param('id') visitId: string, @Body() data: any) {
-    return this.visitsService.addActivity(req.user.sub, visitId, data);
+    return this.visitsService.addActivity(req.user.sub, req.user.orgId, visitId, data);
   }
 }

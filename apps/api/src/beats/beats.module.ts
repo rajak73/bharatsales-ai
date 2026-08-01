@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BeatsController } from './beats.controller';
 import { BeatsService } from './beats.service';
-import { Beat, BeatSchema, BeatSchedule, BeatScheduleSchema, Visit, VisitSchema, UserSchema } from '../schemas';
+import { Beat, BeatSchema, BeatSchedule, BeatScheduleSchema, Visit, VisitSchema, UserSchema, LocationPing, LocationPingSchema, AttendanceSession, AttendanceSessionSchema } from '../schemas';
 import { HierarchyModule } from '../hierarchy/hierarchy.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
@@ -12,7 +12,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
       { name: Beat.name, schema: BeatSchema },
       { name: BeatSchedule.name, schema: BeatScheduleSchema },
       { name: Visit.name, schema: VisitSchema },
-      { name: 'User', schema: UserSchema }
+      { name: 'User', schema: UserSchema },
+      { name: LocationPing.name, schema: LocationPingSchema },
+      { name: AttendanceSession.name, schema: AttendanceSessionSchema }
     ]),
     HierarchyModule,
     NotificationsModule,

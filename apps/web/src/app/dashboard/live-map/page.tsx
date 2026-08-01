@@ -127,24 +127,42 @@ export default function LiveMapPage() {
                 </div>
 
                 {deviations[rep.id] ? (
-                  deviations[rep.id].hasPlan && (deviations[rep.id].deviations.skippedOutlets.length > 0 || deviations[rep.id].deviations.outOfSequenceOutlets.length > 0) ? (
-                    <div className="mt-2 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                      <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                      <span>
-                        {deviations[rep.id].deviations.skippedOutlets.length > 0 && `${deviations[rep.id].deviations.skippedOutlets.length} outlet(s) skipped. `}
-                        {deviations[rep.id].deviations.outOfSequenceOutlets.length > 0 && `${deviations[rep.id].deviations.outOfSequenceOutlets.length} out of sequence.`}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="mt-2 text-xs text-green-600">On planned route.</div>
-                  )
+                  <>
+                    {deviations[rep.id].hasPlan && (deviations[rep.id].deviations.skippedOutlets.length > 0 || deviations[rep.id].deviations.outOfSequenceOutlets.length > 0) ? (
+                      <div className="mt-2 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                        <span>
+                          {deviations[rep.id].deviations.skippedOutlets.length > 0 && `${deviations[rep.id].deviations.skippedOutlets.length} outlet(s) skipped. `}
+                          {deviations[rep.id].deviations.outOfSequenceOutlets.length > 0 && `${deviations[rep.id].deviations.outOfSequenceOutlets.length} out of sequence.`}
+                        </span>
+                      </div>
+                    ) : deviations[rep.id].hasPlan ? (
+                      <div className="mt-2 text-xs text-green-600">On planned route.</div>
+                    ) : null}
+                    {deviations[rep.id].routeAnalytics && (
+                      <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                        <div className="bg-gray-50 rounded-lg py-1.5">
+                          <div className="text-xs font-bold text-gray-900">{deviations[rep.id].routeAnalytics.totalDistanceKm} km</div>
+                          <div className="text-[10px] text-gray-500">Distance</div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg py-1.5">
+                          <div className="text-xs font-bold text-gray-900">{deviations[rep.id].routeAnalytics.productiveTimeMinutes}m</div>
+                          <div className="text-[10px] text-gray-500">Productive</div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg py-1.5">
+                          <div className="text-xs font-bold text-gray-900">{deviations[rep.id].routeAnalytics.travelTimeMinutes}m</div>
+                          <div className="text-[10px] text-gray-500">Travel</div>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <button
                     onClick={() => handleCheckDeviation(rep.id)}
                     disabled={checkingDeviation === rep.id}
                     className="mt-2 text-xs text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50"
                   >
-                    {checkingDeviation === rep.id ? 'Checking route...' : 'Check route deviation'}
+                    {checkingDeviation === rep.id ? 'Checking route...' : 'Check route analytics'}
                   </button>
                 )}
               </div>

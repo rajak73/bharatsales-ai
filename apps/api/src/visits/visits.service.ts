@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Visit } from '../schemas/visit.schema';
 import { Outlet } from '../schemas/outlet.schema';
 import { Order } from '@bharatsales/shared-types';
+import { calculateDistanceMeters } from '../common/geo.util';
 
 @Injectable()
 export class VisitsService {
@@ -12,22 +13,6 @@ export class VisitsService {
     @InjectModel('Outlet') private outletModel: Model<Outlet>,
     @InjectModel('Order') private orderModel: Model<Order>
   ) {}
-
-  // Haversine formula to calculate distance in meters
-  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371e3; // metres
-    const φ1 = (lat1 * Math.PI) / 180;
-    const φ2 = (lat2 * Math.PI) / 180;
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-    const a =
-      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c;
-  }
 
   async checkIn(userId: string, organizationId: string, data: { outletId: string; lat: number; lng: number; accuracy: number; isMock?: boolean; deviceTimestamp?: string; photoUrl?: string; idempotencyKey?: string }) {
     // Retry of a previously-synced check-in (e.g. offline-first client resubmit)
@@ -39,7 +24,7 @@ export class VisitsService {
     }
 
     // Check if user already has an active visit
-    const existingVisit = await this.visitModel.findOne({ user: userId, status: 'Active' });
+    const existingVisit = await this.visitModel.findOne({ user: userId, organizationId, status: 'Active' });
     if (existingVisit) {
       if (existingVisit.outlet.toString() === data.outletId) {
         return existingVisit; // Idempotent
@@ -83,7 +68,7 @@ export class VisitsService {
     const outletLng = outlet.location?.longitude ?? (outlet.location as any)?.coordinates?.lng;
 
     if (outletLat !== undefined && outletLng !== undefined) {
-      distanceFromOutlet = this.calculateDistance(
+      distanceFromOutlet = calculateDistanceMeters(
         data.lat,
         data.lng,
         outletLat,
@@ -112,8 +97,8 @@ export class VisitsService {
     return visit.save();
   }
 
-  async checkOut(userId: string, visitId: string) {
-    const visit = await this.visitModel.findOne({ _id: visitId, user: userId, status: 'Active' });
+  async checkOut(userId: string, organizationId: string, visitId: string) {
+    const visit = await this.visitModel.findOne({ _id: visitId, user: userId, organizationId, status: 'Active' });
     if (!visit) {
       throw new NotFoundException('Active visit not found');
     }
@@ -143,8 +128,8 @@ export class VisitsService {
     return visit.save();
   }
 
-  async addActivity(userId: string, visitId: string, activity: any) {
-    const visit = await this.visitModel.findOne({ _id: visitId, user: userId, status: 'Active' });
+  async addActivity(userId: string, organizationId: string, visitId: string, activity: any) {
+    const visit = await this.visitModel.findOne({ _id: visitId, user: userId, organizationId, status: 'Active' });
     if (!visit) {
       throw new NotFoundException('Active visit not found or already completed');
     }

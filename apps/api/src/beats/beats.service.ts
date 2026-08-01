@@ -2,9 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Beat, BeatSchedule, Visit } from '../schemas';
+import { Beat, BeatSchedule, Visit, LocationPing, AttendanceSession } from '../schemas';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { calculateDistanceMeters } from '../common/geo.util';
 
 @Injectable()
 export class BeatsService {
@@ -15,6 +16,8 @@ export class BeatsService {
     @InjectModel('BeatSchedule') private beatScheduleModel: Model<BeatSchedule>,
     @InjectModel('Visit') private visitModel: Model<Visit>,
     @InjectModel('User') private userModel: Model<any>,
+    @InjectModel('LocationPing') private locationPingModel: Model<LocationPing>,
+    @InjectModel('AttendanceSession') private attendanceModel: Model<AttendanceSession>,
     private hierarchyService: HierarchyService,
     private notificationsService: NotificationsService
   ) {}
@@ -158,13 +161,58 @@ export class BeatsService {
     return { teamCompletionPercentage, reps: perRep };
   }
 
+  // Route Analytics (BRD "Daily Sales Report & Route Analytics"): total GPS
+  // distance covered, time spent productively at outlets vs travelling
+  // between them, from real LocationPing/Visit/AttendanceSession data.
+  private async computeRouteAnalytics(organizationId: string, userId: string, dayStart: Date, dayEnd: Date) {
+    const pings = await this.locationPingModel.find({
+      organizationId, user: userId, deviceTimestamp: { $gte: dayStart, $lte: dayEnd }
+    }).sort({ deviceTimestamp: 1 }).exec();
+
+    let totalDistanceMeters = 0;
+    for (let i = 1; i < pings.length; i++) {
+      totalDistanceMeters += calculateDistanceMeters(pings[i - 1].lat, pings[i - 1].lng, pings[i].lat, pings[i].lng);
+    }
+
+    const visits = await this.visitModel.find({
+      organizationId, user: userId, checkInTime: { $gte: dayStart, $lte: dayEnd }
+    }).exec();
+    const productiveTimeMinutes = visits.reduce((sum, v) => {
+      if (v.durationMinutes) return sum + v.durationMinutes;
+      if (v.status === 'Active' && v.checkInTime) {
+        return sum + Math.round((Date.now() - new Date(v.checkInTime).getTime()) / 60000);
+      }
+      return sum;
+    }, 0);
+
+    const attendance = await this.attendanceModel.findOne({
+      organizationId, user: userId, startTime: { $gte: dayStart, $lte: dayEnd }
+    }).exec();
+    let totalShiftMinutes = 0;
+    if (attendance) {
+      const shiftEnd = attendance.endTime ? new Date(attendance.endTime) : new Date();
+      totalShiftMinutes = Math.max(0, Math.round((shiftEnd.getTime() - new Date(attendance.startTime).getTime()) / 60000));
+    }
+    const travelTimeMinutes = Math.max(0, totalShiftMinutes - productiveTimeMinutes);
+
+    return {
+      totalDistanceKm: parseFloat((totalDistanceMeters / 1000).toFixed(2)),
+      totalShiftMinutes,
+      productiveTimeMinutes,
+      travelTimeMinutes,
+    };
+  }
+
   // Compares the planned outlet visit order (Beat.sequence) against the
-  // actual order outlets were checked into today, for a given rep (BRD Phase 6).
+  // actual order outlets were checked into today, for a given rep (BRD Phase 6),
+  // plus route analytics (distance travelled, productive vs travel time).
   async checkRouteDeviation(organizationId: string, userId: string, date?: string) {
     const dayStart = date ? new Date(date) : new Date();
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(dayStart);
     dayEnd.setHours(23, 59, 59, 999);
+
+    const routeAnalytics = await this.computeRouteAnalytics(organizationId, userId, dayStart, dayEnd);
 
     const schedule = await this.beatScheduleModel.findOne({
       user: userId,
@@ -173,14 +221,14 @@ export class BeatsService {
     }).populate('beat').exec();
 
     if (!schedule || !(schedule as any).beat) {
-      return { hasPlan: false, deviations: [] };
+      return { hasPlan: false, deviations: [], routeAnalytics };
     }
 
     const beat = (schedule as any).beat;
     const plannedSequence: { outletId: any; sequenceOrder: number }[] = beat.sequence || [];
 
     if (plannedSequence.length === 0) {
-      return { hasPlan: false, deviations: [] };
+      return { hasPlan: false, deviations: [], routeAnalytics };
     }
 
     const plannedOrder = [...plannedSequence]
@@ -215,7 +263,8 @@ export class BeatsService {
       deviations: {
         skippedOutlets: skipped,
         outOfSequenceOutlets: outOfSequence
-      }
+      },
+      routeAnalytics
     };
   }
 
