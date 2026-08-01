@@ -214,7 +214,7 @@ async function bootstrap() {
       name: 'Distributor Staff Saket',
       email: 'staff@saketdist.com',
       password: defaultPassword,
-      role: 'Distributor Staff',
+      role: 'Distributor',
       territoryIds: [territoryId],
       status: 'Active',
       createdAt: new Date(),
