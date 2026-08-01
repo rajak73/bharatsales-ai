@@ -49,7 +49,16 @@ export type Role =
   | 'Distributor';
 
 const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
-  'Super Admin': {}, // Super admin has all permissions implicitly
+  // Super Admin manages the platform, not tenant-scoped operational data —
+  // their own endpoints (apps/api/src/superadmin) are gated separately by
+  // the platformAdmin flag, not this matrix. Only grant what a platform
+  // operator legitimately needs across every org context: their own
+  // notification inbox. Everything else (Orders, Analytics, Reports,
+  // Settings, ...) is intentionally denied — see RBAC.can() below, which
+  // used to blanket-bypass this matrix for Super Admin entirely.
+  'Super Admin': {
+    [Resource.Notifications]: [Action.Read, Action.Update],
+  },
   'Organization Admin': {
     [Resource.Users]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Export],
     [Resource.Products]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Export],
@@ -68,6 +77,8 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
     [Resource.Notifications]: [Action.Read, Action.Update],
     [Resource.Dispatch]: [Action.Read],
     [Resource.LiveMap]: [Action.Read],
+    [Resource.Inventory]: [Action.Create, Action.Read, Action.Update, Action.Export],
+    [Resource.Approvals]: [Action.Read, Action.Approve],
   },
   'Sales Manager': {
     [Resource.Users]: [Action.Read, Action.Update],
@@ -123,8 +134,6 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
 
 export class RBAC {
   static can(role: Role, action: Action, resource: Resource): boolean {
-    if (role === 'Super Admin') return true;
-    
     const rolePermissions = PermissionsByRole[role];
     if (!rolePermissions) return false;
     

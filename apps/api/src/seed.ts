@@ -227,6 +227,7 @@ async function bootstrap() {
     name: 'Aggarwal Stores',
     type: 'Retail',
     status: 'Active',
+    territoryId: territoryId,
     commercial: {
       assignedDistributorId: distributorId,
       creditLimit: 50000

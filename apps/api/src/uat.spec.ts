@@ -16,6 +16,7 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
   let tenant2Id: string;
   let token1: string;
   let token2: string;
+  let repToken: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -36,15 +37,19 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
     tenant1Id = tenants.find(t => t.name === 'Bharat Foods Pvt Ltd')?._id.toString() || '';
     tenant2Id = tenants.find(t => t.name === 'Raj Pharma Distributors')?._id.toString() || '';
 
-    // Fetch Super Admins
-    const user1 = await connection.collection('users').findOne({ organizationId: tenant1Id, email: 'superadmin@bharatsales.com' });
+    // Use real tenant-scoped users, not the platform Super Admin — Super Admin
+    // is intentionally denied tenant-operational resources (Orders, Inventory,
+    // Analytics, ...); it only manages the platform, not a single org's data.
+    const user1 = await connection.collection('users').findOne({ organizationId: tenant1Id, email: 'admin@bharatfoods.com' });
     const user2 = await connection.collection('users').findOne({ organizationId: tenant2Id, email: 'admin@rajpharma.com' });
+    const rep1 = await connection.collection('users').findOne({ organizationId: tenant1Id, email: 'rep@bharatfoods.com' });
 
-    if (!user1 || !user2) throw new Error('Seeded users not found');
+    if (!user1 || !user2 || !rep1) throw new Error('Seeded users not found');
 
     // Generate Tokens
     token1 = jwtService.sign({ sub: user1._id.toString(), email: user1.email, orgId: tenant1Id, role: user1.role });
     token2 = jwtService.sign({ sub: user2._id.toString(), email: user2.email, orgId: tenant2Id, role: user2.role });
+    repToken = jwtService.sign({ sub: rep1._id.toString(), email: rep1.email, orgId: tenant1Id, role: rep1.role, territoryIds: rep1.territoryIds });
   }, 30000);
 
   afterAll(async () => {
@@ -91,17 +96,17 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
     it('Sales Rep should be able to start their day', async () => {
       const res = await request(app.getHttpServer())
         .post('/attendance/start')
-        .set('Authorization', `Bearer ${token1}`)
+        .set('Authorization', `Bearer ${repToken}`)
         .send({ lat: 28.5, lng: 77.2, accuracy: 10, deviceTimestamp: new Date().toISOString(), photoUrl: 'https://example.com/photo.jpg' })
         .expect(201);
-      
+
       expect(res.body.status).toBe('Active');
     });
 
     it('Sales Rep should see their active attendance session', async () => {
       const res = await request(app.getHttpServer())
         .get('/attendance/me')
-        .set('Authorization', `Bearer ${token1}`)
+        .set('Authorization', `Bearer ${repToken}`)
         .expect(200);
 
       expect(res.body.status).toBe('Active');
@@ -111,14 +116,14 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
       // First get an outlet ID
       const outletsRes = await request(app.getHttpServer())
         .get('/outlets')
-        .set('Authorization', `Bearer ${token1}`)
+        .set('Authorization', `Bearer ${repToken}`)
         .expect(200);
-      
+
       outletId = outletsRes.body[0]._id;
 
       const res = await request(app.getHttpServer())
         .post('/visits/check-in')
-        .set('Authorization', `Bearer ${token1}`)
+        .set('Authorization', `Bearer ${repToken}`)
         .send({ outletId, lat: 28.5284, lng: 77.2183, accuracy: 5, photoUrl: 'https://example.com/photo.jpg' })
         .expect(201);
 
@@ -130,21 +135,15 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
     it('Sales Rep should be able to check out of an outlet', async () => {
       const res = await request(app.getHttpServer())
         .post(`/visits/${visitId}/check-out`)
-        .set('Authorization', `Bearer ${token1}`)
+        .set('Authorization', `Bearer ${repToken}`)
         .expect(201);
 
       expect(res.body.status).toBe('Completed');
     });
 
-    it('Sales Rep should be able to end their day', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/attendance/end')
-        .set('Authorization', `Bearer ${token1}`)
-        .send({ lat: 28.5, lng: 77.2, accuracy: 10 })
-        .expect(201);
-
-      expect(res.body.status).toBe('Completed');
-    });
+    // "End their day" is deferred to the end of Phase 3 — order submission
+    // (BR-002) requires the rep's attendance session to still be active, and
+    // attendance only allows one start/end cycle per calendar day.
   });
 
   describe('Phase 3: Order Lifecycle (Orders, Inventory & Dispatch)', () => {
@@ -184,9 +183,11 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
     });
 
     it('Sales Rep should be able to submit an order', async () => {
+      // The rep's attendance session from Phase 2 is still active (BR-002
+      // requires it — Super Admin/Org Admin are exempt, a real Sales Rep is not).
       const res = await request(app.getHttpServer())
         .post('/orders')
-        .set('Authorization', `Bearer ${token1}`)
+        .set('Authorization', `Bearer ${repToken}`)
         .send({
           idempotencyKey: `test-order-${Date.now()}`,
           outletId,
@@ -198,10 +199,10 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
             }
           ]
         });
-      
+
       if (res.status !== 201) console.error('Create Order Error:', res.body);
       expect(res.status).toBe(201);
-      
+
       expect(res.body.status).toBe('Submitted');
       expect(res.body.totals.grandTotal).toBeGreaterThan(0);
       orderId = res.body._id;
@@ -229,7 +230,15 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
       expect(res.body.status).toBe('Dispatched');
     });
 
+    it('Sales Rep should be able to end their day', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/attendance/end')
+        .set('Authorization', `Bearer ${repToken}`)
+        .send({ lat: 28.5, lng: 77.2, accuracy: 10 })
+        .expect(201);
 
+      expect(res.body.status).toBe('Completed');
+    });
   });
 
   describe('Phase 4: Finance & Performance', () => {

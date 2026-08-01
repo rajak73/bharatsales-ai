@@ -15,7 +15,11 @@ const ALL_ROLES = ['Super Admin', 'Organization Admin', 'Sales Manager', 'Sales 
 const ORG_AND_MANAGER = ['Organization Admin', 'Sales Manager'];
 const MANAGER_AND_REP = ['Sales Manager', 'Sales Representative'];
 const FIELD_EXECUTION = ['Sales Manager', 'Sales Representative', 'Distributor'];
-const ADMIN_ROLES = ['Super Admin', 'Organization Admin'];
+// Organization-scoped company settings (GST, geofence, working days, etc.) —
+// Super Admin manages the platform, not a specific org's operational config,
+// so this deliberately excludes 'Super Admin'. They have their own
+// Platform Settings page instead (see the Platform nav group below).
+const ADMIN_ROLES = ['Organization Admin'];
 
 const navGroups = [
   {
@@ -23,9 +27,9 @@ const navGroups = [
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ALL_ROLES },
       { icon: Bell, label: 'Notifications', href: '/dashboard/notifications', roles: ALL_ROLES },
-      { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics', roles: ['Super Admin', 'Organization Admin', 'Sales Manager'] },
+      { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics', roles: ['Organization Admin', 'Sales Manager'] },
       { icon: MapPin, label: 'Live Map', href: '/dashboard/live-map', roles: ['Sales Manager'] },
-      { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Super Admin', 'Organization Admin', 'Sales Manager', 'Distributor'] },
+      { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Organization Admin', 'Sales Manager', 'Distributor'] },
       { icon: Users, label: 'Team', href: '/dashboard/team', roles: ORG_AND_MANAGER },
       { icon: Trophy, label: 'Performance', href: '/dashboard/performance', roles: ['Sales Manager'] },
       { icon: Repeat, label: 'Outlet 360', href: '/dashboard/outlet-360', roles: MANAGER_AND_REP },
