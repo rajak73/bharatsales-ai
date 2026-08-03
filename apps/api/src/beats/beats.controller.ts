@@ -33,26 +33,34 @@ export class BeatsController {
   }
 
   @Get()
-  @RequirePermissions(Resource.Visits, Action.Read)
+  @RequirePermissions(Resource.Beats, Action.Read)
   async getAllBeats(@Request() req: any) {
-    return this.beatsService.getAllBeats(req.user.orgId);
+    return this.beatsService.getAllBeats(req.user.orgId, { sub: req.user.sub, role: req.user.role });
   }
 
   @Post()
-  @RequirePermissions(Resource.Visits, Action.Create)
+  @RequirePermissions(Resource.Beats, Action.Create)
   async createBeat(@Request() req: any, @Body() data: any) {
     return this.beatsService.createBeat(req.user.orgId, data);
   }
 
   @Patch(':id')
-  @RequirePermissions(Resource.Visits, Action.Update)
+  @RequirePermissions(Resource.Beats, Action.Update)
   async updateBeat(@Request() req: any, @Param('id') id: string, @Body() data: any) {
     return this.beatsService.updateBeat(req.user.orgId, id, data);
   }
 
   @Post(':id/publish')
-  @RequirePermissions(Resource.Visits, Action.Update)
+  @RequirePermissions(Resource.Beats, Action.Update)
   async publishBeat(@Request() req: any, @Param('id') id: string) {
     return this.beatsService.publishBeat(req.user.orgId, id);
+  }
+
+  // A Sales Manager (or Organization Admin) assigns an already-published
+  // beat template to a specific rep for a specific date.
+  @Post(':id/assign')
+  @RequirePermissions(Resource.Beats, Action.Approve)
+  async assignBeat(@Request() req: any, @Param('id') id: string, @Body() body: { userId: string; date: string }) {
+    return this.beatsService.assignBeat(req.user.orgId, { sub: req.user.sub, role: req.user.role }, id, body.userId, body.date);
   }
 }

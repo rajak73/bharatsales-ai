@@ -10,7 +10,7 @@ export class Target implements Omit<ISalesTarget, 'id' | 'createdAt' | 'updatedA
   @Prop({ required: true, enum: ['User', 'Territory', 'Outlet'] }) entityType: 'User' | 'Territory' | 'Outlet';
   @Prop({ required: true, index: true }) entityId: string;
   
-  @Prop({ required: true, enum: ['Daily', 'Weekly', 'Monthly', 'Quarterly'] }) period: 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly';
+  @Prop({ required: true, enum: ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual'] }) period: 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Annual';
   @Prop({ required: true }) startDate: string;
   @Prop({ required: true }) endDate: string;
   

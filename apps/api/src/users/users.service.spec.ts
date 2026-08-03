@@ -15,6 +15,8 @@ describe('UsersService', () => {
   Object.assign(mockUserModel, {
     findOne: jest.fn(),
     countDocuments: jest.fn(),
+    findOneAndUpdate: jest.fn(),
+    deleteOne: jest.fn(),
   });
 
   const mockTokenModel: any = jest.fn().mockImplementation((data: any) => ({
@@ -40,6 +42,67 @@ describe('UsersService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('createUser — role escalation guards', () => {
+    it('should block a Sales Manager from creating an Organization Admin', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(
+        service.createUser('org1', 'Sales Manager', { email: 'new@org.com', password: 'pw', role: 'Organization Admin' } as any)
+      ).rejects.toThrow('Only Organization Admins can create other Organization Admins.');
+    });
+
+    it('should block a Distributor from creating a non-Distributor-role user', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(
+        service.createUser('org1', 'Distributor', { email: 'staff@dist.com', password: 'pw', role: 'Sales Representative' } as any, 'dist1')
+      ).rejects.toThrow('Distributors can only create staff with the Distributor role.');
+    });
+  });
+
+  describe('updateUser / deleteUser — cross-role scoping', () => {
+    it('should block a Distributor from updating a user outside their own distributor staff', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'target1', distributorId: 'otherDist' }) });
+
+      await expect(
+        service.updateUser('org1', { role: 'Distributor', distributorId: 'dist1' }, 'target1', { name: 'Hacked' })
+      ).rejects.toThrow('Distributors can only manage their own staff.');
+    });
+
+    it('should allow a Distributor to update their own staff', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'target1', distributorId: 'dist1' }) });
+      mockUserModel.findOneAndUpdate.mockReturnValue({ select: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'target1', name: 'Updated' }) }) });
+
+      const result = await service.updateUser('org1', { role: 'Distributor', distributorId: 'dist1' }, 'target1', { name: 'Updated' });
+      expect(result).toEqual({ _id: 'target1', name: 'Updated' });
+    });
+
+    it('should block a Sales Manager from updating a user outside their team', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'target1' }) });
+      mockHierarchyService.getTeamUserIds.mockResolvedValue(['repA', 'repB']);
+
+      await expect(
+        service.updateUser('org1', { role: 'Sales Manager', sub: 'manager1' }, 'target1', { name: 'Hacked' })
+      ).rejects.toThrow('Sales Managers can only manage users on their own team.');
+    });
+
+    it('should block a Distributor from deleting a user outside their own distributor staff', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'target1', distributorId: 'otherDist' }) });
+
+      await expect(
+        service.deleteUser('org1', { role: 'Distributor', distributorId: 'dist1' }, 'target1')
+      ).rejects.toThrow('Distributors can only manage their own staff.');
+    });
+
+    it('should allow an Organization Admin to update any user in the org', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'target1' }) });
+      mockUserModel.findOneAndUpdate.mockReturnValue({ select: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'target1', name: 'Updated' }) }) });
+
+      const result = await service.updateUser('org1', { role: 'Organization Admin' }, 'target1', { name: 'Updated' });
+      expect(result).toEqual({ _id: 'target1', name: 'Updated' });
+    });
   });
 
   describe('createUser', () => {

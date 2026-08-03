@@ -126,4 +126,15 @@ export class AuthController {
   async revokeSession(@Param('id') sessionId: string, @Req() req: any) {
     return this.authService.revokeSession(sessionId, req.user.sub);
   }
+
+  // Self-service — any authenticated user registers their own device's Expo
+  // push token, same gating as /auth/sessions above (JwtAuthGuard only, no
+  // RequirePermissions: a user always has the right to manage their own
+  // session/device, not gated by the Users resource CRUD matrix).
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('push-token')
+  async registerPushToken(@Body() body: { pushToken: string }, @Req() req: any) {
+    return this.authService.registerPushToken(req.user.sub, body.pushToken);
+  }
 }

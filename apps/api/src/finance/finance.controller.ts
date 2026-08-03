@@ -15,19 +15,19 @@ import { AuditInterceptor } from '../audit/audit.interceptor';
 export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
-@RequirePermissions(Resource.Orders, Action.Read)
+@RequirePermissions(Resource.Invoices, Action.Read)
   @Get('invoices')
   getInvoices(@Request() req: any) {
     return this.financeService.getInvoices(req.user.orgId);
   }
 
-@RequirePermissions(Resource.Orders, Action.Create)
+@RequirePermissions(Resource.Invoices, Action.Create)
   @Post('invoices')
   generateInvoice(@Request() req: any, @Body() data: { orderId: string }) {
     return this.financeService.generateInvoiceFromOrder(req.user.orgId, data.orderId);
   }
 
-  @RequirePermissions(Resource.Orders, Action.Read)
+  @RequirePermissions(Resource.Invoices, Action.Read)
   @Get('ledger/:outletId')
   getLedger(@Request() req: any, @Param('outletId') outletId: string) {
     return this.financeService.getLedger(req.user.orgId, outletId);

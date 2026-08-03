@@ -7,6 +7,7 @@ describe('DistributorsService', () => {
 
   const mockDistributorModel = {
     find: jest.fn(),
+    findOneAndUpdate: jest.fn(),
   };
   const mockOrderModel = {
     countDocuments: jest.fn(),
@@ -75,6 +76,36 @@ describe('DistributorsService', () => {
         pendingOrders: 0,
         fillRate: 0,
       }));
+    });
+  });
+
+  describe('update — territory/product assignment ownership', () => {
+    it('should block a Sales Manager from assigning territories to a distributor', async () => {
+      await expect(
+        service.update('org1', 'Sales Manager', 'dist1', { territoryIds: ['t1'] })
+      ).rejects.toThrow('Only Organization Admins can assign territories or products to a distributor.');
+    });
+
+    it('should block a Sales Manager from assigning products to a distributor', async () => {
+      await expect(
+        service.update('org1', 'Sales Manager', 'dist1', { productIds: ['p1'] })
+      ).rejects.toThrow('Only Organization Admins can assign territories or products to a distributor.');
+    });
+
+    it('should let an Organization Admin assign territories and products', async () => {
+      mockDistributorModel.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'dist1', territoryIds: ['t1'], productIds: ['p1'] }) });
+
+      const result = await service.update('org1', 'Organization Admin', 'dist1', { territoryIds: ['t1'], productIds: ['p1'] });
+
+      expect(result).toEqual({ _id: 'dist1', territoryIds: ['t1'], productIds: ['p1'] });
+    });
+
+    it('should let a Sales Manager update non-assignment fields like status', async () => {
+      mockDistributorModel.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'dist1', status: 'Inactive' }) });
+
+      const result = await service.update('org1', 'Sales Manager', 'dist1', { status: 'Inactive' });
+
+      expect(result).toEqual({ _id: 'dist1', status: 'Inactive' });
     });
   });
 });

@@ -1,10 +1,15 @@
 import axios from 'axios';
+import { getTokenStorage } from './token-storage';
+export * from './token-storage';
 declare var process: any;
 
-// Safely get the base URL depending on the bundler (Next.js vs Vite)
+// Safely get the base URL depending on the bundler (Next.js, Vite, or Expo/Metro)
 const getBaseUrl = () => {
   if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof process !== 'undefined' && process.env && process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
   }
   // @ts-ignore
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
@@ -37,11 +42,8 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-apiClient.interceptors.request.use((config) => {
-  let token = null;
-  if (typeof window !== 'undefined') {
-    token = localStorage.getItem('bharatsales_token');
-  }
+apiClient.interceptors.request.use(async (config) => {
+  const token = await getTokenStorage().getAccessToken();
 
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -68,40 +70,31 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
-      
-      let refreshToken = null;
-      if (typeof window !== 'undefined') {
-        refreshToken = localStorage.getItem('bharatsales_refresh_token');
-      }
+
+      const storage = getTokenStorage();
+      const refreshToken = await storage.getRefreshToken();
 
       if (!refreshToken) {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('bharatsales_token');
-          window.location.href = '/login';
-        }
+        await storage.clearTokens();
+        storage.onUnauthenticated();
+        isRefreshing = false;
         return Promise.reject(error);
       }
 
       try {
         const res = await axios.post(`${baseURL}/auth/refresh`, { refreshToken });
-        
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('bharatsales_token', res.data.access_token);
-          localStorage.setItem('bharatsales_refresh_token', res.data.refresh_token);
-        }
-        
+
+        await storage.setTokens(res.data.access_token, res.data.refresh_token);
+
         apiClient.defaults.headers.common['Authorization'] = 'Bearer ' + res.data.access_token;
         originalRequest.headers['Authorization'] = 'Bearer ' + res.data.access_token;
-        
+
         processQueue(null, res.data.access_token);
         return apiClient(originalRequest);
       } catch (err) {
         processQueue(err, null);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('bharatsales_token');
-          localStorage.removeItem('bharatsales_refresh_token');
-          window.location.href = '/login';
-        }
+        await storage.clearTokens();
+        storage.onUnauthenticated();
         return Promise.reject(err);
       } finally {
         isRefreshing = false;
@@ -143,3 +136,6 @@ export * from './services/analytics.service';
 export * from './services/distributors.service';
 export * from './services/uploads.service';
 export * from './services/dispatch.service';
+export * from './services/schemes.service';
+export * from './services/tax-rates.service';
+export * from './services/price-lists.service';

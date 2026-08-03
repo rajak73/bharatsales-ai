@@ -39,7 +39,7 @@ export class ReportsController {
     return this.reportsService.getJobStatus(req.user.orgId, id);
   }
 
-@RequirePermissions(Resource.Reports, Action.Read)
+@RequirePermissions(Resource.Reports, Action.Export)
   @Get('exports/:id')
   getExport(@Request() req: any, @Param('id') id: string) {
     return this.reportsService.getExport(req.user.orgId, id);

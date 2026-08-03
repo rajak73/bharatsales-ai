@@ -11,6 +11,7 @@ function chainable(result: any) {
     select: jest.fn(() => chain),
     sort: jest.fn(() => chain),
     populate: jest.fn(() => chain),
+    distinct: jest.fn(() => chain),
     exec: jest.fn().mockResolvedValue(result),
   };
   return chain;
@@ -21,11 +22,17 @@ describe('BeatsService', () => {
 
   const mockBeatModel = {
     findOneAndUpdate: jest.fn(),
+    find: jest.fn().mockReturnValue(chainable([])),
+    findOne: jest.fn(),
   };
-  const mockBeatScheduleModel = {
+  const mockBeatScheduleModel: any = jest.fn().mockImplementation((data: any) => ({
+    ...data,
+    save: jest.fn().mockResolvedValue({ ...data, _id: 'newScheduleId' }),
+  }));
+  Object.assign(mockBeatScheduleModel, {
     findOne: jest.fn().mockReturnValue({ populate: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }) }),
     find: jest.fn(),
-  };
+  });
   const mockVisitModel = { find: jest.fn().mockReturnValue(chainable([])) };
   const mockUserModel = {
     find: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([{ _id: 'rep1' }, { _id: 'rep2' }]) }) }),
@@ -58,6 +65,95 @@ describe('BeatsService', () => {
     mockVisitModel.find.mockReturnValue(chainable([]));
     mockLocationPingModel.find.mockReturnValue(chainable([]));
     mockAttendanceModel.findOne.mockReturnValue(chainable(null));
+    mockBeatModel.find.mockReturnValue(chainable([]));
+    mockBeatModel.findOne.mockReturnValue(chainable(null));
+    mockHierarchyService.getTeamUserIds.mockResolvedValue([]);
+  });
+
+  describe('getAllBeats — cross-rep leak prevention', () => {
+    it('should return every beat in the org for an Organization Admin', async () => {
+      mockBeatModel.find.mockReturnValue(chainable([{ _id: 'beat1' }, { _id: 'beat2' }]));
+
+      const result = await service.getAllBeats('org1', { sub: 'admin1', role: 'Organization Admin' });
+
+      expect(mockBeatModel.find).toHaveBeenCalledWith({ organizationId: 'org1' });
+      expect(result).toHaveLength(2);
+    });
+
+    it('should scope a Sales Representative to only beats scheduled to them', async () => {
+      mockBeatScheduleModel.find.mockReturnValue(chainable(['beatA']));
+      mockBeatModel.find.mockReturnValue(chainable([{ _id: 'beatA' }]));
+
+      await service.getAllBeats('org1', { sub: 'rep1', role: 'Sales Representative' });
+
+      expect(mockBeatScheduleModel.find).toHaveBeenCalledWith({ organizationId: 'org1', user: 'rep1' });
+      expect(mockBeatModel.find).toHaveBeenCalledWith({ _id: { $in: ['beatA'] }, organizationId: 'org1' });
+    });
+
+    it('should scope a Sales Manager to their team\'s scheduled beats plus unassigned drafts, never another team\'s beats', async () => {
+      mockHierarchyService.getTeamUserIds.mockResolvedValue(['rep1', 'rep2']);
+      mockBeatScheduleModel.find.mockReturnValue(chainable(['beatA']));
+      mockBeatModel.find.mockReturnValue(chainable([{ _id: 'beatA' }]));
+
+      await service.getAllBeats('org1', { sub: 'manager1', role: 'Sales Manager' });
+
+      expect(mockBeatScheduleModel.find).toHaveBeenCalledWith({ organizationId: 'org1', user: { $in: ['rep1', 'rep2'] } });
+      expect(mockBeatModel.find).toHaveBeenCalledWith({
+        organizationId: 'org1',
+        $or: [{ _id: { $in: ['beatA'] } }, { status: 'Draft' }],
+      });
+    });
+
+    it('should return an empty array for any other role', async () => {
+      const result = await service.getAllBeats('org1', { sub: 'x', role: 'Distributor' });
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('assignBeat — template vs assignment ownership', () => {
+    it('should reject assigning a beat that is still a Draft (must be published first)', async () => {
+      mockBeatModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'beat1', name: 'Monday Route', status: 'Draft' }) });
+
+      await expect(
+        service.assignBeat('org1', { sub: 'manager1', role: 'Sales Manager' }, 'beat1', 'rep1', '2026-01-01')
+      ).rejects.toThrow('Only a published (Active) beat can be assigned.');
+    });
+
+    it('should reject when the beat does not exist in this org', async () => {
+      mockBeatModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(
+        service.assignBeat('org1', { sub: 'manager1', role: 'Sales Manager' }, 'missingBeat', 'rep1', '2026-01-01')
+      ).rejects.toThrow('Beat not found');
+    });
+
+    it('should block a Sales Manager from assigning a beat to a rep outside their team', async () => {
+      mockBeatModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'beat1', name: 'Monday Route', status: 'Active' }) });
+      mockHierarchyService.getTeamUserIds.mockResolvedValue(['rep1', 'rep2']);
+
+      await expect(
+        service.assignBeat('org1', { sub: 'manager1', role: 'Sales Manager' }, 'beat1', 'someoneElsesRep', '2026-01-01')
+      ).rejects.toThrow('Sales Managers can only assign beats to reps on their own team.');
+    });
+
+    it('should let a Sales Manager assign a published beat to a rep on their own team, and notify them', async () => {
+      mockBeatModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'beat1', name: 'Monday Route', status: 'Active' }) });
+      mockHierarchyService.getTeamUserIds.mockResolvedValue(['rep1', 'rep2']);
+
+      const result = await service.assignBeat('org1', { sub: 'manager1', role: 'Sales Manager' }, 'beat1', 'rep1', '2026-01-01');
+
+      expect(result).toBeDefined();
+      expect(mockNotificationsService.create).toHaveBeenCalledWith('org1', 'rep1', expect.objectContaining({ type: 'beat_assigned' }));
+    });
+
+    it('should let an Organization Admin assign to any rep without team scoping', async () => {
+      mockBeatModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'beat1', name: 'Monday Route', status: 'Active' }) });
+
+      const result = await service.assignBeat('org1', { sub: 'admin1', role: 'Organization Admin' }, 'beat1', 'anyRep', '2026-01-01');
+
+      expect(result).toBeDefined();
+      expect(mockHierarchyService.getTeamUserIds).not.toHaveBeenCalled();
+    });
   });
 
   describe('getTeamBeatCompletion', () => {

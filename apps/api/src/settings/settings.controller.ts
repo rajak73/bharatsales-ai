@@ -5,7 +5,7 @@ import { AuditInterceptor } from '../audit/audit.interceptor';
 import { UseInterceptors } from '@nestjs/common';
 import { AuditEntity } from '../audit/audit.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
-import { RequirePermissions } from '../auth/permissions.decorator';
+import { RequirePermissions, Public } from '../auth/permissions.decorator';
 import { Resource, Action } from '@bharatsales/permissions';
 
 @Controller('settings')
@@ -19,6 +19,18 @@ export class SettingsController {
     async getSettings(@Request() req: any) {
     const orgId = req.user.orgId;
     return this.settingsService.getSettings(orgId);
+  }
+
+  // Self-service — every authenticated role (including Sales Rep/Distributor,
+  // who don't have Settings:Read) needs the org's name/logo/brand color to
+  // display org identity in the mobile app. Deliberately whitelisted to just
+  // name+branding, never the full tenant document (GST, billing, discount
+  // authority, etc. stay behind the real Settings:Read permission above).
+  @Public()
+  @Get('branding')
+  async getBranding(@Request() req: any) {
+    const orgId = req.user.orgId;
+    return this.settingsService.getBranding(orgId);
   }
 
 @RequirePermissions(Resource.Settings, Action.Update)

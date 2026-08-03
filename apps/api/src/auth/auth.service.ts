@@ -7,7 +7,7 @@ import * as bcrypt from 'bcryptjs';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UserDocument, TenantDocument, SessionDocument, TokenDocument } from '../schemas';
-import { SendGridEmailProvider } from '../common/email.provider';
+import { BrevoEmailProvider } from '../common/email.provider';
 
 export interface ISMSProvider {
   sendSMS(to: string, message: string): Promise<boolean>;
@@ -74,7 +74,7 @@ export class AuthService {
     private jwtService: JwtService,
     private auditService: AuditService,
     private notificationsService: NotificationsService,
-    private emailProvider: SendGridEmailProvider
+    private emailProvider: BrevoEmailProvider
   ) {}
 
   async register(registerDto: any) {
@@ -429,6 +429,14 @@ export class AuthService {
     if (result.modifiedCount === 0) {
       throw new BadRequestException('Session not found or already revoked');
     }
+    return { success: true };
+  }
+
+  async registerPushToken(userId: string, pushToken: string) {
+    if (!pushToken) {
+      throw new BadRequestException('pushToken is required');
+    }
+    await this.userModel.updateOne({ _id: userId }, { $set: { pushToken } });
     return { success: true };
   }
 

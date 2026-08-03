@@ -16,4 +16,24 @@ export const AttendanceService = {
     const response = await apiClient.get('/attendance/me');
     return response.data;
   },
+
+  getHistory: async (): Promise<AttendanceSession[]> => {
+    const response = await apiClient.get('/attendance/history');
+    return response.data;
+  },
+
+  requestRegularization: async (sessionId: string, reason: string): Promise<AttendanceSession> => {
+    const response = await apiClient.post(`/attendance/${sessionId}/regularize`, { reason });
+    return response.data;
+  },
+
+  getPendingRegularizations: async (): Promise<AttendanceSession[]> => {
+    const response = await apiClient.get('/attendance/regularizations/pending');
+    return response.data;
+  },
+
+  approveRegularization: async (sessionId: string, status: 'APPROVED' | 'REJECTED'): Promise<AttendanceSession> => {
+    const response = await apiClient.post(`/attendance/regularizations/${sessionId}/approve`, { status });
+    return response.data;
+  },
 };

@@ -14,6 +14,7 @@ export interface User {
   mobile?: string;
   status: 'Active' | 'Inactive' | 'Suspended' | 'Invited';
   territoryIds?: string[]; // IDs of assigned territories
+  pushToken?: string; // Expo push token, registered from the mobile app
   createdAt: string;
   updatedAt: string;
 }

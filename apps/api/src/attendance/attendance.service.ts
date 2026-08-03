@@ -1,14 +1,16 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AttendanceSession } from '../schemas/attendance.schema';
 import { Visit } from '../schemas/visit.schema';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 @Injectable()
 export class AttendanceService {
   constructor(
     @InjectModel('AttendanceSession') private attendanceModel: Model<AttendanceSession>,
-    @InjectModel('Visit') private visitModel: Model<Visit>
+    @InjectModel('Visit') private visitModel: Model<Visit>,
+    private hierarchyService: HierarchyService
   ) {}
 
   async startDay(userId: string, organizationId: string, data: { lat: number; lng: number; accuracy: number; deviceTimestamp: string; isMock?: boolean; photoUrl?: string }) {
@@ -75,11 +77,31 @@ export class AttendanceService {
     return session.save();
   }
 
-  async approveRegularization(sessionId: string, status: 'APPROVED' | 'REJECTED') {
-    const session = await this.attendanceModel.findById(sessionId);
+  // Lists sessions with a pending regularization request. A Sales Manager
+  // only sees their own team's requests; Organization Admin sees every
+  // request in the org.
+  async getPendingRegularizations(organizationId: string, actor: { sub: string; role: string }) {
+    const query: any = { organizationId, regularizationStatus: 'PENDING' };
+    if (actor.role === 'Sales Manager') {
+      const teamUserIds = await this.hierarchyService.getTeamUserIds(organizationId, actor.sub);
+      query.user = { $in: teamUserIds.length ? teamUserIds : ['__none__'] };
+    }
+    return this.attendanceModel.find(query).populate('user', 'name email').sort({ startTime: -1 }).exec();
+  }
+
+  async approveRegularization(organizationId: string, actor: { sub: string; role: string }, sessionId: string, status: 'APPROVED' | 'REJECTED') {
+    const session = await this.attendanceModel.findOne({ _id: sessionId, organizationId });
     if (!session) {
       throw new NotFoundException('Session not found');
     }
+
+    if (actor.role === 'Sales Manager') {
+      const teamUserIds = await this.hierarchyService.getTeamUserIds(organizationId, actor.sub);
+      if (!teamUserIds.includes(session.user.toString())) {
+        throw new ForbiddenException('Sales Managers can only approve attendance for their own team.');
+      }
+    }
+
     session.regularizationStatus = status;
     return session.save();
   }
@@ -107,6 +129,13 @@ export class AttendanceService {
   async getCurrentSession(userId: string) {
     const session = await this.attendanceModel.findOne({ user: userId, status: { $in: ['Active', 'On_Break'] } });
     return session || null;
+  }
+
+  // Self-service — a user's own past attendance sessions (mobile app Profile
+  // > Attendance History). Most recent first, capped at 30 to keep this a
+  // simple recent-history view rather than a full paginated report.
+  async getHistory(userId: string) {
+    return this.attendanceModel.find({ user: userId }).sort({ startTime: -1 }).limit(30).exec();
   }
 
   async takeBreak(userId: string) {

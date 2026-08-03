@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DistributorsService } from '@bharatsales/api-client';
-import { Search, Filter, Plus, Users, UserCheck, Activity, Clock, CheckCircle, X, Loader2 } from 'lucide-react';
+import { DistributorsService, HierarchyService, ProductsService } from '@bharatsales/api-client';
+import type { HierarchyNode, Product } from '@bharatsales/shared-types';
+import { Search, Filter, Plus, Users, UserCheck, Activity, Clock, CheckCircle, X, Loader2, MapPin } from 'lucide-react';
 
 export default function DistributorsPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function DistributorsPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [allDistributors, setAllDistributors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [role, setRole] = useState<string | null>(null);
 
   const [newDistributor, setNewDistributor] = useState({
     name: '', code: '', ownerName: '', mobile: '',
@@ -21,6 +23,14 @@ export default function DistributorsPage() {
   });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+
+  // Territory/product assignment — Organization Admin's job per BRD.
+  const [assigningDist, setAssigningDist] = useState<any | null>(null);
+  const [hierarchyNodes, setHierarchyNodes] = useState<HierarchyNode[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [assignForm, setAssignForm] = useState<{ territoryIds: string[]; productIds: string[] }>({ territoryIds: [], productIds: [] });
+  const [savingAssignment, setSavingAssignment] = useState(false);
+  const [assignError, setAssignError] = useState('');
 
   const fetchDistributors = async () => {
     try {
@@ -36,7 +46,9 @@ export default function DistributorsPage() {
           status: d.status || 'Active',
           inventoryHealth: d.fillRate || 0,
           orderFulfillment: d.orderFulfillment || 0,
-          pendingOrders: d.pendingOrders || 0
+          pendingOrders: d.pendingOrders || 0,
+          territoryIds: d.territoryIds || [],
+          productIds: d.productIds || [],
         }));
         setAllDistributors(mappedData);
       } else {
@@ -51,7 +63,44 @@ export default function DistributorsPage() {
 
   useEffect(() => {
     fetchDistributors();
+    HierarchyService.getHierarchyNodes().then(setHierarchyNodes).catch(() => setHierarchyNodes([]));
+    ProductsService.getProducts().then(setProducts).catch(() => setProducts([]));
+    try {
+      const token = localStorage.getItem('bharatsales_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setRole(payload.role);
+      }
+    } catch {
+      // ignore
+    }
   }, []);
+
+  const openAssignModal = (dist: any) => {
+    setAssigningDist(dist);
+    setAssignForm({ territoryIds: dist.territoryIds || [], productIds: dist.productIds || [] });
+    setAssignError('');
+  };
+
+  const handleSaveAssignment = async () => {
+    if (!assigningDist) return;
+    setSavingAssignment(true);
+    setAssignError('');
+    try {
+      await DistributorsService.updateDistributor(assigningDist.id, {
+        territoryIds: assignForm.territoryIds,
+        productIds: assignForm.productIds,
+      } as any);
+      setSuccessMessage(`Territory & products updated for "${assigningDist.name}".`);
+      setAssigningDist(null);
+      fetchDistributors();
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (error: any) {
+      setAssignError(error?.response?.data?.message || 'Failed to update assignment.');
+    } finally {
+      setSavingAssignment(false);
+    }
+  };
 
   const filteredDistributors = allDistributors.filter(dist => {
     const territory = dist.location?.state || 'Unknown';
@@ -281,6 +330,15 @@ export default function DistributorsPage() {
                   Process Orders
                 </button>
               </div>
+              {role === 'Organization Admin' && (
+                <button
+                  onClick={() => openAssignModal(dist)}
+                  className="w-full mt-3 py-2.5 text-sm font-bold text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
+                >
+                  <MapPin size={16} />
+                  Territory & Products ({(dist.territoryIds?.length || 0)} / {(dist.productIds?.length || 0)})
+                </button>
+              )}
             </div>
           ))
         ) : (
@@ -359,6 +417,89 @@ export default function DistributorsPage() {
                 className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {creating ? 'Adding...' : 'Add Distributor'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Territory & Product Assignment Modal (Organization Admin only) */}
+      {assigningDist && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-slate-800">Assign Territory & Products — {assigningDist.name}</h3>
+              <button onClick={() => setAssigningDist(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            {assignError && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">{assignError}</div>
+            )}
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Territories</label>
+                <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto divide-y divide-gray-100">
+                  {hierarchyNodes.length === 0 && (
+                    <div className="text-sm text-gray-400 p-3">No hierarchy nodes found</div>
+                  )}
+                  {hierarchyNodes.map(node => (
+                    <label key={node.id} className="flex items-center gap-2 p-2.5 text-sm hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={assignForm.territoryIds.includes(node.id)}
+                        onChange={(e) => {
+                          setAssignForm(prev => ({
+                            ...prev,
+                            territoryIds: e.target.checked
+                              ? [...prev.territoryIds, node.id]
+                              : prev.territoryIds.filter(id => id !== node.id),
+                          }));
+                        }}
+                      />
+                      <span className="text-gray-800">{node.level}: {node.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Products</label>
+                <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto divide-y divide-gray-100">
+                  {products.length === 0 && (
+                    <div className="text-sm text-gray-400 p-3">No products found</div>
+                  )}
+                  {products.map(p => (
+                    <label key={p.id} className="flex items-center gap-2 p-2.5 text-sm hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={assignForm.productIds.includes(p.id)}
+                        onChange={(e) => {
+                          setAssignForm(prev => ({
+                            ...prev,
+                            productIds: e.target.checked
+                              ? [...prev.productIds, p.id]
+                              : prev.productIds.filter(id => id !== p.id),
+                          }));
+                        }}
+                      />
+                      <span className="text-gray-800">{p.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <button onClick={() => setAssigningDist(null)} className="flex-1 btn-secondary">Cancel</button>
+              <button
+                onClick={handleSaveAssignment}
+                disabled={savingAssignment}
+                className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingAssignment ? 'Saving...' : 'Save Assignment'}
               </button>
             </div>
           </div>

@@ -37,6 +37,11 @@ export class OrdersService {
       // A Distributor sees only orders routed to them, not territory-based access
       // (distributors aren't assigned territories the same way reps/managers are).
       query.assignedDistributorId = user.distributorId || '__none__';
+    } else if (user && user.role === 'Sales Representative') {
+      // A Sales Representative sees only their own orders, never another
+      // rep's — territory scoping alone isn't enough here since a territory
+      // can have more than one rep assigned to it.
+      query.createdByUserId = user.sub;
     } else if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
       if (!user.territoryIds || user.territoryIds.length === 0) {
         return []; // Non-admin with no territory sees nothing

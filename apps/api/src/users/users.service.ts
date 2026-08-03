@@ -37,10 +37,16 @@ export class UsersService {
     if (userData.role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can create other Super Admins.');
     }
+    if (userData.role === 'Organization Admin' && !['Organization Admin', 'Super Admin'].includes(actorRole)) {
+      throw new ForbiddenException('Only Organization Admins can create other Organization Admins.');
+    }
 
     // A Distributor-created user is scoped to that same distributor's staff.
     if (actorRole === 'Distributor') {
       (userData as any).distributorId = actorDistributorId;
+      if (userData.role && userData.role !== 'Distributor') {
+        throw new ForbiddenException('Distributors can only create staff with the Distributor role.');
+      }
     }
 
     if (!userData.email) {
@@ -141,37 +147,70 @@ export class UsersService {
     };
   }
 
-  async updateUser(organizationId: string, actorRole: string, id: string, updateData: Partial<User> & { password?: string }) {
+  // Enforces the same "who may touch this specific user" rule for both
+  // update and delete: a Distributor may only manage their own staff, and
+  // a Sales Manager may only manage users on their own reporting team.
+  // Organization Admin / Super Admin are unrestricted within the org.
+  private async assertCanManageUser(organizationId: string, actor: any, target: any) {
+    if (actor.role === 'Distributor') {
+      if (!actor.distributorId || target.distributorId !== actor.distributorId) {
+        throw new ForbiddenException('Distributors can only manage their own staff.');
+      }
+      return;
+    }
+    if (actor.role === 'Sales Manager') {
+      const teamUserIds = await this.hierarchyService.getTeamUserIds(organizationId, actor.sub);
+      if (!teamUserIds.includes(target._id.toString())) {
+        throw new ForbiddenException('Sales Managers can only manage users on their own team.');
+      }
+      return;
+    }
+  }
+
+  async updateUser(organizationId: string, actor: any, id: string, updateData: Partial<User> & { password?: string }) {
     delete (updateData as any).organizationId;
     delete (updateData as any)._id;
     delete (updateData as any).createdAt;
     delete (updateData as any).updatedAt;
+    const actorRole = actor.role;
     if (updateData.role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can assign the Super Admin role.');
     }
+    if (updateData.role === 'Organization Admin' && !['Organization Admin', 'Super Admin'].includes(actorRole)) {
+      throw new ForbiddenException('Only Organization Admins can assign the Organization Admin role.');
+    }
+
+    const target = await this.userModel.findOne({ _id: id, organizationId }).exec();
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+    await this.assertCanManageUser(organizationId, actor, target);
 
     if (updateData.password) {
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }
-    
+
     const user = await this.userModel.findOneAndUpdate(
       { _id: id, organizationId },
       { $set: updateData },
       { new: true }
     ).select('-password').exec();
-    
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    
+
     return user;
   }
 
-  async deleteUser(organizationId: string, id: string) {
-    const user = await this.userModel.findOneAndDelete({ _id: id, organizationId }).exec();
-    if (!user) {
+  async deleteUser(organizationId: string, actor: any, id: string) {
+    const target = await this.userModel.findOne({ _id: id, organizationId }).exec();
+    if (!target) {
       throw new NotFoundException('User not found');
     }
+    await this.assertCanManageUser(organizationId, actor, target);
+
+    await this.userModel.deleteOne({ _id: id, organizationId }).exec();
     return { deleted: true };
   }
 }

@@ -1,13 +1,10 @@
 export interface TaxRate {
   id: string;
   organizationId: string;
-  hsn: string;
-  description: string;
-  gst: string;
-  cgst: string;
-  sgst: string;
-  igst: string;
-  effectiveFrom: string;
+  name: string;
+  percentage: number;
+  country: string;
+  region?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -29,7 +29,7 @@ export class OutletsController {
   }
 
   @Get('export')
-  @RequirePermissions(Resource.Outlets, Action.Read)
+  @RequirePermissions(Resource.Outlets, Action.Export)
   @AuditEntity('Export_Outlets')
   async exportOutlets(@Request() req: any) {
     // BR-017: Explicitly intercepting this via AuditInterceptor
@@ -40,7 +40,7 @@ export class OutletsController {
   }
 
   @Post('export')
-  @RequirePermissions(Resource.Outlets, Action.Read)
+  @RequirePermissions(Resource.Outlets, Action.Export)
   @AuditEntity('Export_Outlets')
   async exportOutletsPost(@Request() req: any) {
     const orgId = req.user.orgId;

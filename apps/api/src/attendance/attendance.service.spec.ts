@@ -1,18 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AttendanceService } from './attendance.service';
 import { getModelToken } from '@nestjs/mongoose';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
 
   const mockAttendanceModel = {
     findOne: jest.fn(),
-    findById: jest.fn(),
+    find: jest.fn(),
   };
 
   const mockVisitModel = {
     updateMany: jest.fn(),
   };
+
+  const mockHierarchyService = { getTeamUserIds: jest.fn().mockResolvedValue([]) };
 
   class MockAttendance {
     save: any;
@@ -32,6 +35,10 @@ describe('AttendanceService', () => {
         {
           provide: getModelToken('Visit'),
           useValue: mockVisitModel,
+        },
+        {
+          provide: HierarchyService,
+          useValue: mockHierarchyService,
         },
       ],
     }).compile();
@@ -72,11 +79,58 @@ describe('AttendanceService', () => {
       expect(mockSession.regularizationReason).toBe('Forgot to checkout');
     });
 
-    it('should approve regularization', async () => {
-      const mockSession: any = { _id: '123', regularizationStatus: 'PENDING', save: jest.fn().mockResolvedValue(true) };
-      mockAttendanceModel.findById.mockResolvedValue(mockSession);
-      await service.approveRegularization('123', 'APPROVED');
+    it('should approve regularization when called by an Organization Admin', async () => {
+      const mockSession: any = { _id: '123', user: 'rep1', regularizationStatus: 'PENDING', save: jest.fn().mockResolvedValue(true) };
+      mockAttendanceModel.findOne.mockResolvedValue(mockSession);
+      await service.approveRegularization('org1', { sub: 'admin1', role: 'Organization Admin' }, '123', 'APPROVED');
       expect(mockSession.regularizationStatus).toBe('APPROVED');
+    });
+
+    it('should let a Sales Manager approve regularization for their own team member', async () => {
+      const mockSession: any = { _id: '123', user: 'rep1', regularizationStatus: 'PENDING', save: jest.fn().mockResolvedValue(true) };
+      mockAttendanceModel.findOne.mockResolvedValue(mockSession);
+      mockHierarchyService.getTeamUserIds.mockResolvedValue(['rep1', 'rep2']);
+
+      await service.approveRegularization('org1', { sub: 'manager1', role: 'Sales Manager' }, '123', 'APPROVED');
+      expect(mockSession.regularizationStatus).toBe('APPROVED');
+    });
+
+    it('should block a Sales Manager from approving regularization for a rep outside their team', async () => {
+      const mockSession: any = { _id: '123', user: 'someoneElsesRep', regularizationStatus: 'PENDING', save: jest.fn().mockResolvedValue(true) };
+      mockAttendanceModel.findOne.mockResolvedValue(mockSession);
+      mockHierarchyService.getTeamUserIds.mockResolvedValue(['rep1', 'rep2']);
+
+      await expect(
+        service.approveRegularization('org1', { sub: 'manager1', role: 'Sales Manager' }, '123', 'APPROVED')
+      ).rejects.toThrow('Sales Managers can only approve attendance for their own team.');
+    });
+
+    it('should scope pending regularizations to a Sales Manager\'s own team', async () => {
+      mockHierarchyService.getTeamUserIds.mockResolvedValue(['rep1', 'rep2']);
+      mockAttendanceModel.find.mockReturnValue({
+        populate: jest.fn().mockReturnValue({ sort: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }) }),
+      });
+
+      await service.getPendingRegularizations('org1', { sub: 'manager1', role: 'Sales Manager' });
+
+      expect(mockAttendanceModel.find).toHaveBeenCalledWith(expect.objectContaining({
+        organizationId: 'org1',
+        regularizationStatus: 'PENDING',
+        user: { $in: ['rep1', 'rep2'] },
+      }));
+    });
+  });
+
+  describe('getHistory', () => {
+    it('should return the calling user\'s own sessions, most recent first, capped at 30', async () => {
+      const sort = jest.fn().mockReturnValue({ limit: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([{ _id: 's1' }]) }) });
+      mockAttendanceModel.find.mockReturnValue({ sort });
+
+      const result = await service.getHistory('user1');
+
+      expect(mockAttendanceModel.find).toHaveBeenCalledWith({ user: 'user1' });
+      expect(sort).toHaveBeenCalledWith({ startTime: -1 });
+      expect(result).toEqual([{ _id: 's1' }]);
     });
   });
 });

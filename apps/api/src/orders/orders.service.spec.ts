@@ -16,10 +16,12 @@ describe('OrdersService', () => {
 
   const mockOrderModel = {
     findOne: jest.fn(),
+    find: jest.fn(),
   };
 
   const mockOutletModel = {
     findOne: jest.fn(),
+    find: jest.fn(),
   };
 
   const mockSchemeModel = {
@@ -120,6 +122,36 @@ describe('OrdersService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('findAll — role scoping', () => {
+    it('should scope a Sales Representative to only their own orders, even without ?mine=true', async () => {
+      mockOrderModel.find.mockReturnValue({ sort: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }) });
+
+      await service.findAll('org1', { sub: 'rep1', role: 'Sales Representative', territoryIds: ['t1'] });
+
+      expect(mockOrderModel.find).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 'org1', createdByUserId: 'rep1' }));
+    });
+
+    it('should scope a Sales Manager to their team\'s outlets via territory, not to just their own orders', async () => {
+      mockOutletModel.find.mockReturnValue({ select: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([{ _id: 'outletA' }]) }) });
+      mockOrderModel.find.mockReturnValue({ sort: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }) });
+
+      await service.findAll('org1', { sub: 'manager1', role: 'Sales Manager', territoryIds: ['t1'] });
+
+      const callArg = mockOrderModel.find.mock.calls[0][0];
+      expect(callArg.organizationId).toBe('org1');
+      expect(callArg.createdByUserId).toBeUndefined();
+      expect(callArg.outletId).toEqual({ $in: ['outletA'] });
+    });
+
+    it('should scope a Distributor to only orders routed to them', async () => {
+      mockOrderModel.find.mockReturnValue({ sort: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }) });
+
+      await service.findAll('org1', { sub: 'distUser1', role: 'Distributor', distributorId: 'dist1' });
+
+      expect(mockOrderModel.find).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 'org1', assignedDistributorId: 'dist1' }));
+    });
   });
 
   describe('scheme validation', () => {

@@ -5,12 +5,52 @@ import { TargetsService, UsersService } from '@bharatsales/api-client';
 import { SalesTarget, User } from '@bharatsales/shared-types';
 import { Loader2, CheckCircle, X } from 'lucide-react';
 
+const METRIC_OPTIONS: { label: string; value: 'SalesValue' | 'VisitCount' | 'ProductiveCalls' | 'CollectionValue' }[] = [
+  { label: 'Revenue', value: 'SalesValue' },
+  { label: 'Visits', value: 'VisitCount' },
+  { label: 'Productive Calls', value: 'ProductiveCalls' },
+  { label: 'Collections', value: 'CollectionValue' },
+];
+
+type PeriodOption = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Annual';
+
+function defaultDateRangeFor(period: PeriodOption): { startDate: string; endDate: string } {
+  const now = new Date();
+  const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+  if (period === 'Daily') {
+    return { startDate: toISODate(now), endDate: toISODate(now) };
+  }
+  if (period === 'Weekly') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { startDate: toISODate(start), endDate: toISODate(end) };
+  }
+  if (period === 'Quarterly') {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    const start = new Date(now.getFullYear(), quarterStartMonth, 1);
+    const end = new Date(now.getFullYear(), quarterStartMonth + 3, 0);
+    return { startDate: toISODate(start), endDate: toISODate(end) };
+  }
+  if (period === 'Annual') {
+    return { startDate: toISODate(new Date(now.getFullYear(), 0, 1)), endDate: toISODate(new Date(now.getFullYear(), 11, 31)) };
+  }
+  // Monthly (default)
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { startDate: toISODate(start), endDate: toISODate(end) };
+}
+
 export default function TargetsPage() {
   const [period, setPeriod] = useState('July 2026');
   const [showSetTargetModal, setShowSetTargetModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [newTarget, setNewTarget] = useState({ metric: '', user: '', target: '', period: 'July 2026' });
+  const [actionError, setActionError] = useState('');
+  const [newTarget, setNewTarget] = useState<{ metric: 'SalesValue' | 'VisitCount' | 'ProductiveCalls' | 'CollectionValue' | ''; user: string; target: string; period: PeriodOption }>({ metric: '', user: '', target: '', period: 'Monthly' });
   const [orgUsers, setOrgUsers] = useState<User[]>([]);
+  const [role, setRole] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [targets, setTargets] = useState<SalesTarget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +61,15 @@ export default function TargetsPage() {
 
   useEffect(() => {
     UsersService.getUsers().then(setOrgUsers).catch(() => setOrgUsers([]));
+    try {
+      const token = localStorage.getItem('bharatsales_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setRole(payload.role);
+      }
+    } catch {
+      // ignore
+    }
   }, []);
 
   const fetchTargets = async () => {
@@ -52,24 +101,33 @@ export default function TargetsPage() {
   };
 
   const handleSetTarget = async () => {
-    if (newTarget.metric && newTarget.user && newTarget.target) {
-      try {
-        await TargetsService.createTarget({
-          entityType: 'User',
-          entityId: newTarget.user,
-          period: 'Monthly',
-          targetValue: Number(newTarget.target),
-          actualValue: 0,
-          status: 'On Track',
-          });
-        setSuccessMessage(`Target for ${newTarget.metric} set successfully!`);
-        setShowSetTargetModal(false);
-        setNewTarget({ metric: '', user: '', target: '', period: 'July 2026' });
-        fetchTargets();
-        setTimeout(() => setSuccessMessage(''), 3000);
-      } catch (err) {
-        console.error('Failed to create target', err);
-      }
+    if (!newTarget.metric || !newTarget.user || !newTarget.target) return;
+    setSubmitting(true);
+    setActionError('');
+    try {
+      const { startDate, endDate } = defaultDateRangeFor(newTarget.period);
+      await TargetsService.createTarget({
+        entityType: 'User',
+        entityId: newTarget.user,
+        period: newTarget.period,
+        targetMetric: newTarget.metric,
+        startDate,
+        endDate,
+        targetValue: Number(newTarget.target),
+        actualValue: 0,
+        status: 'On Track',
+      });
+      const metricLabel = METRIC_OPTIONS.find(m => m.value === newTarget.metric)?.label || newTarget.metric;
+      setSuccessMessage(`${newTarget.period} target for ${metricLabel} set successfully!`);
+      setShowSetTargetModal(false);
+      setNewTarget({ metric: '', user: '', target: '', period: 'Monthly' });
+      fetchTargets();
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err: any) {
+      console.error('Failed to create target', err);
+      setActionError(err?.response?.data?.message || 'Failed to create target.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -83,6 +141,13 @@ export default function TargetsPage() {
             <span className="text-sm text-green-800 font-medium">{successMessage}</span>
           </div>
           <button onClick={() => setSuccessMessage('')} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-sm text-red-700 font-medium">{actionError}</span>
+          <button onClick={() => setActionError('')} className="text-red-600 hover:text-red-800"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -207,15 +272,12 @@ export default function TargetsPage() {
                 <select
                   className="input-field"
                   value={newTarget.metric}
-                  onChange={(e) => setNewTarget({ ...newTarget, metric: e.target.value })}
+                  onChange={(e) => setNewTarget({ ...newTarget, metric: e.target.value as typeof newTarget.metric })}
                 >
                   <option value="">Select metric</option>
-                  <option>Revenue</option>
-                  <option>Orders</option>
-                  <option>New Outlets</option>
-                  <option>Collections</option>
-                  <option>Visits</option>
-                  <option>Productive Calls</option>
+                  {METRIC_OPTIONS.map(m => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -242,15 +304,18 @@ export default function TargetsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Period</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Period *</label>
                 <select
                   className="input-field"
                   value={newTarget.period}
-                  onChange={(e) => setNewTarget({ ...newTarget, period: e.target.value })}
+                  onChange={(e) => setNewTarget({ ...newTarget, period: e.target.value as PeriodOption })}
                 >
-                  <option>July 2026</option>
-                  <option>August 2026</option>
-                  <option>Q3 2026</option>
+                  <option value="Daily">Daily</option>
+                  <option value="Weekly">Weekly</option>
+                  <option value="Monthly">Monthly</option>
+                  <option value="Quarterly">Quarterly</option>
+                  {/* Annual targets are Organization Admin's call — Sales Managers work at the monthly/tactical level. */}
+                  {role === 'Organization Admin' && <option value="Annual">Annual</option>}
                 </select>
               </div>
             </div>
@@ -260,10 +325,10 @@ export default function TargetsPage() {
               </button>
               <button
                 onClick={handleSetTarget}
-                disabled={!newTarget.metric || !newTarget.user || !newTarget.target}
+                disabled={!newTarget.metric || !newTarget.user || !newTarget.target || submitting}
                 className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Set Target
+                {submitting ? 'Setting...' : 'Set Target'}
               </button>
             </div>
           </div>

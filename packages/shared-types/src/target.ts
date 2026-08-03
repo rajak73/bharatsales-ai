@@ -4,7 +4,7 @@ export interface SalesTarget {
   entityType: 'User' | 'Territory' | 'Outlet';
   entityId: string;
   
-  period: 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly';
+  period: 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Annual';
   startDate: string;
   endDate: string;
   

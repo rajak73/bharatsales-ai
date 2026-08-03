@@ -10,10 +10,14 @@ describe('TargetsService', () => {
     find: jest.fn(),
     db: { model: jest.fn() },
   };
-  const mockTargetModel: any = {
+  const mockTargetModel: any = jest.fn().mockImplementation((data: any) => ({
+    ...data,
+    save: jest.fn().mockResolvedValue({ ...data, _id: 'newTargetId', toObject: () => ({ ...data, _id: 'newTargetId' }) }),
+  }));
+  Object.assign(mockTargetModel, {
     find: jest.fn(),
     updateOne: jest.fn().mockResolvedValue({}),
-  };
+  });
   const mockNotificationsService = { create: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(async () => {
@@ -31,6 +35,24 @@ describe('TargetsService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('createTarget — period/role gating', () => {
+    it('should block a Sales Manager from creating an Annual target', async () => {
+      await expect(
+        service.createTarget('org1', 'Sales Manager', { period: 'Annual', entityType: 'User', entityId: 'rep1' } as any)
+      ).rejects.toThrow('Only Organization Admins can create Annual targets.');
+    });
+
+    it('should let an Organization Admin create an Annual target', async () => {
+      const result = await service.createTarget('org1', 'Organization Admin', { period: 'Annual', entityType: 'User', entityId: 'rep1' } as any);
+      expect(result).toBeDefined();
+    });
+
+    it('should let a Sales Manager create a Monthly target', async () => {
+      const result = await service.createTarget('org1', 'Sales Manager', { period: 'Monthly', entityType: 'User', entityId: 'rep1' } as any);
+      expect(result).toBeDefined();
+    });
   });
 
   describe('rollupExpiredTargets', () => {

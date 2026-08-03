@@ -38,6 +38,11 @@ export class Distributor implements Omit<IDistributor, 'id' | 'createdAt' | 'upd
   @Prop({ type: Location, required: true }) location: Location;
   @Prop({ type: TaxInfo, required: true }) tax: TaxInfo;
   @Prop({ type: Commercial, default: { creditLimit: 0, outstandingBalance: 0 } }) commercial?: Commercial;
+
+  // Territory + product assignment (BRD "Distributor Management": Organization
+  // Admin creates a distributor, then assigns Territory and Products to it).
+  @Prop({ type: [String], default: [] }) territoryIds?: string[];
+  @Prop({ type: [String], default: [] }) productIds?: string[];
 }
 
 export const DistributorSchema = SchemaFactory.createForClass(Distributor);

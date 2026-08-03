@@ -31,6 +31,11 @@ export class BeatsService {
     return response.data;
   }
 
+  static async assignBeat(id: string, userId: string, date: string): Promise<BeatSchedule> {
+    const response = await apiClient.post<BeatSchedule>(`/beats/${id}/assign`, { userId, date });
+    return response.data;
+  }
+
   static async getTeamBeatCompletion(): Promise<{ teamCompletionPercentage: number; reps: any[] }> {
     const response = await apiClient.get('/beats/team-today');
     return response.data;

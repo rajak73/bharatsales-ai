@@ -24,7 +24,7 @@ export class TargetsController {
 @RequirePermissions(Resource.Targets, Action.Create)
   @Post()
   createTarget(@Request() req: any, @Body() data: any) {
-    return this.targetsService.createTarget(req.user.orgId, data);
+    return this.targetsService.createTarget(req.user.orgId, req.user.role, data);
   }
 
 @RequirePermissions(Resource.Targets, Action.Update)

@@ -39,6 +39,9 @@ import { IncentivesModule } from './incentives/incentives.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { DispatchModule } from './dispatch/dispatch.module';
 import { SupportModule } from './support/support.module';
+import { SchemesModule } from './schemes/schemes.module';
+import { TaxRatesModule } from './tax-rates/tax-rates.module';
+import { PriceListsModule } from './price-lists/price-lists.module';
 
 @Module({
   imports: [
@@ -122,6 +125,9 @@ import { SupportModule } from './support/support.module';
     UploadsModule,
     DispatchModule,
     SupportModule,
+    SchemesModule,
+    TaxRatesModule,
+    PriceListsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

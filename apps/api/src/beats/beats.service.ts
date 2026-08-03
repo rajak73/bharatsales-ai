@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -66,8 +66,36 @@ export class BeatsService {
     return scheduleObj;
   }
 
-  async getAllBeats(organizationId: string) {
-    return this.beatModel.find({ organizationId }).populate('outlets').exec();
+  // Organization Admin sees every beat (they own the template). A Sales
+  // Manager sees unassigned drafts (to assign) plus anything already
+  // scheduled to their own team. A Sales Representative sees only beats
+  // actually scheduled to them — never another rep's routes.
+  async getAllBeats(organizationId: string, actor: { sub: string; role: string }) {
+    if (actor.role === 'Organization Admin' || actor.role === 'Super Admin') {
+      return this.beatModel.find({ organizationId }).populate('outlets').exec();
+    }
+
+    if (actor.role === 'Sales Representative') {
+      const scheduleBeatIds = await this.beatScheduleModel
+        .find({ organizationId, user: actor.sub })
+        .distinct('beat')
+        .exec();
+      return this.beatModel.find({ _id: { $in: scheduleBeatIds }, organizationId }).populate('outlets').exec();
+    }
+
+    if (actor.role === 'Sales Manager') {
+      const teamUserIds = await this.hierarchyService.getTeamUserIds(organizationId, actor.sub);
+      const scheduleBeatIds = await this.beatScheduleModel
+        .find({ organizationId, user: { $in: teamUserIds.length ? teamUserIds : ['__none__'] } })
+        .distinct('beat')
+        .exec();
+      return this.beatModel.find({
+        organizationId,
+        $or: [{ _id: { $in: scheduleBeatIds } }, { status: 'Draft' }]
+      }).populate('outlets').exec();
+    }
+
+    return [];
   }
 
   async createBeat(organizationId: string, data: Partial<Beat>) {
@@ -124,6 +152,42 @@ export class BeatsService {
     }
 
     return updated;
+  }
+
+  // Sales Manager (or Organization Admin) assigns a published beat template
+  // to a specific rep for a specific date. A Sales Manager may only assign
+  // to reps on their own team — never another manager's.
+  async assignBeat(organizationId: string, actor: { sub: string; role: string }, beatId: string, targetUserId: string, date: string) {
+    const beat = await this.beatModel.findOne({ _id: beatId, organizationId }).exec();
+    if (!beat) {
+      throw new NotFoundException('Beat not found');
+    }
+    if (beat.status !== 'Active') {
+      throw new BadRequestException('Only a published (Active) beat can be assigned.');
+    }
+
+    if (actor.role === 'Sales Manager') {
+      const teamUserIds = await this.hierarchyService.getTeamUserIds(organizationId, actor.sub);
+      if (!teamUserIds.includes(targetUserId)) {
+        throw new ForbiddenException('Sales Managers can only assign beats to reps on their own team.');
+      }
+    }
+
+    const schedule = new this.beatScheduleModel({
+      user: targetUserId,
+      beat: beatId,
+      organizationId,
+      date: new Date(date),
+    });
+    await schedule.save();
+
+    this.notificationsService.create(organizationId, targetUserId, {
+      type: 'beat_assigned',
+      title: 'Beat Assigned',
+      message: `You have been assigned the "${beat.name}" beat for ${new Date(date).toLocaleDateString()}.`
+    }).catch(err => this.logger.error('Failed to create beat-assigned notification', err));
+
+    return schedule;
   }
 
   // Aggregate beat completion % across a Sales Manager's team (or, for an

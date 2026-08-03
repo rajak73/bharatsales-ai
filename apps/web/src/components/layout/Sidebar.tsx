@@ -8,7 +8,7 @@ import {
   Link as LinkIcon, UserCog, Smartphone, CreditCard,
   Sparkles, CalendarClock, Settings, ShieldCheck, Repeat, Receipt, Network,
   BarChart3, ShieldAlert, BookOpen, Server, ChevronDown, ChevronRight, Bell, Trophy,
-  Building2, LifeBuoy, IndianRupee
+  Building2, LifeBuoy, IndianRupee, Tag
 } from 'lucide-react';
 
 const ALL_ROLES = ['Super Admin', 'Organization Admin', 'Sales Manager', 'Sales Representative', 'Distributor'];
@@ -55,6 +55,7 @@ const navGroups = [
       { icon: Box, label: 'Inventory', href: '/dashboard/inventory', roles: ['Distributor'] },
       { icon: ArrowDownToLine, label: 'Returns', href: '/dashboard/returns', roles: ['Distributor'] },
       { icon: Package, label: 'Products', href: '/dashboard/products', roles: ['Organization Admin'] },
+      { icon: Tag, label: 'Pricing & Schemes', href: '/dashboard/pricing', roles: ['Organization Admin'] },
       { icon: Factory, label: 'Distributors', href: '/dashboard/distributors', roles: ORG_AND_MANAGER },
     ]
   },

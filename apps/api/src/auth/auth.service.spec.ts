@@ -5,7 +5,7 @@ import { AuthService } from './auth.service';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { SendGridEmailProvider } from '../common/email.provider';
+import { BrevoEmailProvider } from '../common/email.provider';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -22,6 +22,7 @@ describe('AuthService', () => {
     findOne: jest.fn(),
     findById: jest.fn(),
     find: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }) }),
+    updateOne: jest.fn().mockResolvedValue({}),
   });
 
   const mockTenantModel: any = jest.fn().mockImplementation((data: any) => new MockDoc(data));
@@ -56,7 +57,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: AuditService, useValue: {} },
         { provide: NotificationsService, useValue: mockNotificationsService },
-        { provide: SendGridEmailProvider, useValue: mockEmailProvider },
+        { provide: BrevoEmailProvider, useValue: mockEmailProvider },
       ],
     }).compile();
 
@@ -104,6 +105,21 @@ describe('AuthService', () => {
       mockTenantModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue({ status: 'Pending Approval' }) });
 
       await expect(service.login({ email: 'jane@acme.com', password: 'secret123' })).rejects.toThrow('Your organization is awaiting platform administrator approval.');
+    });
+  });
+
+  describe('registerPushToken', () => {
+    it('should store the push token against the calling user', async () => {
+      await service.registerPushToken('user1', 'ExponentPushToken[abc123]');
+      expect(mockUserModel.updateOne).toHaveBeenCalledWith(
+        { _id: 'user1' },
+        { $set: { pushToken: 'ExponentPushToken[abc123]' } }
+      );
+    });
+
+    it('should reject an empty push token', async () => {
+      await expect(service.registerPushToken('user1', '')).rejects.toThrow('pushToken is required');
+      expect(mockUserModel.updateOne).not.toHaveBeenCalled();
     });
   });
 });

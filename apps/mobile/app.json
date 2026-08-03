@@ -1,0 +1,82 @@
+{
+  "expo": {
+    "name": "BharatSales AI",
+    "slug": "bharatsales",
+    "scheme": "bharatsales",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bharatsales.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "BharatSales AI needs your location to verify attendance check-in/out, track your beat route, and confirm outlet visits.",
+        "NSCameraUsageDescription": "BharatSales AI needs camera access to capture attendance selfies and visit photos.",
+        "NSPhotoLibraryUsageDescription": "BharatSales AI needs photo library access to attach images to visit notes."
+      }
+    },
+    "android": {
+      "package": "com.bharatsales.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-location",
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "BharatSales AI needs camera access to capture attendance selfies and visit photos."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BharatSales AI needs photo library access to attach images to visit notes."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png"
+        }
+      ],
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#2563EB"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c4a1dfc0-f595-45f5-9086-c9d0b5af126e"
+      }
+    }
+  }
+}

@@ -45,6 +45,11 @@ export class User implements Omit<IUser, 'id' | 'createdAt' | 'updatedAt'> {
   // to only their own distributor's inventory/returns/collections/staff.
   @Prop()
   distributorId?: string;
+
+  // Expo push token for the mobile app (Sales Rep / Distributor), registered
+  // after login. Purely additive — no other auth/session flow reads this.
+  @Prop()
+  pushToken?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

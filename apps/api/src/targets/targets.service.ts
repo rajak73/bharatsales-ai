@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SalesTarget as Target, Order } from '@bharatsales/shared-types';
@@ -189,11 +189,19 @@ export class TargetsService {
     this.logger.log(`Target Rollup Complete. Processed ${expiredTargets.length} targets.`);
   }
 
-  async createTarget(organizationId: string, data: Partial<Target>) {
+  async createTarget(organizationId: string, actorRole: string, data: Partial<Target>) {
     delete (data as any).organizationId;
     delete (data as any)._id;
     delete (data as any).createdAt;
     delete (data as any).updatedAt;
+
+    // Annual targets are Organization Admin's call (BRD "Target vs
+    // Achievement": Org Admin sets the yearly target, Sales Manager works
+    // at the monthly/tactical level and assigns those down to reps).
+    if (data.period === 'Annual' && actorRole !== 'Organization Admin') {
+      throw new ForbiddenException('Only Organization Admins can create Annual targets.');
+    }
+
     const target = new this.targetModel({ ...data, organizationId });
     const saved = await target.save();
 

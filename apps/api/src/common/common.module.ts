@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { SendGridEmailProvider } from './email.provider';
+import { BrevoEmailProvider } from './email.provider';
 
 @Module({
-  providers: [SendGridEmailProvider],
-  exports: [SendGridEmailProvider],
+  providers: [BrevoEmailProvider],
+  exports: [BrevoEmailProvider],
 })
 export class CommonModule {}

@@ -20,7 +20,9 @@ export function LoginScreen() {
       await login({ email, password });
     } catch (err: any) {
       console.error('Login failed', err);
-      setError('Invalid email or password. Please try again.');
+      setError(err?.message?.startsWith('This app is for')
+        ? err.message
+        : 'Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
     }

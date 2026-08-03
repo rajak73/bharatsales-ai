@@ -35,8 +35,7 @@ export class UsersController {
     @AuditEntity('User')
   async updateUser(@Request() req: any, @Param('id') id: string, @Body() updateData: Partial<User> & { password?: string }) {
     const orgId = req.user.orgId;
-    const actorRole = req.user.role;
-    return this.usersService.updateUser(orgId, actorRole, id, updateData);
+    return this.usersService.updateUser(orgId, req.user, id, updateData);
   }
 
 @RequirePermissions(Resource.Users, Action.Delete)
@@ -44,7 +43,7 @@ export class UsersController {
     @AuditEntity('User')
   async deleteUser(@Request() req: any, @Param('id') id: string) {
     const orgId = req.user.orgId;
-    return this.usersService.deleteUser(orgId, id);
+    return this.usersService.deleteUser(orgId, req.user, id);
   }
 
 @RequirePermissions(Resource.Users, Action.Create)

@@ -31,7 +31,7 @@ export class DistributorsController {
   @RequirePermissions(Resource.Distributors, Action.Update)
   @AuditEntity('Distributor')
   async updateDistributor(@Request() req: any, @Param('id') id: string, @Body() updateData: Partial<Distributor>) {
-    return this.distributorsService.update(req.user.orgId, id, updateData);
+    return this.distributorsService.update(req.user.orgId, req.user.role, id, updateData);
   }
 
   @Delete(':id')

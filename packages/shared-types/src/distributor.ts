@@ -25,6 +25,11 @@ export interface Distributor {
   pendingOrders?: number;
   outstandingBalance?: number;
 
+  // Territory + product assignment — set by Organization Admin when
+  // onboarding a distributor (BRD "Distributor Management").
+  territoryIds?: string[];
+  productIds?: string[];
+
   createdAt: string;
   updatedAt: string;
 }

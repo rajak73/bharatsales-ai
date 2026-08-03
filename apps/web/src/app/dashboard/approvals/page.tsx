@@ -1,23 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ApprovalsService } from '@bharatsales/api-client';
-import { Approval, ApprovalRule } from '@bharatsales/shared-types';
-import { Loader2, CheckCircle, X } from 'lucide-react';
+import { ApprovalsService, AttendanceService } from '@bharatsales/api-client';
+import { Approval, ApprovalRule, AttendanceSession } from '@bharatsales/shared-types';
+import { Loader2, CheckCircle, X, Clock } from 'lucide-react';
 
 export default function ApprovalsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [successMessage, setSuccessMessage] = useState('');
-  
+
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [approvalRules, setApprovalRules] = useState<ApprovalRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // Attendance regularization requests (Sales Manager / Organization Admin approve these).
+  const [regularizations, setRegularizations] = useState<(AttendanceSession & { user?: { name?: string; email?: string } })[]>([]);
+  const [regLoading, setRegLoading] = useState(true);
+  const [regProcessingId, setRegProcessingId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchData();
+    fetchRegularizations();
   }, []);
 
   const fetchData = async () => {
@@ -35,6 +41,33 @@ export default function ApprovalsPage() {
       setFetchError('Failed to load approvals. Please refresh the page.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRegularizations = async () => {
+    try {
+      setRegLoading(true);
+      const data = await AttendanceService.getPendingRegularizations();
+      setRegularizations((data as any) || []);
+    } catch (error) {
+      console.error('Failed to fetch regularization requests:', error);
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
+  const handleRegularizationDecision = async (sessionId: string, status: 'APPROVED' | 'REJECTED') => {
+    setRegProcessingId(sessionId);
+    try {
+      await AttendanceService.approveRegularization(sessionId, status);
+      setRegularizations(regularizations.filter((r: any) => (r.id || r._id) !== sessionId));
+      setSuccessMessage(`Attendance regularization ${status === 'APPROVED' ? 'approved' : 'rejected'}.`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error('Failed to process regularization:', error);
+      setFetchError('Failed to process regularization request.');
+    } finally {
+      setRegProcessingId(null);
     }
   };
 
@@ -217,6 +250,59 @@ export default function ApprovalsPage() {
               <CheckCircle className="w-10 h-10 mx-auto mb-2 opacity-40" />
               <p className="text-sm">No pending approvals!</p>
               <p className="text-xs mt-1">All approvals have been processed.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Attendance Regularization Requests */}
+      <div className="card overflow-hidden p-0">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h3 className="font-bold text-gray-900">Attendance Regularization Requests</h3>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {regLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+            </div>
+          ) : regularizations.length > 0 ? (
+            regularizations.map((r: any) => {
+              const sessionId = r.id || r._id;
+              return (
+                <div key={sessionId} className="p-6 flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Clock className="w-4 h-4 text-yellow-600" />
+                      <span className="text-sm font-medium text-gray-900">{r.user?.name || r.user?.email || 'Sales Representative'}</span>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Shift started {r.startTime ? new Date(r.startTime).toLocaleString() : '—'}
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">Reason: {r.regularizationReason || 'No reason provided'}</div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleRegularizationDecision(sessionId, 'APPROVED')}
+                      disabled={regProcessingId === sessionId}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {regProcessingId === sessionId ? 'Approving...' : 'Approve'}
+                    </button>
+                    <button
+                      onClick={() => handleRegularizationDecision(sessionId, 'REJECTED')}
+                      disabled={regProcessingId === sessionId}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {regProcessingId === sessionId ? 'Rejecting...' : 'Reject'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="p-12 text-center text-gray-400">
+              <CheckCircle className="w-10 h-10 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">No pending regularization requests.</p>
             </div>
           )}
         </div>
