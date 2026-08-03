@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { Header } from '../../components/layout/Header';
 import { SettingsService } from '@bharatsales/api-client';
@@ -9,10 +9,23 @@ import { Loader2 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState<{ name: string; role: string; email: string } | null>(null);
   const [org, setOrg] = useState<{ name: string; logoUrl?: string } | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Sidebar defaults to expanded on desktop, but on mobile it's an
+  // off-canvas drawer that should start (and stay) closed until opened.
+  const isMobile = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+
+  useEffect(() => {
+    if (isMobile()) setSidebarOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (isMobile()) setSidebarOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     try {
@@ -77,11 +90,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar open={sidebarOpen} user={user} org={org} />
+      <Sidebar open={sidebarOpen} user={user} org={org} onClose={() => setSidebarOpen(false)} />
 
-      <div className={`flex-1 ${sidebarOpen ? 'ml-64' : 'ml-20'} transition-all duration-300 flex flex-col`}>
+      <div className={`flex-1 transition-all duration-300 flex flex-col ${sidebarOpen ? 'md:ml-64' : 'md:ml-20'}`}>
         <Header
-          user={user}
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
         />

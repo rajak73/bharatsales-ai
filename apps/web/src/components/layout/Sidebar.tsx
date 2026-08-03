@@ -1,15 +1,16 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { 
+import {
   LayoutDashboard, Users, MapPin, Target, Store,
   ShoppingCart, CheckSquare, Package, Box, Factory,
   Truck, Percent, Tags, Gift, ArrowDownToLine,
   Link as LinkIcon, UserCog, Smartphone, CreditCard,
   Sparkles, CalendarClock, Settings, ShieldCheck, Repeat, Receipt, Network,
-  BarChart3, ShieldAlert, BookOpen, Server, ChevronDown, ChevronRight, Bell, Trophy,
-  Building2, LifeBuoy, IndianRupee, Tag
+  BarChart3, ShieldAlert, BookOpen, Server, ChevronDown, ChevronRight, Trophy,
+  Building2, LifeBuoy, IndianRupee, Tag, LogOut
 } from 'lucide-react';
+import { AuthService } from '@bharatsales/api-client';
 
 const ALL_ROLES = ['Super Admin', 'Organization Admin', 'Sales Manager', 'Sales Representative', 'Distributor'];
 const ORG_AND_MANAGER = ['Organization Admin', 'Sales Manager'];
@@ -26,7 +27,6 @@ const navGroups = [
     title: 'Overview',
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ALL_ROLES },
-      { icon: Bell, label: 'Notifications', href: '/dashboard/notifications', roles: ALL_ROLES },
       { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics', roles: ['Organization Admin', 'Sales Manager'] },
       { icon: MapPin, label: 'Live Map', href: '/dashboard/live-map', roles: ['Sales Manager'] },
       { icon: LayoutDashboard, label: 'Reports', href: '/dashboard/reports', roles: ['Organization Admin', 'Sales Manager', 'Distributor'] },
@@ -83,11 +83,33 @@ const navGroups = [
   }
 ];
 
-export function Sidebar({ open, user, org }: { open: boolean, user?: { role: string }, org?: { name: string; logoUrl?: string } | null }) {
+interface SidebarProps {
+  open: boolean;
+  user?: { name: string; role: string };
+  org?: { name: string; logoUrl?: string } | null;
+  onClose?: () => void;
+}
+
+export function Sidebar({ open, user, org, onClose }: SidebarProps) {
   const pathname = usePathname();
   const userRole = user?.role || 'Sales Representative';
+  const userName = user?.name || 'User';
+  const userInitials = userName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
   const brandName = org?.name || 'BharatSales';
   const brandInitials = brandName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'BS';
+
+  const handleLogout = () => {
+    AuthService.logout();
+  };
+
+  // On mobile the sidebar is an off-canvas drawer, so tapping a nav link
+  // should close it; on desktop `open` instead means "expanded vs icon
+  // rail" and must stay untouched by navigation.
+  const handleNavClick = () => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+      onClose?.();
+    }
+  };
 
   // Open groups that contain the currently active link
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -103,7 +125,18 @@ export function Sidebar({ open, user, org }: { open: boolean, user?: { role: str
   };
 
   return (
-    <aside className={`${open ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 fixed h-full transition-all duration-300 z-40 flex flex-col`}>
+    <>
+      {/* Mobile-only backdrop — the sidebar overlays content on small
+          screens instead of pushing it, so tapping outside should close it. */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          onClick={() => onClose?.()}
+        />
+      )}
+      <aside
+        className={`${open ? 'translate-x-0 w-64' : '-translate-x-full w-64 md:translate-x-0 md:w-20'} bg-white border-r border-gray-200 fixed inset-y-0 left-0 transition-all duration-300 z-40 flex flex-col`}
+      >
       <div className="p-4 border-b border-gray-100 flex-shrink-0 bg-white">
         <div className="flex items-center space-x-2">
           {org?.logoUrl ? (
@@ -150,9 +183,10 @@ export function Sidebar({ open, user, org }: { open: boolean, user?: { role: str
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
                     return (
-                      <Link 
-                        key={item.href} 
-                        href={item.href} 
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={handleNavClick}
                         className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors group text-sm ${isActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
                         title={!open ? item.label : undefined}
                       >
@@ -176,6 +210,30 @@ export function Sidebar({ open, user, org }: { open: boolean, user?: { role: str
           </a>
         </div>
       )}
-    </aside>
+
+      <div className="p-3 border-t border-gray-100 flex-shrink-0">
+        <div className={`flex items-center ${open ? 'space-x-3' : 'justify-center'}`}>
+          <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0" title={!open ? userName : undefined}>
+            <span className="text-primary-700 font-medium text-sm">{userInitials}</span>
+          </div>
+          {open && (
+            <>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-gray-900 truncate">{userName}</div>
+                <div className="text-xs text-gray-500 truncate">{userRole}</div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors flex-shrink-0"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      </aside>
+    </>
   );
 }

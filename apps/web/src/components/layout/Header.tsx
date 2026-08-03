@@ -1,19 +1,14 @@
-import { Menu, Search, LogOut } from 'lucide-react';
-import { AuthService } from '@bharatsales/api-client';
+import Link from 'next/link';
+import { Menu, Search, Bell } from 'lucide-react';
 
 interface HeaderProps {
-  user: { name: string; role: string; email: string };
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
 }
 
-export function Header({ user, sidebarOpen, setSidebarOpen }: HeaderProps) {
-  const handleLogout = () => {
-    AuthService.logout();
-  };
-
+export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
       <div className="flex items-center px-3 py-3">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -32,25 +27,14 @@ export function Header({ user, sidebarOpen, setSidebarOpen }: HeaderProps) {
           />
         </div>
 
-        <div className="flex items-center space-x-4 ml-auto">
-          <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
-            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-              <span className="text-primary-700 font-medium text-sm">
-                {user.name.split(' ').map(n => n[0]).join('')}
-              </span>
-            </div>
-            <div className="hidden sm:block">
-              <div className="text-sm font-medium text-gray-900">{user.name}</div>
-              <div className="text-xs text-gray-500">{user.role}</div>
-            </div>
-            <button 
-              onClick={handleLogout} 
-              className="ml-2 p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors" 
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="flex items-center ml-auto">
+          <Link
+            href="/dashboard/notifications"
+            className="p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded-lg transition-colors"
+            title="Notifications"
+          >
+            <Bell className="w-5 h-5" />
+          </Link>
         </div>
       </div>
     </header>
