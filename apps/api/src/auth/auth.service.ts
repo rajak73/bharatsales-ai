@@ -291,7 +291,7 @@ export class AuthService {
     await token.save();
 
     // Generate reset token and send email
-    const resetLink = `http://localhost:6003/reset-password?token=${resetToken}`;
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:6003'}/reset-password?token=${resetToken}`;
     await this.emailProvider.sendEmail(
       email,
       'BharatSales Password Reset',

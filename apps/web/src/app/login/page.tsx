@@ -162,9 +162,9 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-sm font-semibold text-slate-700">Password</label>
-                <a href="#" onClick={(e) => { e.preventDefault(); setError('Password reset instructions have been sent to your email.'); }} className="text-sm font-semibold text-[#2D3A8C] hover:text-blue-800">
+                <NavLink href="/forgot-password" className="text-sm font-semibold text-[#2D3A8C] hover:text-blue-800">
                   Forgot Password?
-                </a>
+                </NavLink>
               </div>
               <div className="relative">
                 <input

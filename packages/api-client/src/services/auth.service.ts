@@ -22,6 +22,14 @@ export const AuthService = {
     const response = await apiClient.post('/auth/accept-invitation', { token, newPassword });
     return response.data;
   },
+  forgotPassword: async (email: string) => {
+    const response = await apiClient.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+  resetPassword: async (token: string, newPassword: string) => {
+    const response = await apiClient.post('/auth/reset-password', { token, newPassword });
+    return response.data;
+  },
   logout: async () => {
     if (typeof window !== 'undefined') {
       const refreshToken = localStorage.getItem('bharatsales_refresh_token');
