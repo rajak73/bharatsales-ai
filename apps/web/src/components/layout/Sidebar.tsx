@@ -82,9 +82,11 @@ const navGroups = [
   }
 ];
 
-export function Sidebar({ open, user }: { open: boolean, user?: { role: string } }) {
+export function Sidebar({ open, user, org }: { open: boolean, user?: { role: string }, org?: { name: string; logoUrl?: string } | null }) {
   const pathname = usePathname();
   const userRole = user?.role || 'Sales Representative';
+  const brandName = org?.name || 'BharatSales';
+  const brandInitials = brandName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'BS';
 
   // Open groups that contain the currently active link
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -103,10 +105,15 @@ export function Sidebar({ open, user }: { open: boolean, user?: { role: string }
     <aside className={`${open ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 fixed h-full transition-all duration-300 z-40 flex flex-col`}>
       <div className="p-4 border-b border-gray-100 flex-shrink-0 bg-white">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-saffron-500 rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-sm">BS</span>
-          </div>
-          {open && <span className="font-bold text-gray-900 truncate">BharatSales</span>}
+          {org?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={org.logoUrl} alt={brandName} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-saffron-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-sm">{brandInitials}</span>
+            </div>
+          )}
+          {open && <span className="font-bold text-gray-900 truncate">{brandName}</span>}
         </div>
       </div>
       
@@ -160,12 +167,14 @@ export function Sidebar({ open, user }: { open: boolean, user?: { role: string }
         })}
       </nav>
 
-      <div className="p-3 border-t border-gray-100 bg-gray-50 flex-shrink-0 space-y-1">
-        <a href={process.env.NEXT_PUBLIC_FIELD_PWA_URL || 'http://localhost:6001'} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Field PWA' : undefined}>
-          <Smartphone className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
-          {open && <span className="font-medium truncate">Field PWA</span>}
-        </a>
-      </div>
+      {MANAGER_AND_REP.includes(userRole) && (
+        <div className="p-3 border-t border-gray-100 bg-gray-50 flex-shrink-0 space-y-1">
+          <a href={process.env.NEXT_PUBLIC_FIELD_PWA_URL || 'http://localhost:6001'} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all text-sm group" title={!open ? 'Field PWA' : undefined}>
+            <Smartphone className="w-5 h-5 flex-shrink-0 text-gray-400 group-hover:text-gray-600" />
+            {open && <span className="font-medium truncate">Field PWA</span>}
+          </a>
+        </div>
+      )}
     </aside>
   );
 }

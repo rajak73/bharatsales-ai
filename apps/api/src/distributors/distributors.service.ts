@@ -4,15 +4,43 @@ import { Model } from 'mongoose';
 import { Distributor } from '../schemas/distributor.schema';
 import { Distributor as SharedDistributor } from '@bharatsales/shared-types';
 
+const ACTIVE_ORDER_STATUSES = ['Submitted', 'Hold_Credit', 'Hold_Stock', 'Pending_Approval', 'Approved', 'Dispatched', 'Partial_Delivery'];
+
 @Injectable()
 export class DistributorsService {
   private readonly logger = new Logger(DistributorsService.name);
 
-  constructor(@InjectModel(Distributor.name) private distributorModel: Model<Distributor>) {}
+  constructor(
+    @InjectModel(Distributor.name) private distributorModel: Model<Distributor>,
+    @InjectModel('Order') private orderModel: Model<any>,
+    @InjectModel('Inventory') private inventoryModel: Model<any>,
+  ) {}
 
-  async getDistributors(organizationId: string): Promise<Distributor[]> {
+  async getDistributors(organizationId: string): Promise<any[]> {
     this.logger.log(`Fetching distributors for org ${organizationId}`);
-    return this.distributorModel.find({ organizationId }).exec();
+    const distributors = await this.distributorModel.find({ organizationId }).exec();
+
+    return Promise.all(distributors.map(async (dist: any) => {
+      const distributorId = dist._id.toString();
+
+      const [totalOrders, deliveredOrders, pendingOrders, inventoryItems] = await Promise.all([
+        this.orderModel.countDocuments({ organizationId, assignedDistributorId: distributorId }).exec(),
+        this.orderModel.countDocuments({ organizationId, assignedDistributorId: distributorId, status: 'Delivered' }).exec(),
+        this.orderModel.countDocuments({ organizationId, assignedDistributorId: distributorId, status: { $in: ACTIVE_ORDER_STATUSES } }).exec(),
+        this.inventoryModel.find({ organizationId, distributorId }).exec(),
+      ]);
+
+      const orderFulfillment = totalOrders > 0 ? Math.round((deliveredOrders / totalOrders) * 100) : 0;
+      const inStockItems = inventoryItems.filter((i: any) => (i.stock || 0) > 0).length;
+      const fillRate = inventoryItems.length > 0 ? Math.round((inStockItems / inventoryItems.length) * 100) : 0;
+
+      return {
+        ...dist.toObject(),
+        fillRate,
+        orderFulfillment,
+        pendingOrders,
+      };
+    }));
   }
 
   async create(organizationId: string, data: Omit<SharedDistributor, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>): Promise<Distributor> {

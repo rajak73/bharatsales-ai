@@ -14,25 +14,25 @@ export function Header({ user, sidebarOpen, setSidebarOpen }: HeaderProps) {
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-      <div className="flex items-center justify-between px-6 py-3">
-        <div className="flex items-center space-x-4">
-          <button 
-            onClick={() => setSidebarOpen(!sidebarOpen)} 
-            className="p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded-lg transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <div className="relative hidden sm:block">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search outlets, orders, products..." 
-              className="w-80 pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:bg-white transition-all" 
-            />
-          </div>
+      <div className="flex items-center px-3 py-3">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-2 mr-3 text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded-lg transition-colors shrink-0"
+          title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <div className="relative hidden sm:block flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search outlets, orders, products..."
+            className="w-full pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:bg-white transition-all"
+          />
         </div>
-        
-        <div className="flex items-center space-x-4">
+
+        <div className="flex items-center space-x-4 ml-auto">
           <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
             <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
               <span className="text-primary-700 font-medium text-sm">

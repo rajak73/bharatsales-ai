@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { Header } from '../../components/layout/Header';
+import { SettingsService } from '@bharatsales/api-client';
 import { Loader2 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState<{ name: string; role: string; email: string } | null>(null);
+  const [org, setOrg] = useState<{ name: string; logoUrl?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,7 +23,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return;
       }
 
-      // Decode JWT payload without external library
+      // The JWT only carries auth claims (sub/email/orgId/role/platformAdmin) —
+      // display fields like the user's name live in the 'user' object AuthService
+      // stores alongside the token at login, not in the token itself.
+      const rawUser = localStorage.getItem('user');
+      const storedUser = rawUser ? JSON.parse(rawUser) : null;
+
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const padLength = (4 - (base64.length % 4)) % 4;
@@ -31,14 +38,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join('')
       );
-      
       const payload = JSON.parse(jsonPayload);
 
+      const role = storedUser?.role || payload.role || 'Sales Representative';
       setUser({
-        name: payload.name || 'User',
-        role: payload.role || 'Sales Representative',
-        email: payload.email || ''
+        name: storedUser?.name || 'User',
+        role,
+        email: storedUser?.email || payload.email || ''
       });
+
+      // Super Admin operates at the platform level, not inside a single
+      // tenant, so it keeps the platform "BharatSales" brand instead of
+      // fetching one organization's branding.
+      if (role !== 'Super Admin' && !payload.platformAdmin) {
+        SettingsService.getSettings()
+          .then((settings) => setOrg({ name: settings.name, logoUrl: settings.branding?.logoUrl }))
+          .catch((err) => console.error('Failed to fetch organization branding', err));
+      }
+
       setLoading(false);
     } catch (e) {
       console.error('Failed to parse token', e);
@@ -60,15 +77,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar open={sidebarOpen} user={user} />
-      
+      <Sidebar open={sidebarOpen} user={user} org={org} />
+
       <div className={`flex-1 ${sidebarOpen ? 'ml-64' : 'ml-20'} transition-all duration-300 flex flex-col`}>
-        <Header 
-          user={user} 
-          sidebarOpen={sidebarOpen} 
-          setSidebarOpen={setSidebarOpen} 
+        <Header
+          user={user}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
         />
-        
+
         <main className="p-6 flex-1 overflow-auto">
           {children}
         </main>

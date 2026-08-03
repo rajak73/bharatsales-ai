@@ -1,6 +1,6 @@
 export interface Settings {
   organizationId: string;
-  companyName: string;
+  name: string;
   industry: string;
   timezone: string;
   currency: string;
@@ -15,4 +15,8 @@ export interface Settings {
   gstNumber?: string;
   address?: string;
   country?: string;
+  branding?: {
+    logoUrl?: string;
+    primaryColor?: string;
+  };
 }

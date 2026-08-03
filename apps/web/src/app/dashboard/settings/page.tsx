@@ -13,7 +13,7 @@ export default function SettingsPage() {
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [settings, setSettings] = useState<Settings>({
     organizationId: '',
-    companyName: '',
+    name: '',
     industry: 'FMCG',
     timezone: 'Asia/Kolkata',
     currency: 'INR',
@@ -26,6 +26,7 @@ export default function SettingsPage() {
     orderApprovalThreshold: '50000',
     discountAuthority: '10',
   });
+  const [saving, setSaving] = useState(false);
 
   const [sessions, setSessions] = useState<any[]>([]);
   const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -75,12 +76,15 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
+    setSaving(true);
     try {
       await SettingsService.updateSettings(settings);
       setSuccessMessage('Settings saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error(error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -130,14 +134,9 @@ export default function SettingsPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-500">Configure your organization, policies, and integrations</p>
-        </div>
-        <button onClick={handleSave} disabled={loading} className="btn-primary text-sm disabled:opacity-50 flex items-center gap-2">
-          <Save className="w-4 h-4" /> Save Changes
-        </button>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <p className="text-gray-500">Configure your organization, policies, and integrations</p>
       </div>
 
       <div className="grid lg:grid-cols-4 gap-6">
@@ -184,9 +183,20 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     className="input-field"
-                    value={settings.companyName}
-                    onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
+                    value={settings.name}
+                    onChange={(e) => setSettings({ ...settings, name: e.target.value })}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="https://..."
+                    value={settings.branding?.logoUrl || ''}
+                    onChange={(e) => setSettings({ ...settings, branding: { ...settings.branding, logoUrl: e.target.value } })}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Shown in the sidebar in place of your initials</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
@@ -265,6 +275,11 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
+              <div className="flex justify-end pt-4 border-t border-gray-100">
+                <button onClick={handleSave} disabled={saving} className="btn-primary text-sm disabled:opacity-50 flex items-center gap-2">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
+                </button>
+              </div>
             </div>
           )}
 
@@ -333,6 +348,11 @@ export default function SettingsPage() {
                   ))}
                 </div>
               </div>
+              <div className="flex justify-end pt-4 border-t border-gray-100">
+                <button onClick={handleSave} disabled={saving} className="btn-primary text-sm disabled:opacity-50 flex items-center gap-2">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
+                </button>
+              </div>
             </div>
           )}
 
@@ -374,6 +394,11 @@ export default function SettingsPage() {
                   <li>• Below minimum price</li>
                   <li>• Large order threshold</li>
                 </ul>
+              </div>
+              <div className="flex justify-end pt-4 border-t border-gray-100">
+                <button onClick={handleSave} disabled={saving} className="btn-primary text-sm disabled:opacity-50 flex items-center gap-2">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
+                </button>
               </div>
             </div>
           )}
