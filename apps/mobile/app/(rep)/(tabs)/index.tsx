@@ -131,7 +131,7 @@ export default function RepHome() {
 
         {/* Target Progress */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Today's Target Progress</Text>
+          <Text style={styles.cardTitle}>Today&apos;s Target Progress</Text>
           {!myTarget ? (
             <EmptyState icon="flag-outline" title="No target assigned" message="Please check with your manager." />
           ) : (
@@ -154,9 +154,9 @@ export default function RepHome() {
           )}
         </View>
 
-        {/* Today's Beat preview */}
+        {/* Today&apos;s Beat preview */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today's Beat</Text>
+          <Text style={styles.sectionTitle}>Today&apos;s Beat</Text>
           <TouchableOpacity style={styles.viewAllBtn} onPress={() => router.push('/(rep)/(tabs)/beat')}>
             <Text style={styles.viewAllText}>View All</Text>
             <Ionicons name="chevron-forward" size={14} color={colors.primary} />
@@ -201,7 +201,7 @@ export default function RepHome() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/(rep)/(tabs)/beat')}>
             <Ionicons name="map" size={22} color={colors.primary} />
-            <Text style={styles.quickActionText}>Today's Route</Text>
+            <Text style={styles.quickActionText}>Today&apos;s Route</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/(rep)/reports')}>
             <Ionicons name="bar-chart" size={22} color={colors.primary} />

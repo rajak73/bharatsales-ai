@@ -50,7 +50,9 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading,
     <AnimatedPressable
       onPress={onPress}
       disabled={isDisabled}
+      // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutated via `.value` by design
       onPressIn={() => { scale.value = withTiming(0.97, { duration: 100 }); }}
+      // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutated via `.value` by design
       onPressOut={() => { scale.value = withTiming(1, { duration: 120 }); }}
       style={[
         styles.base,

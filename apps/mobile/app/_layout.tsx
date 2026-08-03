@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -34,7 +34,7 @@ export default function RootLayout() {
   const resetOrgBranding = useOrgStore((s) => s.reset);
 
   const [fontsLoaded, fontError] = useFonts(FONTS_TO_LOAD);
-  const [appReady, setAppReady] = useState(false);
+  const appReady = (fontsLoaded || !!fontError) && !isInitializing;
 
   useEffect(() => {
     getDb().catch((err) => console.error('[DB] Failed to open/migrate local database', err));
@@ -55,19 +55,13 @@ export default function RootLayout() {
     } else {
       resetOrgBranding();
     }
-  }, [user]);
+  }, [user, loadOrgBranding, resetOrgBranding]);
 
   const onLayoutRootView = useCallback(async () => {
     if (appReady) {
       await SplashScreen.hideAsync().catch(() => {});
     }
   }, [appReady]);
-
-  useEffect(() => {
-    if ((fontsLoaded || fontError) && !isInitializing) {
-      setAppReady(true);
-    }
-  }, [fontsLoaded, fontError, isInitializing]);
 
   useEffect(() => {
     onLayoutRootView();

@@ -109,7 +109,7 @@ export default function CartScreen() {
             {creditExceeded && (
               <View style={styles.dangerBanner}>
                 <Ionicons name="warning" size={18} color={colors.danger} />
-                <Text style={styles.dangerText}>This order exceeds the outlet's available credit limit. Reduce the order or collect an outstanding payment first.</Text>
+                <Text style={styles.dangerText}>This order exceeds the outlet&apos;s available credit limit. Reduce the order or collect an outstanding payment first.</Text>
               </View>
             )}
 

@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { VisitsService } from '@bharatsales/api-client';
 import { colors, formatCurrency } from '../../../src/lib/theme';
-import { useCurrentAttendanceSession } from '../../../src/hooks/useAttendance';
-import { getCurrentLocation } from '../../../src/hooks/useAttendance';
+import { useCurrentAttendanceSession, getCurrentLocation } from '../../../src/hooks/useAttendance';
 import { captureCameraPhoto, uploadCapturedPhoto } from '../../../src/lib/photoCapture';
 import { useLocalOutlets } from '../../../src/hooks/useLocalData';
 import { useCartStore } from '../../../src/store/cartStore';
