@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { useAuth } from '../src/lib/useAuth';
 import { colors, radius, spacing, typography } from '../src/theme/tokens';
 import { Button } from '../src/components/ui';
+import { AuthService } from '@bharatsales/api-client';
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -15,15 +16,27 @@ const loginSchema = z.object({
 });
 type LoginForm = z.infer<typeof loginSchema>;
 
+const forgotSchema = z.object({
+  email: z.string().email('Enter a valid email'),
+});
+type ForgotForm = z.infer<typeof forgotSchema>;
+
 export default function LoginScreen() {
   const { login } = useAuth();
   const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [mode, setMode] = useState<'login' | 'forgot'>('login');
+  const [forgotMessage, setForgotMessage] = useState('');
 
   const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
+  });
+
+  const forgotForm = useForm<ForgotForm>({
+    resolver: zodResolver(forgotSchema),
+    defaultValues: { email: '' },
   });
 
   const onSubmit = async (values: LoginForm) => {
@@ -38,6 +51,88 @@ export default function LoginScreen() {
       setSubmitting(false);
     }
   };
+
+  const onForgotSubmit = async (values: ForgotForm) => {
+    setServerError('');
+    setForgotMessage('');
+    setSubmitting(true);
+    try {
+      await AuthService.forgotPassword(values.email);
+      setForgotMessage('If an account exists for that email, a reset link has been sent. Open it on your phone or computer to set a new password.');
+    } catch (err: any) {
+      setServerError(err?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (mode === 'forgot') {
+    return (
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <View style={styles.card}>
+            <View style={styles.logoWrap}>
+              <Text style={styles.logoText}>B</Text>
+            </View>
+            <Text style={styles.brand}>BharatSales AI</Text>
+            <Text style={styles.title}>Reset password</Text>
+            <Text style={styles.subtitle}>Enter your account email and we&apos;ll send you a reset link.</Text>
+
+            {serverError ? (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={16} color={colors.danger} />
+                <Text style={styles.errorText}>{serverError}</Text>
+              </View>
+            ) : null}
+            {forgotMessage ? (
+              <View style={styles.successBanner}>
+                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                <Text style={styles.successText}>{forgotMessage}</Text>
+              </View>
+            ) : null}
+
+            <Text style={styles.label}>Email</Text>
+            <Controller
+              control={forgotForm.control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View style={styles.inputWrap}>
+                  <Ionicons name="mail-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="you@company.com"
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                  />
+                </View>
+              )}
+            />
+            {forgotForm.formState.errors.email && (
+              <Text style={styles.fieldError}>{forgotForm.formState.errors.email.message}</Text>
+            )}
+
+            <Button
+              label="Send Reset Link"
+              onPress={forgotForm.handleSubmit(onForgotSubmit)}
+              loading={submitting}
+              style={{ marginTop: spacing.lg }}
+            />
+
+            <TouchableOpacity
+              onPress={() => { setMode('login'); setServerError(''); setForgotMessage(''); }}
+              style={{ marginTop: spacing.xl }}
+            >
+              <Text style={styles.linkText}>Back to Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -103,6 +198,10 @@ export default function LoginScreen() {
           />
           {errors.password && <Text style={styles.fieldError}>{errors.password.message}</Text>}
 
+          <TouchableOpacity onPress={() => { setMode('forgot'); setServerError(''); }} style={{ alignSelf: 'flex-end', marginTop: spacing.sm }}>
+            <Text style={styles.linkText}>Forgot Password?</Text>
+          </TouchableOpacity>
+
           <Button label="Log In" onPress={handleSubmit(onSubmit)} loading={submitting} style={{ marginTop: spacing.lg }} />
 
           <Text style={styles.footnote}>For Sales Representatives and Distributors only.</Text>
@@ -126,6 +225,9 @@ const styles = StyleSheet.create({
   subtitle: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs, marginBottom: spacing.xxl },
   errorBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.dangerLight, padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.lg },
   errorText: { ...typography.caption, color: colors.danger, flex: 1 },
+  successBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.successLight, padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.lg },
+  successText: { ...typography.caption, color: colors.success, flex: 1 },
+  linkText: { ...typography.caption, color: colors.primary, fontWeight: '600', textAlign: 'center' },
   label: { ...typography.caption, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md },
   inputWrap: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
