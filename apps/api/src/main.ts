@@ -17,7 +17,10 @@ async function bootstrap() {
   app.useStaticAssets(path.join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
 
   // Security & Performance
-  app.use(helmet());
+  app.set('trust proxy', 1);
+  app.use(helmet({
+    contentSecurityPolicy: false,
+  }));
   app.use(compression());
   app.enableCors({
     origin: true,

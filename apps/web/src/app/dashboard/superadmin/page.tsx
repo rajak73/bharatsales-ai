@@ -7,11 +7,15 @@ import { Loader2, Building2, Users, Database, Clock } from 'lucide-react';
 export default function PlatformDashboardPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     SuperadminService.getPlatformDashboard()
       .then(setData)
-      .catch((err) => console.error('Failed to load platform dashboard:', err))
+      .catch((err) => {
+        console.error('Failed to load platform dashboard:', err);
+        setError(err?.response?.data?.message || err.message || 'Failed to load platform dashboard');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -22,6 +26,16 @@ export default function PlatformDashboardPage() {
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 text-red-600 p-6 rounded-lg text-center mt-6">
+        <h3 className="font-bold text-lg mb-2">Error Loading Dashboard</h3>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
 
   const dbHealthy = data?.database?.status === 'connected';
 
