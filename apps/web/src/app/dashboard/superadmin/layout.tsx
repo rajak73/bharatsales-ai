@@ -28,7 +28,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
       
       const payload = JSON.parse(jsonPayload);
 
-      if (payload.platformAdmin === true) {
+      if (payload.platformAdmin === true || payload.role === 'Super Admin') {
         setAuthorized(true);
       } else {
         setAuthorized(false);

@@ -13,7 +13,7 @@ export class SuperadminController {
   ) {}
 
   private checkSuperAdmin(req: any) {
-    if (req.user.platformAdmin !== true) {
+    if (req.user.platformAdmin !== true && req.user.role !== 'Super Admin') {
       throw new ForbiddenException('Only platform administrators can access this endpoint');
     }
   }
