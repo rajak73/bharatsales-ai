@@ -56,8 +56,8 @@ export default function LoginPage() {
       // Redirect on success
       router.push('/dashboard');
     } catch (err: any) {
-      console.error('LOGIN ERROR:', err); 
-      setError(err.message || 'Invalid email or password. Please try again.');
+      console.error('LOGIN ERROR:', err);
+      setError(err?.response?.data?.message || err?.message || 'Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
     }

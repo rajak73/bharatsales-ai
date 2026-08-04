@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useForm, Controller } from 'react-hook-form';
@@ -29,6 +29,16 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [forgotMessage, setForgotMessage] = useState('');
+  const [slowHint, setSlowHint] = useState(false);
+
+  // The backend can be cold-starting (Render free tier spins down after
+  // idle) and take 30-60s+ to respond to the first request — without this,
+  // that delay just looks like the app is frozen with no feedback.
+  useEffect(() => {
+    if (!submitting) return;
+    const timer = setTimeout(() => setSlowHint(true), 5000);
+    return () => clearTimeout(timer);
+  }, [submitting]);
 
   const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -42,6 +52,7 @@ export default function LoginScreen() {
 
   const onSubmit = async (values: LoginForm) => {
     setServerError('');
+    setSlowHint(false);
     setSubmitting(true);
     try {
       await login(values);
@@ -51,7 +62,13 @@ export default function LoginScreen() {
       // logic (and the risk of it drifting out of sync) in two places.
       router.replace('/');
     } catch (err: any) {
-      setServerError(err?.message || 'Invalid email or password. Please try again.');
+      if (err?.code === 'ECONNABORTED' || /timeout/i.test(err?.message || '')) {
+        setServerError('The server took too long to respond. It may be waking up from idle — please try again in a moment.');
+      } else if (err?.message === 'Network Error') {
+        setServerError('Could not reach the server. Check your internet connection and try again.');
+      } else {
+        setServerError(err?.response?.data?.message || err?.message || 'Invalid email or password. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -208,6 +225,11 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <Button label="Log In" onPress={handleSubmit(onSubmit)} loading={submitting} style={{ marginTop: spacing.lg }} />
+          {submitting && slowHint && (
+            <Text style={styles.slowHintText}>
+              Still working — the server may be waking up after being idle. This can take up to a minute.
+            </Text>
+          )}
 
           <Text style={styles.footnote}>For Sales Representatives and Distributors only.</Text>
           <Text style={styles.versionText}>
@@ -247,4 +269,5 @@ const styles = StyleSheet.create({
   fieldError: { ...typography.caption, color: colors.danger, marginTop: spacing.xs, marginLeft: spacing.xs },
   footnote: { ...typography.caption, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl },
   versionText: { ...typography.caption, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs, fontSize: 10, opacity: 0.6 },
+  slowHintText: { ...typography.caption, color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm, fontStyle: 'italic' },
 });

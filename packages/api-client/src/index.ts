@@ -26,6 +26,11 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // Render's free tier spins the API down after ~15min idle; the first
+  // request after that can take 30-60s+ to wake it back up. Without a
+  // timeout, a request during that cold start just hangs indefinitely with
+  // no feedback — this bounds it so a genuine failure surfaces instead.
+  timeout: 60000,
 });
 
 let isRefreshing = false;
