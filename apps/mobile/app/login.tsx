@@ -9,6 +9,7 @@ import { useAuth } from '../src/lib/useAuth';
 import { colors, radius, spacing, typography } from '../src/theme/tokens';
 import { Button } from '../src/components/ui';
 import { AuthService } from '@bharatsales/api-client';
+import Constants from 'expo-constants';
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -209,6 +210,9 @@ export default function LoginScreen() {
           <Button label="Log In" onPress={handleSubmit(onSubmit)} loading={submitting} style={{ marginTop: spacing.lg }} />
 
           <Text style={styles.footnote}>For Sales Representatives and Distributors only.</Text>
+          <Text style={styles.versionText}>
+            v{Constants.expoConfig?.version} ({Constants.expoConfig?.android?.versionCode})
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -242,4 +246,5 @@ const styles = StyleSheet.create({
   input: { flex: 1, ...typography.body, color: colors.text, paddingVertical: spacing.xs },
   fieldError: { ...typography.caption, color: colors.danger, marginTop: spacing.xs, marginLeft: spacing.xs },
   footnote: { ...typography.caption, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl },
+  versionText: { ...typography.caption, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs, fontSize: 10, opacity: 0.6 },
 });
