@@ -6,6 +6,7 @@ import * as crypto from 'crypto';
 import { User } from '@bharatsales/shared-types';
 import { Tenant } from '../schemas/tenant.schema';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { BrevoEmailProvider } from '../common/email.provider';
 
 @Injectable()
 export class UsersService {
@@ -13,7 +14,8 @@ export class UsersService {
     @InjectModel('User') private readonly userModel: Model<any>,
     @InjectModel('Token') private readonly tokenModel: Model<any>,
     @InjectModel(Tenant.name) private readonly tenantModel: Model<Tenant>,
-    private readonly hierarchyService: HierarchyService
+    private readonly hierarchyService: HierarchyService,
+    private readonly emailProvider: BrevoEmailProvider
   ) {}
 
   async findAllByOrgId(organizationId: string, user?: any) {
@@ -112,8 +114,8 @@ export class UsersService {
       }
     }
 
-    // Creating a user in "Invited" status with a random password.
-    // In a real application, you'd send an email with a setup link.
+    // Creating a user in "Invited" status with a random, never-communicated
+    // password — they set their real one via the invitation email link.
     const randomPassword = await bcrypt.hash(Math.random().toString(36).slice(-8), 10);
     const newUser = new this.userModel({
       email,
@@ -141,9 +143,16 @@ export class UsersService {
     });
     await token.save();
 
+    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:6003'}/invite?token=${inviteToken}`;
+    await this.emailProvider.sendEmail(
+      email,
+      "You've been invited to BharatSales AI",
+      `You've been invited to join your organization on BharatSales AI as a ${role}. Click here to set up your account: ${inviteLink}. This link expires in 72 hours.`
+    );
+
     const result = saved.toObject();
     delete result.password;
-    
+
     return {
       message: 'Invitation sent successfully',
       user: result,

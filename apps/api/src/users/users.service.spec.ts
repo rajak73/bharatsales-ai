@@ -3,6 +3,7 @@ import { UsersService } from './users.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { Tenant } from '../schemas/tenant.schema';
+import { BrevoEmailProvider } from '../common/email.provider';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -26,6 +27,7 @@ describe('UsersService', () => {
   }));
   const mockTenantModel = { findById: jest.fn() };
   const mockHierarchyService = { getTeamUserIds: jest.fn() };
+  const mockEmailProvider = { sendEmail: jest.fn().mockResolvedValue(true) };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -35,6 +37,7 @@ describe('UsersService', () => {
         { provide: getModelToken('Token'), useValue: mockTokenModel },
         { provide: getModelToken(Tenant.name), useValue: mockTenantModel },
         { provide: HierarchyService, useValue: mockHierarchyService },
+        { provide: BrevoEmailProvider, useValue: mockEmailProvider },
       ],
     }).compile();
 
