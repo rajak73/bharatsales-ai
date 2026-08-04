@@ -7,7 +7,7 @@ import * as bcrypt from 'bcryptjs';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UserDocument, TenantDocument, SessionDocument, TokenDocument } from '../schemas';
-import { BrevoEmailProvider } from '../common/email.provider';
+import { BrevoEmailProvider, renderEmailHtml } from '../common/email.provider';
 
 export interface ISMSProvider {
   sendSMS(to: string, message: string): Promise<boolean>;
@@ -242,7 +242,7 @@ export class AuthService {
     await this.emailProvider.sendEmail(
       email,
       'BharatSales OTP Verification',
-      `Your login OTP is ${otp}. It will expire in 10 minutes.`
+      renderEmailHtml('Your verification code', `Your login OTP is <strong style="font-size:20px;letter-spacing:2px;">${otp}</strong>. It will expire in 10 minutes.`)
     );
     
     return { success: true, message: 'OTP sent to registered email/mobile.' };
@@ -294,8 +294,12 @@ export class AuthService {
     const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:6003'}/reset-password?token=${resetToken}`;
     await this.emailProvider.sendEmail(
       email,
-      'BharatSales Password Reset',
-      `You requested a password reset. Click here to reset: ${resetLink}`
+      'Reset your BharatSales password',
+      renderEmailHtml(
+        'Password reset requested',
+        'We received a request to reset your BharatSales AI password. This link expires in 1 hour.',
+        { label: 'Reset Password', url: resetLink }
+      )
     );
     
     return { success: true, message: 'If the account exists, a reset link has been sent.' };

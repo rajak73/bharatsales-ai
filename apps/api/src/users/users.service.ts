@@ -6,7 +6,7 @@ import * as crypto from 'crypto';
 import { User } from '@bharatsales/shared-types';
 import { Tenant } from '../schemas/tenant.schema';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
-import { BrevoEmailProvider } from '../common/email.provider';
+import { BrevoEmailProvider, renderEmailHtml } from '../common/email.provider';
 
 @Injectable()
 export class UsersService {
@@ -147,7 +147,11 @@ export class UsersService {
     await this.emailProvider.sendEmail(
       email,
       "You've been invited to BharatSales AI",
-      `You've been invited to join your organization on BharatSales AI as a ${role}. Click here to set up your account: ${inviteLink}. This link expires in 72 hours.`
+      renderEmailHtml(
+        "You're invited",
+        `You've been invited to join your organization on BharatSales AI as a <strong>${role}</strong>. This link expires in 72 hours.`,
+        { label: 'Set Up Your Account', url: inviteLink }
+      )
     );
 
     const result = saved.toObject();
