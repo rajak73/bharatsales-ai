@@ -43,8 +43,12 @@ export default function LoginScreen() {
     setServerError('');
     setSubmitting(true);
     try {
-      const user = await login(values);
-      router.replace(user.role === 'Distributor' ? '/(distributor)' : '/(rep)');
+      await login(values);
+      // Route to root instead of directly to '/(rep)' or '/(distributor)' —
+      // app/index.tsx already does this exact role-based redirect reliably
+      // on cold start, so reusing it here avoids duplicating that branching
+      // logic (and the risk of it drifting out of sync) in two places.
+      router.replace('/');
     } catch (err: any) {
       setServerError(err?.message || 'Invalid email or password. Please try again.');
     } finally {
