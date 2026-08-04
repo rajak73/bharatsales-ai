@@ -90,7 +90,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar open={sidebarOpen} user={user} org={org} onClose={() => setSidebarOpen(false)} />
+      <Sidebar open={sidebarOpen} user={user} org={org} onClose={() => setSidebarOpen(false)} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
       <div className={`flex-1 transition-all duration-300 flex flex-col ${sidebarOpen ? 'md:ml-64' : 'md:ml-20'}`}>
         <Header

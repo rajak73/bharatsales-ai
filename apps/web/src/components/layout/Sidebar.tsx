@@ -8,7 +8,7 @@ import {
   Link as LinkIcon, UserCog, Smartphone, CreditCard,
   Sparkles, CalendarClock, Settings, ShieldCheck, Repeat, Receipt, Network,
   BarChart3, ShieldAlert, BookOpen, Server, ChevronDown, ChevronRight, Trophy,
-  Building2, LifeBuoy, IndianRupee, Tag, LogOut
+  Building2, LifeBuoy, IndianRupee, Tag, LogOut, Menu
 } from 'lucide-react';
 import { AuthService } from '@bharatsales/api-client';
 
@@ -88,9 +88,10 @@ interface SidebarProps {
   user?: { name: string; role: string };
   org?: { name: string; logoUrl?: string } | null;
   onClose?: () => void;
+  onToggle?: () => void;
 }
 
-export function Sidebar({ open, user, org, onClose }: SidebarProps) {
+export function Sidebar({ open, user, org, onClose, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const userRole = user?.role || 'Sales Representative';
   const userName = user?.name || 'User';
@@ -137,8 +138,8 @@ export function Sidebar({ open, user, org, onClose }: SidebarProps) {
       <aside
         className={`${open ? 'translate-x-0 w-64' : '-translate-x-full w-64 md:translate-x-0 md:w-20'} bg-white border-r border-gray-200 fixed inset-y-0 left-0 transition-all duration-300 z-40 flex flex-col`}
       >
-      <div className="p-4 border-b border-gray-100 flex-shrink-0 bg-white">
-        <div className="flex items-center space-x-2">
+      <div className={`p-4 border-b border-gray-100 flex-shrink-0 bg-white flex items-center ${open ? 'justify-between' : 'flex-col gap-2'}`}>
+        <div className="flex items-center space-x-2 min-w-0">
           {org?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={org.logoUrl} alt={brandName} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
@@ -149,6 +150,16 @@ export function Sidebar({ open, user, org, onClose }: SidebarProps) {
           )}
           {open && <span className="font-bold text-gray-900 truncate">{brandName}</span>}
         </div>
+        {/* Desktop-only collapse/expand toggle, kept inside the sidebar
+            itself rather than the header — mobile keeps its own hamburger
+            in the header since this sidebar is off-canvas there. */}
+        <button
+          onClick={onToggle}
+          className="hidden md:flex p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 rounded-lg transition-colors flex-shrink-0"
+          title={open ? 'Collapse sidebar' : 'Expand sidebar'}
+        >
+          <Menu className="w-4 h-4" />
+        </button>
       </div>
       
       <nav className="p-3 overflow-y-auto flex-1 space-y-4 custom-scrollbar">

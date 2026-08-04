@@ -10,10 +10,13 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
       <div className="flex items-center px-3 py-3">
+        {/* Mobile-only: the sidebar is off-canvas below md, so this is the
+            only way to open it there. Desktop has its own collapse toggle
+            inside the sidebar itself. */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 mr-3 text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded-lg transition-colors shrink-0"
-          title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          className="md:hidden p-2 mr-3 text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded-lg transition-colors shrink-0"
+          title={sidebarOpen ? 'Close menu' : 'Open menu'}
         >
           <Menu className="w-5 h-5" />
         </button>
