@@ -12,7 +12,12 @@ describe('AuthService', () => {
 
   class MockDoc {
     save: any;
+    _id: string;
     constructor(private data: any) {
+      // Real Mongoose documents get an _id as soon as they're constructed,
+      // not only after save() resolves — code that reads `doc._id` right
+      // after `new Model(...)` (before awaiting save()) relies on this.
+      this._id = 'newId';
       this.save = jest.fn().mockResolvedValue({ ...data, _id: 'newId' });
     }
   }
@@ -35,9 +40,10 @@ describe('AuthService', () => {
     updateOne: jest.fn(),
   };
 
-  const mockTokenModel = {
+  const mockTokenModel: any = jest.fn().mockImplementation((data: any) => new MockDoc(data));
+  Object.assign(mockTokenModel, {
     findOne: jest.fn(),
-  };
+  });
 
   const mockJwtService = {
     signAsync: jest.fn(),
@@ -97,6 +103,20 @@ describe('AuthService', () => {
 
       expect(mockNotificationsService.create).toHaveBeenCalledWith('org0', 'admin1', expect.objectContaining({ type: 'org_registered' }));
     });
+
+    it('should create the user as unverified and email them a verification link', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await service.register({ companyName: 'Acme Corp', firstName: 'Jane', lastName: 'Doe', email: 'jane@acme.com', password: 'secret123' });
+
+      expect(mockUserModel).toHaveBeenCalledWith(expect.objectContaining({ email: 'jane@acme.com', emailVerified: false }));
+      expect(mockTokenModel).toHaveBeenCalledWith(expect.objectContaining({ type: 'EMAIL_VERIFICATION' }));
+      expect(mockEmailProvider.sendEmail).toHaveBeenCalledWith(
+        'jane@acme.com',
+        expect.stringContaining('Verify your email'),
+        expect.stringContaining('verify-email?token=')
+      );
+    });
   });
 
   describe('login — Pending Approval gate', () => {
@@ -105,6 +125,45 @@ describe('AuthService', () => {
       mockTenantModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue({ status: 'Pending Approval' }) });
 
       await expect(service.login({ email: 'jane@acme.com', password: 'secret123' })).rejects.toThrow('Your organization is awaiting platform administrator approval.');
+    });
+  });
+
+  describe('login — email verification gate', () => {
+    it('should reject login for a user whose email is not yet verified', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ status: 'Active', emailVerified: false, platformAdmin: false, organizationId: 'org1' }) });
+
+      await expect(service.login({ email: 'jane@acme.com', password: 'secret123' })).rejects.toThrow('Please verify your email before logging in.');
+    });
+
+    it('should allow login through when emailVerified is undefined (pre-existing accounts)', async () => {
+      mockUserModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ status: 'Active', platformAdmin: false, organizationId: 'org1', save: jest.fn().mockResolvedValue(undefined) }),
+      });
+      mockTenantModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue({ status: 'Active' }) });
+
+      await expect(service.login({ email: 'jane@acme.com', password: 'secret123' })).rejects.toThrow('Invalid credentials');
+      // Reaches the password-comparison step (no user.password set, so it's
+      // rejected there) rather than being blocked by the email-verification
+      // gate — proves undefined isn't treated the same as false.
+    });
+  });
+
+  describe('verifyEmail', () => {
+    it('should mark the user verified for a valid token', async () => {
+      const userSave = jest.fn().mockResolvedValue(undefined);
+      mockTokenModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ userId: 'user1', used: false, save: jest.fn().mockResolvedValue(undefined) }) });
+      mockUserModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue({ emailVerified: false, save: userSave }) });
+
+      const result = await service.verifyEmail('sometoken');
+
+      expect(userSave).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject an invalid or expired token', async () => {
+      mockTokenModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(service.verifyEmail('badtoken')).rejects.toThrow('Invalid or expired verification link');
     });
   });
 

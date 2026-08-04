@@ -62,6 +62,15 @@ export class AuthController {
   }
 
   @HttpCode(HttpStatus.OK)
+  @Post('verify-email')
+  async verifyEmail(@Body() body: { token: string }) {
+    if (!body.token) {
+      return { statusCode: 400, message: 'Token is required' };
+    }
+    return this.authService.verifyEmail(body.token);
+  }
+
+  @HttpCode(HttpStatus.OK)
   @Post('refresh')
   async refresh(@Body() body: { refreshToken: string }) {
     if (!body.refreshToken) {

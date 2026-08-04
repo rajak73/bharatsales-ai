@@ -101,8 +101,31 @@ export class AuthService {
       password: hashedPassword,
       role: 'Organization Admin',
       status: 'Active',
+      emailVerified: false,
     });
     await newUser.save();
+
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyExpiresAt = new Date();
+    verifyExpiresAt.setHours(verifyExpiresAt.getHours() + 24);
+    await new this.tokenModel({
+      userId: newUser._id.toString(),
+      token: verifyToken,
+      type: 'EMAIL_VERIFICATION',
+      expiresAt: verifyExpiresAt,
+      used: false,
+    }).save();
+
+    const verifyLink = `${process.env.FRONTEND_URL || 'http://localhost:6003'}/verify-email?token=${verifyToken}`;
+    await this.emailProvider.sendEmail(
+      email,
+      'Verify your email for BharatSales AI',
+      renderEmailHtml(
+        'Verify your email',
+        `Welcome to BharatSales AI! Please verify your email to activate your account. This link expires in 24 hours.`,
+        { label: 'Verify Email', url: verifyLink }
+      )
+    );
 
     const platformAdmins = await this.userModel.find({ platformAdmin: true }).select('_id organizationId').exec();
     for (const admin of platformAdmins) {
@@ -113,7 +136,33 @@ export class AuthService {
       }).catch(() => {});
     }
 
-    return { success: true, message: 'Registration submitted. Your organization is awaiting platform administrator approval — you will be notified once approved.' };
+    return { success: true, message: 'Registration submitted. Please check your email to verify your address. Your organization is also awaiting platform administrator approval — you will be notified once approved.' };
+  }
+
+  async verifyEmail(token: string) {
+    const validToken = await this.tokenModel.findOne({
+      token,
+      type: 'EMAIL_VERIFICATION',
+      used: false,
+      expiresAt: { $gt: new Date() }
+    }).exec();
+
+    if (!validToken) {
+      throw new BadRequestException('Invalid or expired verification link');
+    }
+
+    const user = await this.userModel.findById(validToken.userId).exec();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    user.emailVerified = true;
+    await user.save();
+
+    validToken.used = true;
+    await validToken.save();
+
+    return { success: true, message: 'Email verified successfully. You can now log in once your organization is approved.' };
   }
 
   async login(loginDto: { email: string; password?: string; otp?: string; deviceInfo?: string }, ipAddress?: string) {
@@ -122,6 +171,10 @@ export class AuthService {
 
     if (!user || user.status !== 'Active') {
       throw new UnauthorizedException('User account is not active or not found');
+    }
+
+    if (user.emailVerified === false) {
+      throw new UnauthorizedException('Please verify your email before logging in. Check your inbox for the verification link.');
     }
 
     if (!user.platformAdmin) {
@@ -364,6 +417,9 @@ export class AuthService {
 
     user.password = await bcrypt.hash(newPassword, 10);
     user.status = 'Active';
+    // Only someone with access to the invited mailbox could have this
+    // token, so accepting the invitation doubles as email verification.
+    user.emailVerified = true;
     await user.save();
 
     validToken.used = true;

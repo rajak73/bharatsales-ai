@@ -27,6 +27,13 @@ export class User implements Omit<IUser, 'id' | 'createdAt' | 'updatedAt'> {
   @Prop({ required: true, enum: ['Active', 'Inactive', 'Suspended', 'Invited'], default: 'Active' })
   status: 'Active' | 'Inactive' | 'Suspended' | 'Invited';
 
+  // Defaults to true so every pre-existing/admin-provisioned user (seed
+  // data, Super Admin-created tenants, accepted invitations) stays
+  // unaffected — only the self-registration flow explicitly sets this to
+  // false at signup, gating login until the emailed link is clicked.
+  @Prop({ default: true })
+  emailVerified?: boolean;
+
   @Prop([String])
   territoryIds?: string[];
 
