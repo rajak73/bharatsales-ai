@@ -14,6 +14,7 @@ import { getDb } from '../src/db/client';
 import { SyncEngine, startAutoSync } from '../src/sync/syncEngine';
 import { registerForPushNotifications } from '../src/lib/registerPushNotifications';
 import { FONTS_TO_LOAD } from '../src/theme/tokens';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 // Registered once, before any screen renders or API call fires, so every
 // apiClient request/response interceptor in @bharatsales/api-client reads
@@ -72,12 +73,14 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <Stack screenOptions={{ headerShown: false }} />
-        </QueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <Stack screenOptions={{ headerShown: false }} />
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
