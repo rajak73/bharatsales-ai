@@ -35,6 +35,13 @@ jobs:
           sleep 5
           docker exec mongodb mongosh --eval 'rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]})'
           sleep 5
+          # MongoDB's default lock-wait for multi-document transactions is
+          # only 5ms — plenty on a dedicated dev machine, but CI's shared
+          # runners are slow/noisy enough that legitimate (non-deadlocked)
+          # lock acquisitions routinely miss that window, failing tests
+          # that use transactions (e.g. OrdersService.create) with
+          # "Unable to acquire IX lock ... within 5ms". Raise it generously.
+          docker exec mongodb mongosh --eval 'db.adminCommand({setParameter: 1, maxTransactionLockRequestTimeoutMillis: 5000})'
 
       - name: Install Dependencies
         run: pnpm install --no-frozen-lockfile
