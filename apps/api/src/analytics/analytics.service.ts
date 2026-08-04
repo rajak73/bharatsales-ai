@@ -48,7 +48,7 @@ export class AnalyticsService {
 
     // Active Outlets and Reps
     const activeOutlets = await this.outletModel.countDocuments({ organizationId, status: 'Active' });
-    const activeReps = await this.userModel.countDocuments({ organizationId, status: 'Active' });
+    const activeReps = await this.userModel.countDocuments({ organizationId, status: 'Active', role: { $ne: 'Super Admin' } });
 
     // Build KPIs Object
     const kpis = {
@@ -98,7 +98,7 @@ export class AnalyticsService {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
-    const activeUsers = await this.userModel.find({ organizationId, status: 'Active' });
+    const activeUsers = await this.userModel.find({ organizationId, status: 'Active', role: { $ne: 'Super Admin' } });
 
     // Zone Performance — User schema has no real "zone" field today, so orders
     // are grouped as "Unassigned" until real hierarchy-based zone attribution

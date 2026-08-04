@@ -17,7 +17,11 @@ export class UsersService {
   ) {}
 
   async findAllByOrgId(organizationId: string, user?: any) {
-    const query: any = { organizationId };
+    // Super Admin is a platform-level operator, not a member of any single
+    // org — the seed/provisioning flow still has to stamp some
+    // organizationId on their user doc to satisfy the schema's required
+    // field, which would otherwise leak them into every org's team list.
+    const query: any = { organizationId, role: { $ne: 'Super Admin' } };
     if (user && user.role === 'Distributor') {
       // A Distributor only manages their own staff, not the whole org's users.
       query.distributorId = user.distributorId || '__none__';
@@ -63,7 +67,7 @@ export class UsersService {
     const tenant = await this.tenantModel.findById(organizationId).exec();
     if (tenant) {
       const maxUsers = (tenant as any).subscriptionUsersLimit || 0;
-      const currentUserCount = await this.userModel.countDocuments({ organizationId }).exec();
+      const currentUserCount = await this.userModel.countDocuments({ organizationId, role: { $ne: 'Super Admin' } }).exec();
       if (maxUsers > 0 && currentUserCount >= maxUsers) {
         throw new BadRequestException(`Organization has reached its maximum user limit of ${maxUsers}. Please upgrade your plan.`);
       }
@@ -102,7 +106,7 @@ export class UsersService {
     const tenant = await this.tenantModel.findById(organizationId).exec();
     if (tenant) {
       const maxUsers = (tenant as any).subscriptionUsersLimit || 0;
-      const currentUserCount = await this.userModel.countDocuments({ organizationId }).exec();
+      const currentUserCount = await this.userModel.countDocuments({ organizationId, role: { $ne: 'Super Admin' } }).exec();
       if (maxUsers > 0 && currentUserCount >= maxUsers) {
         throw new BadRequestException(`Organization has reached its maximum user limit of ${maxUsers}. Please upgrade your plan.`);
       }

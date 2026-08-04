@@ -14,6 +14,7 @@ describe('UsersService', () => {
   }));
   Object.assign(mockUserModel, {
     findOne: jest.fn(),
+    find: jest.fn(),
     countDocuments: jest.fn(),
     findOneAndUpdate: jest.fn(),
     deleteOne: jest.fn(),
@@ -59,6 +60,18 @@ describe('UsersService', () => {
       await expect(
         service.createUser('org1', 'Distributor', { email: 'staff@dist.com', password: 'pw', role: 'Sales Representative' } as any, 'dist1')
       ).rejects.toThrow('Distributors can only create staff with the Distributor role.');
+    });
+  });
+
+  describe('findAllByOrgId — Super Admin exclusion', () => {
+    it('excludes Super Admin from an org team list, even if their user doc carries that organizationId', async () => {
+      const execMock = jest.fn().mockResolvedValue([{ name: 'Bharat Admin', role: 'Organization Admin' }]);
+      const selectMock = jest.fn().mockReturnValue({ exec: execMock });
+      mockUserModel.find.mockReturnValue({ select: selectMock });
+
+      await service.findAllByOrgId('org1');
+
+      expect(mockUserModel.find).toHaveBeenCalledWith({ organizationId: 'org1', role: { $ne: 'Super Admin' } });
     });
   });
 
