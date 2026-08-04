@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { router } from 'expo-router';
 import { useAuth } from '../src/lib/useAuth';
+import { useSessionStore } from '../src/store/sessionStore';
 import { colors, radius, spacing, typography } from '../src/theme/tokens';
 import { Button } from '../src/components/ui';
 import { AuthService } from '@bharatsales/api-client';
@@ -24,12 +25,14 @@ type ForgotForm = z.infer<typeof forgotSchema>;
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const sessionUser = useSessionStore((s) => s.user);
   const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [forgotMessage, setForgotMessage] = useState('');
   const [slowHint, setSlowHint] = useState(false);
+  const [showManualContinue, setShowManualContinue] = useState(false);
 
   // The backend can be cold-starting (Render free tier spins down after
   // idle) and take 30-60s+ to respond to the first request — without this,
@@ -39,6 +42,26 @@ export default function LoginScreen() {
     const timer = setTimeout(() => setSlowHint(true), 5000);
     return () => clearTimeout(timer);
   }, [submitting]);
+
+  // Navigate off of this screen's own subscription to the session store,
+  // instead of firing router.replace() immediately after `login()`
+  // resolves. Both ultimately land on a route that reads the same store
+  // (app/index.tsx or (rep)/_layout.tsx), so imperatively navigating right
+  // after the await bet on that store update having already propagated —
+  // reacting to this component's own re-render once `sessionUser` actually
+  // changes removes that assumption entirely; it's structurally impossible
+  // to fire before the store reflects the logged-in user.
+  useEffect(() => {
+    if (sessionUser && (sessionUser.role === 'Sales Representative' || sessionUser.role === 'Distributor')) {
+      router.replace(sessionUser.role === 'Distributor' ? '/(distributor)' : '/(rep)');
+      // If that replace() actually navigates away, this screen unmounts and
+      // the timer below never fires. If something is still keeping the app
+      // on this screen 2s after the session was confirmed logged in, this
+      // is a guaranteed manual way in rather than leaving no path forward.
+      const fallbackTimer = setTimeout(() => setShowManualContinue(true), 2000);
+      return () => clearTimeout(fallbackTimer);
+    }
+  }, [sessionUser]);
 
   const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -55,12 +78,10 @@ export default function LoginScreen() {
     setSlowHint(false);
     setSubmitting(true);
     try {
+      // Navigation itself happens in the useEffect above, reacting to
+      // sessionUser once login() has actually updated the store — see its
+      // comment for why that's deliberately not done here.
       await login(values);
-      // Route to root instead of directly to '/(rep)' or '/(distributor)' —
-      // app/index.tsx already does this exact role-based redirect reliably
-      // on cold start, so reusing it here avoids duplicating that branching
-      // logic (and the risk of it drifting out of sync) in two places.
-      router.replace('/');
     } catch (err: any) {
       if (err?.code === 'ECONNABORTED' || /timeout/i.test(err?.message || '')) {
         setServerError('The server took too long to respond. It may be waking up from idle — please try again in a moment.');
@@ -229,6 +250,14 @@ export default function LoginScreen() {
             <Text style={styles.slowHintText}>
               Still working — the server may be waking up after being idle. This can take up to a minute.
             </Text>
+          )}
+          {showManualContinue && sessionUser && (
+            <Button
+              label="Continue to Dashboard"
+              variant="secondary"
+              onPress={() => router.replace(sessionUser.role === 'Distributor' ? '/(distributor)' : '/(rep)')}
+              style={{ marginTop: spacing.md }}
+            />
           )}
 
           <Text style={styles.footnote}>For Sales Representatives and Distributors only.</Text>
