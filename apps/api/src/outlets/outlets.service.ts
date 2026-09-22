@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { NotFoundException, BadRequestException, ForbiddenException } from '../core/http-errors';
+import { RBAC, Action, Resource, type Role } from '@bharatsales/permissions';
 import { Model } from 'mongoose';
 import { Outlet } from '../schemas/outlet.schema';
 import { Order } from '../schemas/order.schema';
@@ -9,14 +9,13 @@ import { Tenant } from '../schemas/tenant.schema';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
-@Injectable()
 export class OutletsService {
   constructor(
-    @InjectModel(Outlet.name) private outletModel: Model<Outlet>,
-    @InjectModel(Order.name) private orderModel: Model<Order>,
-    @InjectModel(Visit.name) private visitModel: Model<Visit>,
-    @InjectModel(Tenant.name) private tenantModel: Model<Tenant>,
-    @InjectModel('User') private userModel: Model<any>,
+    private outletModel: Model<Outlet>,
+    private orderModel: Model<Order>,
+    private visitModel: Model<Visit>,
+    private tenantModel: Model<Tenant>,
+    private userModel: Model<any>,
     private readonly hierarchyService: HierarchyService,
     private readonly notificationsService: NotificationsService
   ) {}
@@ -150,7 +149,51 @@ export class OutletsService {
     return outlet.save();
   }
 
-  async update(organizationId: string, id: string, data: any): Promise<Outlet> {
+  /**
+   * Non-admin write rules for PATCH /outlets/:id:
+   *  - the outlet must be one the caller can see (same territory rule as
+   *    findAllByOrgId);
+   *  - commercial terms (credit limit, payment terms, price list, assigned
+   *    distributor) and territoryId may only be changed by an Organization
+   *    Admin — otherwise a rep could raise a credit limit to dodge the
+   *    Hold_Credit check (BR-006);
+   *  - status may only be changed by a holder of Outlets:Approve, so the
+   *    outlet approval rule (BR-002) cannot be skipped.
+   * Values equal to what is already stored are allowed through, because the
+   * web/PWA clients send the full commercial subdocument back unchanged.
+   */
+  private async assertCanUpdate(organizationId: string, outlet: any, data: Record<string, any>, user?: any): Promise<void> {
+    if (!user || ['Super Admin', 'Organization Admin'].includes(user.role)) return;
+
+    const territoryId = outlet.territoryId ? String(outlet.territoryId) : null;
+    if (territoryId) {
+      const territoryIds: string[] = user.territoryIds || [];
+      const descendantIds = territoryIds.length
+        ? await this.hierarchyService.getDescendantTerritoryIds(organizationId, territoryIds)
+        : [];
+      if (!descendantIds.includes(territoryId)) {
+        throw new NotFoundException('Outlet not found');
+      }
+    }
+
+    const current = (key: string): any => key.split('.').reduce((v: any, k) => (v == null ? v : v[k]), outlet);
+    const changed = (key: string) => {
+      const before = current(key);
+      const after = data[key];
+      return String(before ?? '') !== String(after ?? '');
+    };
+
+    const adminOnly = Object.keys(data).filter((k) => k.startsWith('commercial.') || k === 'territoryId');
+    const blocked = adminOnly.filter(changed);
+    if (blocked.length > 0) {
+      throw new ForbiddenException(`Only an Organization Admin can change: ${blocked.join(', ')}`);
+    }
+    if ('status' in data && changed('status') && !RBAC.can(user.role as Role, Action.Approve, Resource.Outlets)) {
+      throw new ForbiddenException('Changing an outlet status requires outlet approval permission');
+    }
+  }
+
+  async update(organizationId: string, id: string, data: any, user?: any): Promise<Outlet> {
     delete (data as any).organizationId;
     delete (data as any)._id;
     delete (data as any).createdAt;
@@ -159,6 +202,7 @@ export class OutletsService {
     if (!outlet) {
       throw new NotFoundException('Outlet not found');
     }
+    await this.assertCanUpdate(organizationId, outlet, data, user);
 
     // Safely apply dot-notation update using mongoose $set (e.g. { 'commercial.assignedDistributorId': 'dist_id' })
     const updated = await this.outletModel.findOneAndUpdate(

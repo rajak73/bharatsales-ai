@@ -1,37 +1,30 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 
-@Schema({ timestamps: true })
-export class Approval extends Document {
-  @Prop({ required: true, index: true })
+export interface Approval extends Document {
   organizationId: string;
-
-  @Prop({ required: true })
   outlet: string;
-
-  @Prop({ required: true })
   order: string;
-
-  @Prop({ required: true })
   type: string;
-
-  @Prop({ required: true })
   reason: string;
-
-  @Prop({ required: true })
   amount: number;
-
-  @Prop({ required: true })
   priority: 'High' | 'Medium' | 'Low';
-
-  @Prop({ required: true })
   requestedBy: string;
-
-  @Prop({ required: true })
   date: string;
-
-  @Prop({ required: true, default: 'Pending' })
   status: 'Pending' | 'Approved' | 'Rejected';
 }
 
-export const ApprovalSchema = SchemaFactory.createForClass(Approval);
+export const ApprovalSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    outlet: { type: String, required: true },
+    order: { type: String, required: true },
+    type: { type: String, required: true },
+    reason: { type: String, required: true },
+    amount: { type: Number, required: true },
+    priority: { type: String, required: true },
+    requestedBy: { type: String, required: true },
+    date: { type: String, required: true },
+    status: { type: String, required: true, default: 'Pending' },
+  },
+  { timestamps: true },
+);

@@ -1,10 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ReturnsService } from './returns.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { InventoryService } from '../inventory/inventory.service';
-import { FinanceService } from '../finance/finance.service';
-import { HierarchyService } from '../hierarchy/hierarchy.service';
-import { ReturnOrder } from '../schemas/return.schema';
+import type { FinanceService } from '../finance/finance.service';
 
 describe('ReturnsService Ledger Compliance', () => {
   let service: ReturnsService;
@@ -31,23 +26,17 @@ describe('ReturnsService Ledger Compliance', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ReturnsService,
-        { provide: getModelToken(ReturnOrder.name), useValue: mockModel },
-        { provide: getModelToken('Outlet'), useValue: mockModel },
-        { provide: getModelToken('Invoice'), useValue: mockModel },
-        { provide: getModelToken('Order'), useValue: mockModel },
-        { provide: getModelToken('Product'), useValue: mockModel },
-        { provide: 'DatabaseConnection', useValue: mockConnection },
-        { provide: InventoryService, useValue: {} },
-        { provide: FinanceService, useValue: mockFinanceService },
-        { provide: HierarchyService, useValue: { getDescendantTerritoryIds: jest.fn().mockResolvedValue([]) } }
-      ],
-    }).compile();
-
-    service = module.get<ReturnsService>(ReturnsService);
-    financeService = module.get<FinanceService>(FinanceService);
+    service = new ReturnsService(
+      mockModel as any,
+      mockModel as any,
+      mockModel as any,
+      mockModel as any,
+      mockModel as any,
+      {} as any,
+      mockFinanceService as any,
+      { getDescendantTerritoryIds: jest.fn().mockResolvedValue([]) } as any,
+    );
+    financeService = mockFinanceService as unknown as FinanceService;
   });
 
   afterEach(() => {

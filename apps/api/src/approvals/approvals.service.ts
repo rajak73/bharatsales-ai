@@ -1,15 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { NotFoundException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { Approval } from '../schemas/approval.schema';
 import { ApprovalRule } from '../schemas/approval-rule.schema';
 import { Approval as SharedApproval, ApprovalRule as SharedRule } from '@bharatsales/shared-types';
 
-@Injectable()
 export class ApprovalsService {
   constructor(
-    @InjectModel(Approval.name) private approvalModel: Model<Approval>,
-    @InjectModel(ApprovalRule.name) private ruleModel: Model<ApprovalRule>,
+    private approvalModel: Model<Approval>,
+    private ruleModel: Model<ApprovalRule>,
   ) {}
 
   async findAllApprovals(organizationId: string): Promise<SharedApproval[]> {

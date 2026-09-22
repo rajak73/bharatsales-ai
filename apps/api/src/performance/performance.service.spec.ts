@@ -1,8 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { PerformanceService } from './performance.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { HierarchyService } from '../hierarchy/hierarchy.service';
-import { TargetsService } from '../targets/targets.service';
 
 describe('PerformanceService', () => {
   let service: PerformanceService;
@@ -18,20 +14,15 @@ describe('PerformanceService', () => {
   const mockTargetsService = { getTargetsForEntities: jest.fn().mockResolvedValue([]) };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PerformanceService,
-        { provide: getModelToken('Target'), useValue: {} },
-        { provide: getModelToken('Order'), useValue: mockOrderModel },
-        { provide: getModelToken('Collection'), useValue: mockCollectionModel },
-        { provide: getModelToken('Visit'), useValue: mockVisitModel },
-        { provide: getModelToken('User'), useValue: mockUserModel },
-        { provide: HierarchyService, useValue: mockHierarchyService },
-        { provide: TargetsService, useValue: mockTargetsService },
-      ],
-    }).compile();
-
-    service = module.get<PerformanceService>(PerformanceService);
+    service = new PerformanceService(
+      {} as any,
+      mockOrderModel as any,
+      mockCollectionModel as any,
+      mockVisitModel as any,
+      mockUserModel as any,
+      mockHierarchyService as any,
+      mockTargetsService as any,
+    );
   });
 
   afterEach(() => {

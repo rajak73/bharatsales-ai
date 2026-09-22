@@ -1,31 +1,26 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 
-@Schema({ timestamps: true })
-export class Expense extends Document {
-  @Prop({ required: true, index: true })
+export interface Expense extends Document {
   organizationId: string;
-
-  @Prop({ required: true })
   userId: string;
-
-  @Prop({ required: true })
   type: string;
-
-  @Prop({ required: true })
   amount: number;
-
-  @Prop({ required: true })
   date: string;
-
-  @Prop({ required: true })
   status: 'Pending' | 'Approved' | 'Rejected';
-
-  @Prop()
   notes?: string;
-
-  @Prop({ type: [String], default: [] })
   attachments: string[];
 }
 
-export const ExpenseSchema = SchemaFactory.createForClass(Expense);
+export const ExpenseSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    userId: { type: String, required: true },
+    type: { type: String, required: true },
+    amount: { type: Number, required: true },
+    date: { type: String, required: true },
+    status: { type: String, required: true },
+    notes: { type: String },
+    attachments: { type: [String], default: [] },
+  },
+  { timestamps: true },
+);

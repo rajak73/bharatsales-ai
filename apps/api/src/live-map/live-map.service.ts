@@ -1,17 +1,17 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-@Injectable()
 export class LiveMapService {
   constructor(
-    @InjectModel('AttendanceSession') private readonly attendanceModel: Model<any>,
-    @InjectModel('Visit') private readonly visitModel: Model<any>,
-    @InjectModel('LocationPing') private readonly locationPingModel: Model<any>,
+    private readonly attendanceModel: Model<any>,
+    private readonly visitModel: Model<any>,
+    private readonly locationPingModel: Model<any>,
   ) {}
 
-  async getLiveReps(organizationId: string) {
-    const activeSessions = await this.attendanceModel.find({ organizationId, status: { $in: ['Active', 'On_Break'] } }).populate('user', 'name');
+  /** `userIds` (when given) limits the result to those users, e.g. a manager's team. */
+  async getLiveReps(organizationId: string, userIds?: string[]) {
+    const query: any = { organizationId, status: { $in: ['Active', 'On_Break'] } };
+    if (userIds) query.user = { $in: userIds };
+    const activeSessions = await this.attendanceModel.find(query).populate('user', 'name');
 
     // Filter out any corrupted sessions where the user was deleted
     const validSessions = activeSessions.filter(session => session.user != null);

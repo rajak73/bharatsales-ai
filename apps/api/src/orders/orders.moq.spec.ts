@@ -1,12 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersService } from './orders.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { InventoryService } from '../inventory/inventory.service';
-import { ApprovalsService } from '../approvals/approvals.service';
-import { BadRequestException } from '@nestjs/common';
-import { HierarchyService } from '../hierarchy/hierarchy.service';
-import { AttendanceService } from '../attendance/attendance.service';
-import { NotificationsService } from '../notifications/notifications.service';
 
 describe('OrdersService - MOQ Validation', () => {
   let service: OrdersService;
@@ -33,25 +25,19 @@ describe('OrdersService - MOQ Validation', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        OrdersService,
-        { provide: getModelToken('Order'), useValue: mockOrderModel },
-        { provide: getModelToken('Product'), useValue: mockProductModel },
-        { provide: getModelToken('Outlet'), useValue: mockOutletModel },
-        { provide: getModelToken('Scheme'), useValue: {} },
-        { provide: getModelToken('Distributor'), useValue: {} },
-        { provide: InventoryService, useValue: mockInventoryService },
-        { provide: 'ModuleRef', useValue: {} },
-        { provide: ApprovalsService, useValue: mockApprovalsService },
-        { provide: HierarchyService, useValue: { getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't2']) } },
-        { provide: AttendanceService, useValue: { getActiveSession: jest.fn().mockResolvedValue({ status: 'ON_DUTY' }) } },
-        { provide: NotificationsService, useValue: { create: jest.fn().mockResolvedValue(undefined) } },
-        { provide: 'DatabaseConnection', useValue: mockConnection }
-      ],
-    }).compile();
-
-    service = module.get<OrdersService>(OrdersService);
+    service = new OrdersService(
+      mockOrderModel as any,
+      mockOutletModel as any,
+      {} as any,
+      {} as any,
+      mockProductModel as any,
+      mockInventoryService as any,
+      mockApprovalsService as any,
+      { getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't2']) } as any,
+      { getActiveSession: jest.fn().mockResolvedValue({ status: 'ON_DUTY' }) } as any,
+      { create: jest.fn().mockResolvedValue(undefined) } as any,
+      mockConnection as any,
+    );
   });
 
   it('should trigger approval if item quantity is below product MOQ', async () => {

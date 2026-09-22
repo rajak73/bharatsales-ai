@@ -1,21 +1,32 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { ReportJob as IReportJob } from '@bharatsales/shared-types';
+import { Schema, Document } from 'mongoose';
 
 export type ReportJobDocument = ReportJob & Document;
 
-@Schema({ timestamps: true, collection: 'report_jobs' })
-export class ReportJob implements Omit<IReportJob, 'id' | 'createdAt' | 'updatedAt'> {
-  @Prop({ required: true, index: true }) organizationId: string;
-  @Prop({ required: true, index: true, unique: true }) jobId: string;
-  @Prop({ required: true, enum: ['Processing', 'Completed', 'Failed'], default: 'Processing' }) status: 'Processing' | 'Completed' | 'Failed';
-  @Prop({ required: true, default: 0 }) progress: number;
-  @Prop() data?: string;
-  @Prop() url?: string;
-  @Prop() error?: string;
+export interface ReportJob {
+  organizationId: string;
+  jobId: string;
+  status: 'Processing' | 'Completed' | 'Failed';
+  progress: number;
+  data?: string;
+  url?: string;
+  error?: string;
+  /** User id (JWT sub) that ran the report; only they (or an Organization Admin) may fetch it. */
+  requestedBy?: string;
 }
 
-export const ReportJobSchema = SchemaFactory.createForClass(ReportJob);
+export const ReportJobSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    jobId: { type: String, required: true, index: true, unique: true },
+    status: { type: String, required: true, enum: ['Processing', 'Completed', 'Failed'], default: 'Processing' },
+    progress: { type: Number, required: true, default: 0 },
+    data: { type: String },
+    url: { type: String },
+    error: { type: String },
+    requestedBy: { type: String, index: true },
+  },
+  { timestamps: true, collection: 'report_jobs' },
+);
 
 ReportJobSchema.set('toJSON', {
   virtuals: true,

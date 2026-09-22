@@ -1,12 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { NotFoundException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { PriceList } from '../schemas/price-list.schema';
 import { PriceList as SharedPriceList } from '@bharatsales/shared-types';
 
-@Injectable()
 export class PriceListsService {
-  constructor(@InjectModel('PriceList') private priceListModel: Model<PriceList>) {}
+  constructor(private priceListModel: Model<PriceList>) {}
 
   async findAllByOrgId(organizationId: string): Promise<PriceList[]> {
     return this.priceListModel.find({ organizationId }).exec();

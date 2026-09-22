@@ -1,15 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { BadRequestException, NotFoundException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { Product } from '../schemas/product.schema';
 import { Product as SharedProduct, Outlet } from '@bharatsales/shared-types';
-import { Outlet as OutletSchema } from '../schemas/outlet.schema';
 
-@Injectable()
 export class ProductsService {
   constructor(
-    @InjectModel(Product.name) private productModel: Model<Product>,
-    @InjectModel(OutletSchema.name) private outletModel: Model<Outlet>
+    private productModel: Model<Product>,
+    private outletModel: Model<Outlet>
   ) {}
 
   async findAllByOrgId(organizationId: string): Promise<Product[]> {
@@ -52,7 +49,7 @@ export class ProductsService {
     delete (productData as any).createdAt;
     delete (productData as any).updatedAt;
     if (productData.pricing?.ptr > productData.pricing?.mrp) {
-      throw new Error('PTR (Price to Retailer) cannot be greater than MRP');
+      throw new BadRequestException('PTR (Price to Retailer) cannot be greater than MRP');
     }
     const newProduct = new this.productModel({
       ...productData,
@@ -68,7 +65,7 @@ export class ProductsService {
     delete (updateData as any).createdAt;
     delete (updateData as any).updatedAt;
     if (updateData.pricing && updateData.pricing.ptr > updateData.pricing.mrp) {
-      throw new Error('PTR (Price to Retailer) cannot be greater than MRP');
+      throw new BadRequestException('PTR (Price to Retailer) cannot be greater than MRP');
     }
 
     const product = await this.productModel.findOneAndUpdate(
@@ -78,7 +75,7 @@ export class ProductsService {
     ).exec();
     
     if (!product) {
-      throw new Error('Product not found');
+      throw new NotFoundException('Product not found');
     }
     
     return product;
@@ -87,7 +84,7 @@ export class ProductsService {
   async remove(organizationId: string, id: string): Promise<{ deleted: boolean }> {
     const product = await this.productModel.findOneAndDelete({ _id: id, organizationId }).exec();
     if (!product) {
-      throw new Error('Product not found');
+      throw new NotFoundException('Product not found');
     }
     return { deleted: true };
   }

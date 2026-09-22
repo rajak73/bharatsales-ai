@@ -1,52 +1,44 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Schema, Document, Types } from 'mongoose';
 
-@Schema({ timestamps: true })
-export class Visit extends Document {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+export interface Visit extends Document {
   user: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'Outlet', required: true })
   outlet: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'Organization', required: true })
   organizationId: Types.ObjectId;
-
-  @Prop({ required: true })
   checkInTime: Date;
-
-  @Prop()
   checkOutTime?: Date;
-
-  @Prop()
   durationMinutes?: number;
-
-  @Prop({ type: { lat: Number, lng: Number, accuracy: Number }, required: true })
   checkInLocation: { lat: number; lng: number; accuracy: number };
-
-  @Prop({ type: { lat: Number, lng: Number, accuracy: Number } })
   checkOutLocation?: { lat: number; lng: number; accuracy: number };
-
-  @Prop()
   photoUrl?: string;
-
-  @Prop()
   distanceFromOutlet?: number;
-
-  @Prop()
   isWithinGeofence?: boolean;
-
-  @Prop({ required: true, enum: ['Active', 'Completed'] })
   status: string;
-
-  @Prop({ type: [Object], default: [] })
   activities?: any[];
-
-  @Prop()
   idempotencyKey?: string;
 }
 
-export const VisitSchema = SchemaFactory.createForClass(Visit);
+// NOTE: under @nestjs/mongoose, `@Prop({ type: Types.ObjectId })` compiled to Mixed (the bson class was
+// treated as an empty nested class -> `{}`), so these refs never cast to ObjectId. They are kept Mixed
+// on purpose so existing documents and string-id queries behave exactly as before the migration.
+export const VisitSchema = new Schema(
+  {
+    user: { type: Schema.Types.Mixed, ref: 'User', required: true },
+    outlet: { type: Schema.Types.Mixed, ref: 'Outlet', required: true },
+    organizationId: { type: Schema.Types.Mixed, ref: 'Organization', required: true },
+    checkInTime: { type: Date, required: true },
+    checkOutTime: { type: Date },
+    durationMinutes: { type: Number },
+    checkInLocation: { type: { lat: Number, lng: Number, accuracy: Number }, required: true },
+    checkOutLocation: { type: { lat: Number, lng: Number, accuracy: Number } },
+    photoUrl: { type: String },
+    distanceFromOutlet: { type: Number },
+    isWithinGeofence: { type: Boolean },
+    status: { type: String, required: true, enum: ['Active', 'Completed'] },
+    activities: { type: [Object], default: [] },
+    idempotencyKey: { type: String },
+  },
+  { timestamps: true },
+);
 
 VisitSchema.index({ user: 1, checkInTime: -1 });
 VisitSchema.index({ checkInLocation: '2dsphere' });

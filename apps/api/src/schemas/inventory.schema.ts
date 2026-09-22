@@ -1,25 +1,40 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { Inventory as IInventory } from '@bharatsales/shared-types';
+import { Schema, Document } from 'mongoose';
 
 export type InventoryDocument = Inventory & Document;
 
-@Schema({ timestamps: true, collection: 'inventory' })
-export class Inventory implements Omit<IInventory, 'id' | 'createdAt' | 'updatedAt'> {
-  @Prop({ required: true, index: true }) organizationId: string;
-  @Prop() warehouseId?: string;
-  @Prop() distributorId?: string;
-  @Prop({ required: true }) productId: string;
-  @Prop({ required: true }) productName: string;
-  @Prop({ required: true }) sku: string;
-  @Prop({ required: true }) batch: string;
-  @Prop({ required: true, default: 0 }) stock: number;
-  @Prop({ default: 0 }) reservedStock: number;
-  @Prop() expiry?: string;
-  @Prop({ default: 'Active' }) status?: string;
-  @Prop({ default: false }) blocked?: boolean;
+export interface Inventory {
+  organizationId: string;
+  warehouseId?: string;
+  distributorId?: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  batch: string;
+  stock: number;
+  reservedStock: number;
+  expiry?: string;
+  status?: string;
+  blocked?: boolean;
 }
 
-export const InventorySchema = SchemaFactory.createForClass(Inventory);
+export const InventorySchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    warehouseId: { type: String },
+    distributorId: { type: String },
+    productId: { type: String, required: true },
+    productName: { type: String, required: true },
+    sku: { type: String, required: true },
+    batch: { type: String, required: true },
+    stock: { type: Number, required: true, default: 0 },
+    reservedStock: { type: Number, default: 0 },
+    expiry: { type: String },
+    status: { type: String, default: 'Active' },
+    blocked: { type: Boolean, default: false },
+  },
+  { timestamps: true, collection: 'inventory' },
+);
 
 InventorySchema.index({ expiry: 1 });
+// Perf: FEFO batch allocation per product within an org.
+InventorySchema.index({ organizationId: 1, productId: 1, expiry: 1 });

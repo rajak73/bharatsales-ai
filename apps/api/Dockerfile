@@ -8,7 +8,8 @@ WORKDIR /app
 # Copy the entire monorepo
 COPY . .
 RUN pnpm install --no-frozen-lockfile
-RUN pnpm --filter @bharatsales/api build
+# Build the API and the workspace packages it depends on (permissions, shared-types).
+RUN pnpm --filter @bharatsales/api... build
 
 FROM base AS runner
 WORKDIR /app

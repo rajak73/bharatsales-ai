@@ -1,8 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { BeatsService } from './beats.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { HierarchyService } from '../hierarchy/hierarchy.service';
-import { NotificationsService } from '../notifications/notifications.service';
 
 // Chainable query stub supporting any combination of .select()/.sort()/.exec()
 // used across the different callers of find()/findOne() in BeatsService.
@@ -43,21 +39,16 @@ describe('BeatsService', () => {
   const mockNotificationsService = { create: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        BeatsService,
-        { provide: getModelToken('Beat'), useValue: mockBeatModel },
-        { provide: getModelToken('BeatSchedule'), useValue: mockBeatScheduleModel },
-        { provide: getModelToken('Visit'), useValue: mockVisitModel },
-        { provide: getModelToken('User'), useValue: mockUserModel },
-        { provide: getModelToken('LocationPing'), useValue: mockLocationPingModel },
-        { provide: getModelToken('AttendanceSession'), useValue: mockAttendanceModel },
-        { provide: HierarchyService, useValue: mockHierarchyService },
-        { provide: NotificationsService, useValue: mockNotificationsService },
-      ],
-    }).compile();
-
-    service = module.get<BeatsService>(BeatsService);
+    service = new BeatsService(
+      mockBeatModel as any,
+      mockBeatScheduleModel as any,
+      mockVisitModel as any,
+      mockUserModel as any,
+      mockLocationPingModel as any,
+      mockAttendanceModel as any,
+      mockHierarchyService as any,
+      mockNotificationsService as any,
+    );
   });
 
   afterEach(() => {

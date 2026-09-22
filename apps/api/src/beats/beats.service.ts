@@ -1,23 +1,21 @@
-import { Injectable, Logger, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { ForbiddenException, NotFoundException, BadRequestException } from '../core/http-errors';
+import { Logger } from '../core/logger';
 import { Model } from 'mongoose';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { Beat, BeatSchedule, Visit, LocationPing, AttendanceSession } from '../schemas';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { calculateDistanceMeters } from '../common/geo.util';
 
-@Injectable()
 export class BeatsService {
   private readonly logger = new Logger(BeatsService.name);
 
   constructor(
-    @InjectModel('Beat') private beatModel: Model<Beat>,
-    @InjectModel('BeatSchedule') private beatScheduleModel: Model<BeatSchedule>,
-    @InjectModel('Visit') private visitModel: Model<Visit>,
-    @InjectModel('User') private userModel: Model<any>,
-    @InjectModel('LocationPing') private locationPingModel: Model<LocationPing>,
-    @InjectModel('AttendanceSession') private attendanceModel: Model<AttendanceSession>,
+    private beatModel: Model<Beat>,
+    private beatScheduleModel: Model<BeatSchedule>,
+    private visitModel: Model<Visit>,
+    private userModel: Model<any>,
+    private locationPingModel: Model<LocationPing>,
+    private attendanceModel: Model<AttendanceSession>,
     private hierarchyService: HierarchyService,
     private notificationsService: NotificationsService
   ) {}
@@ -124,7 +122,7 @@ export class BeatsService {
     ).exec();
     
     if (!updated) {
-      throw new Error(`Beat ${beatId} not found`);
+      throw new NotFoundException(`Beat ${beatId} not found`);
     }
     
     return updated;
@@ -138,7 +136,7 @@ export class BeatsService {
     ).exec();
 
     if (!updated) {
-      throw new Error(`Beat ${beatId} not found`);
+      throw new NotFoundException(`Beat ${beatId} not found`);
     }
 
     const schedules = await this.beatScheduleModel.find({ beat: beatId, organizationId }).select('user').exec();
@@ -333,7 +331,6 @@ export class BeatsService {
   }
 
   // Notifies reps who left outlets un-visited on a completed beat day (BRD "missed outlet").
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async notifyMissedOutlets() {
     this.logger.log('Running missed-outlet notification cron...');
     const dayStart = new Date();

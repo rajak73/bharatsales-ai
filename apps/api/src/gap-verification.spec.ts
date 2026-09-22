@@ -1,14 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import { AppModule } from './app.module';
-import { JwtService } from '@nestjs/jwt';
 import { Connection, Types } from 'mongoose';
-import { getConnectionToken } from '@nestjs/mongoose';
 import request from 'supertest';
+import { bootTestApp, TestApp } from './test/test-app';
 
 describe('Gap Verification (e2e)', () => {
-  let app: INestApplication;
-  let jwtService: JwtService;
+  let app: TestApp;
+  let jwtService: TestApp['jwtService'];
   let connection: Connection;
   let orgToken: string;
   let hackerToken: string;
@@ -29,15 +25,10 @@ describe('Gap Verification (e2e)', () => {
   const territoryId = new Types.ObjectId();
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    app = await bootTestApp();
     
-    jwtService = app.get<JwtService>(JwtService);
-    connection = app.get<Connection>(getConnectionToken());
+    jwtService = app.jwtService;
+    connection = app.connection;
 
     orgToken = jwtService.sign({ sub: validUserId1, email: 'u1@test.com', orgId: 'org-1', role: 'Sales Representative' });
     hackerToken = jwtService.sign({ sub: validHackerId, email: 'h@test.com', orgId: 'org-2', role: 'Sales Representative' });

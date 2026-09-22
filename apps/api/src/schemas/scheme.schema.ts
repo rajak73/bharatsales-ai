@@ -1,28 +1,42 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { Scheme as IScheme } from '@bharatsales/shared-types';
+import { Schema, Document } from 'mongoose';
 
 export type SchemeDocument = Scheme & Document;
 
-@Schema({ timestamps: true, collection: 'schemes' })
-export class Scheme implements Omit<IScheme, 'id' | 'createdAt' | 'updatedAt'> {
-  @Prop({ required: true, index: true }) organizationId: string;
-  @Prop({ required: true }) name: string;
-  @Prop({ required: true }) description: string;
-  @Prop({ required: true, enum: ['PERCENTAGE_DISCOUNT', 'FREE_ITEM'] }) type: 'PERCENTAGE_DISCOUNT' | 'FREE_ITEM';
-  @Prop({ required: true, default: true }) isActive: boolean;
-  
-  @Prop({ type: [String], default: [] }) applicableProductIds: string[];
-  @Prop({ required: true, min: 0 }) minQuantity: number;
-  @Prop({ required: true, min: 0 }) minOrderValue: number;
-
-  @Prop({ min: 0, max: 100 }) discountPercentage?: number;
-  @Prop() freeProductId?: string;
-  @Prop({ min: 1 }) freeQuantity?: number;
-
-  @Prop({ required: true }) validFrom: string;
-  @Prop({ required: true }) validUntil: string;
+export interface Scheme {
+  organizationId: string;
+  name: string;
+  description: string;
+  type: 'PERCENTAGE_DISCOUNT' | 'FREE_ITEM';
+  isActive: boolean;
+  applicableProductIds: string[];
+  minQuantity: number;
+  minOrderValue: number;
+  discountPercentage?: number;
+  freeProductId?: string;
+  freeQuantity?: number;
+  validFrom: string;
+  validUntil: string;
 }
 
-export const SchemeSchema = SchemaFactory.createForClass(Scheme);
+export const SchemeSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    name: { type: String, required: true },
+    description: { type: String, required: true },
+    type: { type: String, required: true, enum: ['PERCENTAGE_DISCOUNT', 'FREE_ITEM'] },
+    isActive: { type: Boolean, required: true, default: true },
+
+    applicableProductIds: { type: [String], default: [] },
+    minQuantity: { type: Number, required: true, min: 0 },
+    minOrderValue: { type: Number, required: true, min: 0 },
+
+    discountPercentage: { type: Number, min: 0, max: 100 },
+    freeProductId: { type: String },
+    freeQuantity: { type: Number, min: 1 },
+
+    validFrom: { type: String, required: true },
+    validUntil: { type: String, required: true },
+  },
+  { timestamps: true, collection: 'schemes' },
+);
 SchemeSchema.index({ organizationId: 1, isActive: 1 });

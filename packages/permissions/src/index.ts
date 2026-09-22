@@ -57,7 +57,7 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
   'Organization Admin': {
     [Resource.Users]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Export],
     [Resource.Products]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Export],
-    [Resource.Outlets]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Export],
+    [Resource.Outlets]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Approve, Action.Export],
     [Resource.Orders]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Approve, Action.Export],
     [Resource.Distributors]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Export],
     [Resource.Reports]: [Action.Create, Action.Read, Action.Update, Action.Delete, Action.Export],
@@ -118,6 +118,10 @@ const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
     [Resource.PriceLists]: [Action.Read],
     [Resource.TaxRates]: [Action.Read],
     [Resource.Distributors]: [Action.Read],
+    // Reps record payments collected at the outlet (mobile/PWA Collection
+    // screen). Create only — reading the org's collections ledger stays with
+    // managers/admins/distributors.
+    [Resource.Collections]: [Action.Create],
     [Resource.Notifications]: [Action.Read, Action.Update],
   },
   'Distributor': {

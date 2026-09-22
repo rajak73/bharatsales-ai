@@ -1,11 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
-import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
-import { UnauthorizedException } from '@nestjs/common';
-import { AuditService } from '../audit/audit.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { BrevoEmailProvider } from '../common/email.provider';
+import { UnauthorizedException } from '../core/http-errors';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -38,36 +32,30 @@ describe('AuthService', () => {
   const mockSessionModel = {
     findOne: jest.fn(),
     updateOne: jest.fn(),
+    updateMany: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
   };
 
   const mockTokenModel: any = jest.fn().mockImplementation((data: any) => new MockDoc(data));
   Object.assign(mockTokenModel, {
     findOne: jest.fn(),
+    updateMany: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
   });
-
-  const mockJwtService = {
-    signAsync: jest.fn(),
-  };
 
   const mockNotificationsService = { create: jest.fn().mockResolvedValue(undefined) };
   const mockEmailProvider = { sendEmail: jest.fn().mockResolvedValue(true) };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        { provide: getModelToken('User'), useValue: mockUserModel },
-        { provide: getModelToken('Tenant'), useValue: mockTenantModel },
-        { provide: getModelToken('Session'), useValue: mockSessionModel },
-        { provide: getModelToken('Token'), useValue: mockTokenModel },
-        { provide: JwtService, useValue: mockJwtService },
-        { provide: AuditService, useValue: {} },
-        { provide: NotificationsService, useValue: mockNotificationsService },
-        { provide: BrevoEmailProvider, useValue: mockEmailProvider },
-      ],
-    }).compile();
+  const mockAuditService = { logAction: jest.fn().mockResolvedValue(undefined) };
 
-    service = module.get<AuthService>(AuthService);
+  beforeEach(async () => {
+    service = new AuthService(
+      mockUserModel as any,
+      mockTenantModel as any,
+      mockSessionModel as any,
+      mockTokenModel as any,
+      mockAuditService as any,
+      mockNotificationsService as any,
+      mockEmailProvider as any,
+    );
   });
 
   afterEach(() => {
@@ -164,6 +152,69 @@ describe('AuthService', () => {
       mockTokenModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
 
       await expect(service.verifyEmail('badtoken')).rejects.toThrow('Invalid or expired verification link');
+    });
+  });
+
+  describe('verifyOtp — lockout', () => {
+    it('should count a wrong OTP as a failed login attempt', async () => {
+      const user: any = { _id: 'user1', failedLoginAttempts: 4, save: jest.fn().mockResolvedValue(undefined) };
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(user) });
+      mockTokenModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(service.verifyOtp('a@b.com', '000000')).rejects.toThrow(UnauthorizedException);
+      expect(user.failedLoginAttempts).toBe(5);
+      expect(user.lockedUntil).toBeInstanceOf(Date);
+      expect(user.save).toHaveBeenCalled();
+    });
+
+    it('should reject OTP verification while the account is locked', async () => {
+      const user: any = { _id: 'user1', lockedUntil: new Date(Date.now() + 60_000), save: jest.fn() };
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(user) });
+
+      await expect(service.verifyOtp('a@b.com', '123456')).rejects.toThrow('Account is locked');
+      expect(mockTokenModel.findOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('login — wrong OTP', () => {
+    it('should count a wrong OTP toward the lockout', async () => {
+      const user: any = { _id: 'user1', status: 'Active', platformAdmin: true, failedLoginAttempts: 0, save: jest.fn().mockResolvedValue(undefined) };
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(user) });
+      mockTokenModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(service.login({ email: 'a@b.com', otp: '000000' })).rejects.toThrow('Invalid or expired OTP');
+      expect(user.failedLoginAttempts).toBe(1);
+    });
+  });
+
+  describe('requestOtp', () => {
+    it('should invalidate earlier unused OTPs and issue a 6-digit code', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'user1', status: 'Active' }) });
+
+      await service.requestOtp('a@b.com');
+
+      expect(mockTokenModel.updateMany).toHaveBeenCalledWith(
+        { userId: 'user1', type: 'OTP', used: false },
+        { $set: { used: true } }
+      );
+      const created = mockTokenModel.mock.calls[mockTokenModel.mock.calls.length - 1][0];
+      expect(created.type).toBe('OTP');
+      expect(created.token).toMatch(/^\d{6}$/);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('should revoke every existing session of the user', async () => {
+      mockTokenModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ userId: 'user1', used: false, save: jest.fn().mockResolvedValue(undefined) }) });
+      mockUserModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'user1', organizationId: 'org1', role: 'Sales Representative', save: jest.fn().mockResolvedValue(undefined) }) });
+
+      const result = await service.resetPassword('resettoken', 'newSecret123');
+
+      expect(result.success).toBe(true);
+      expect(mockSessionModel.updateMany).toHaveBeenCalledWith(
+        { userId: 'user1', revoked: false },
+        { $set: { revoked: true } }
+      );
     });
   });
 

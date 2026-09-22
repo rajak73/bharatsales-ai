@@ -1,7 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AttendanceService } from './attendance.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
@@ -25,25 +22,7 @@ describe('AttendanceService', () => {
   }
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AttendanceService,
-        {
-          provide: getModelToken('AttendanceSession'),
-          useValue: mockAttendanceModel,
-        },
-        {
-          provide: getModelToken('Visit'),
-          useValue: mockVisitModel,
-        },
-        {
-          provide: HierarchyService,
-          useValue: mockHierarchyService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<AttendanceService>(AttendanceService);
+    service = new AttendanceService(mockAttendanceModel as any, mockVisitModel as any, mockHierarchyService as any);
     // override constructor
     (service as any).attendanceModel = function(data: any) {
       this.save = jest.fn().mockResolvedValue(data);

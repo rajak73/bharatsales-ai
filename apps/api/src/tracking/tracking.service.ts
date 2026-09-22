@@ -1,16 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { Logger } from '../core/logger';
 import { Model, Types } from 'mongoose';
 import { LocationPing } from '../schemas';
 import { AttendanceSession } from '../schemas/attendance.schema';
 
-@Injectable()
 export class TrackingService {
   private readonly logger = new Logger(TrackingService.name);
 
   constructor(
-    @InjectModel('LocationPing') private locationPingModel: Model<LocationPing>,
-    @InjectModel('AttendanceSession') private attendanceModel: Model<AttendanceSession>
+    private locationPingModel: Model<LocationPing>,
+    private attendanceModel: Model<AttendanceSession>
   ) {}
 
   async bulkCreatePings(userId: string, organizationId: string, pings: any[]) {
@@ -70,7 +68,8 @@ export class TrackingService {
     return { success: true, count: validPings.length };
   }
 
-  async getLatestPings(organizationId: string) {
+  /** `userIds` (when given) limits the result to those users, e.g. a manager's team. */
+  async getLatestPings(organizationId: string, userIds?: string[]) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -85,7 +84,10 @@ export class TrackingService {
       { 
         $match: { 
           organizationId: orgObjId,
-          deviceTimestamp: { $gte: today }
+          deviceTimestamp: { $gte: today },
+          ...(userIds
+            ? { user: { $in: userIds.map((id) => (Types.ObjectId.isValid(id) ? new Types.ObjectId(id) : id)) } }
+            : {}),
         } 
       },
       {

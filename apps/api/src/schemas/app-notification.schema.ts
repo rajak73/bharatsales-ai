@@ -1,21 +1,29 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { AppNotification as IAppNotification } from '@bharatsales/shared-types';
+import { Schema, Document } from 'mongoose';
 
 export type AppNotificationDocument = AppNotification & Document;
 
-@Schema({ timestamps: true, collection: 'app_notifications' })
-export class AppNotification implements Omit<IAppNotification, 'id' | 'createdAt' | 'updatedAt'> {
-  @Prop({ required: true, index: true }) organizationId: string;
-  @Prop({ required: true, index: true }) userId: string;
-  @Prop({ required: true }) type: string;
-  @Prop({ required: true }) title: string;
-  @Prop({ required: true }) message: string;
-  @Prop({ required: true }) time: string;
-  @Prop({ default: false }) read: boolean;
+export interface AppNotification {
+  organizationId: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
 }
 
-export const AppNotificationSchema = SchemaFactory.createForClass(AppNotification);
+export const AppNotificationSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    userId: { type: String, required: true, index: true },
+    type: { type: String, required: true },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    time: { type: String, required: true },
+    read: { type: Boolean, default: false },
+  },
+  { timestamps: true, collection: 'app_notifications' },
+);
 
 // Transform _id to id when sending to frontend
 AppNotificationSchema.set('toJSON', {

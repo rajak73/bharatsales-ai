@@ -1,18 +1,15 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SalesTarget, Order, PaymentCollection, Visit } from '@bharatsales/shared-types';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { TargetsService } from '../targets/targets.service';
 
-@Injectable()
 export class PerformanceService {
   constructor(
-    @InjectModel('Target') private targetModel: Model<SalesTarget>,
-    @InjectModel('Order') private orderModel: Model<Order>,
-    @InjectModel('Collection') private collectionModel: Model<PaymentCollection>,
-    @InjectModel('Visit') private visitModel: Model<Visit>,
-    @InjectModel('User') private userModel: Model<any>,
+    private targetModel: Model<SalesTarget>,
+    private orderModel: Model<Order>,
+    private collectionModel: Model<PaymentCollection>,
+    private visitModel: Model<Visit>,
+    private userModel: Model<any>,
     private hierarchyService: HierarchyService,
     private targetsService: TargetsService
   ) {}

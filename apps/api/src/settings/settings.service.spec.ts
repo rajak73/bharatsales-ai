@@ -1,6 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '../core/http-errors';
 import { SettingsService } from './settings.service';
 
 describe('SettingsService', () => {
@@ -8,19 +6,13 @@ describe('SettingsService', () => {
 
   const mockTenantModel = {
     findById: jest.fn(),
+    findByIdAndUpdate: jest.fn(),
   };
 
   const chain = (result: any) => ({ select: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(result) }) });
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SettingsService,
-        { provide: getModelToken('Tenant'), useValue: mockTenantModel },
-      ],
-    }).compile();
-
-    service = module.get<SettingsService>(SettingsService);
+    service = new SettingsService(mockTenantModel as any);
   });
 
   afterEach(() => {
@@ -57,6 +49,25 @@ describe('SettingsService', () => {
       mockTenantModel.findById.mockReturnValue(chain(null));
 
       await expect(service.getBranding('org-missing')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateSettings — billing fields are never writable', () => {
+    it('should only $set whitelisted tenant settings fields', async () => {
+      mockTenantModel.findByIdAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'org1' }) });
+
+      await service.updateSettings('org1', {
+        name: 'Acme', industry: 'FMCG', workingDays: ['Monday'],
+        plan: 'Enterprise', status: 'Active', subscriptionUsersLimit: 9999,
+        billingHistory: [], billingCycle: 'Monthly', nextBillingDate: '2099-01-01',
+        subscriptionStorageUsed: '1TB', organizationId: 'x', _id: 'y',
+      });
+
+      expect(mockTenantModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        'org1',
+        { $set: { name: 'Acme', industry: 'FMCG', workingDays: ['Monday'] } },
+        { new: true }
+      );
     });
   });
 });

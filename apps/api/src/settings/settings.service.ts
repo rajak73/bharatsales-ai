@@ -1,10 +1,31 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { NotFoundException } from '../core/http-errors';
 import { Model } from 'mongoose';
 
-@Injectable()
+// Tenant fields an org admin may edit from the Settings page / profile.
+// Billing and lifecycle fields (plan, status, billingCycle, nextBillingDate,
+// subscriptionUsersLimit, subscriptionStorageUsed, billingHistory) and ids /
+// timestamps are never writable through this endpoint.
+export const EDITABLE_TENANT_SETTINGS_FIELDS = [
+  'name',
+  'timezone',
+  'currency',
+  'branding',
+  'gstNumber',
+  'address',
+  'country',
+  'industry',
+  'geofenceRadius',
+  'gpsAccuracy',
+  'workingDays',
+  'shiftStart',
+  'shiftEnd',
+  'orderApprovalThreshold',
+  'discountAuthority',
+  'fiscalYearStart',
+] as const;
+
 export class SettingsService {
-  constructor(@InjectModel('Tenant') private readonly tenantModel: Model<any>) {}
+  constructor(private readonly tenantModel: Model<any>) {}
 
   async getSettings(organizationId: string) {
     const org = await this.tenantModel.findById(organizationId).exec();
@@ -25,11 +46,20 @@ export class SettingsService {
     return { name: org.name, branding: org.branding || {} };
   }
 
-  async updateSettings(organizationId: string, updateData: any) {
-    delete (updateData as any).organizationId;
-    delete (updateData as any)._id;
-    delete (updateData as any).createdAt;
-    delete (updateData as any).updatedAt;
+  async updateSettings(organizationId: string, rawUpdateData: any) {
+    const updateData: Record<string, any> = {};
+    if (rawUpdateData && typeof rawUpdateData === 'object') {
+      for (const key of EDITABLE_TENANT_SETTINGS_FIELDS) {
+        if (rawUpdateData[key] !== undefined) updateData[key] = rawUpdateData[key];
+      }
+    }
+    if (updateData.branding && typeof updateData.branding === 'object') {
+      const { logoUrl, primaryColor } = updateData.branding;
+      updateData.branding = {
+        ...(logoUrl !== undefined ? { logoUrl } : {}),
+        ...(primaryColor !== undefined ? { primaryColor } : {}),
+      };
+    }
     const org = await this.tenantModel.findByIdAndUpdate(
       organizationId,
       { $set: updateData },

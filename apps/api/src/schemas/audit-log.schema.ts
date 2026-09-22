@@ -1,39 +1,32 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 
 export type AuditLogDocument = AuditLog & Document;
 
-@Schema({ timestamps: true, collection: 'audit_logs' })
-export class AuditLog {
-  @Prop({ required: true, index: true })
+export interface AuditLog {
   organizationId: string;
-
-  @Prop({ required: true, index: true })
   actorId: string;
-
-  @Prop({ required: true })
   actorRole: string;
-
-  @Prop({ required: true })
   action: string;
-
-  @Prop({ required: true })
   entityName: string;
-
-  @Prop()
   entityId?: string;
-
-  @Prop({ type: Object })
   details: Record<string, any>;
-
-  @Prop()
   ipAddress?: string;
-
-  @Prop()
   deviceInfo?: string;
-
-  @Prop()
   reason?: string;
 }
 
-export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);
+export const AuditLogSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    actorId: { type: String, required: true, index: true },
+    actorRole: { type: String, required: true },
+    action: { type: String, required: true },
+    entityName: { type: String, required: true },
+    entityId: { type: String },
+    details: { type: Object },
+    ipAddress: { type: String },
+    deviceInfo: { type: String },
+    reason: { type: String },
+  },
+  { timestamps: true, collection: 'audit_logs' },
+);

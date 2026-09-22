@@ -1,27 +1,24 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 
 export type SupportTicketDocument = SupportTicket & Document;
 
-@Schema({ timestamps: true, collection: 'support_tickets' })
-export class SupportTicket {
-  @Prop({ required: true, index: true })
+export interface SupportTicket {
   organizationId: string;
-
-  @Prop({ required: true })
   raisedByUserId: string;
-
-  @Prop({ required: true })
   subject: string;
-
-  @Prop({ required: true })
   message: string;
-
-  @Prop({ required: true, enum: ['Open', 'In Progress', 'Resolved'], default: 'Open' })
   status: 'Open' | 'In Progress' | 'Resolved';
-
-  @Prop({ required: true, enum: ['Low', 'Medium', 'High'], default: 'Medium' })
   priority: 'Low' | 'Medium' | 'High';
 }
 
-export const SupportTicketSchema = SchemaFactory.createForClass(SupportTicket);
+export const SupportTicketSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    raisedByUserId: { type: String, required: true },
+    subject: { type: String, required: true },
+    message: { type: String, required: true },
+    status: { type: String, required: true, enum: ['Open', 'In Progress', 'Resolved'], default: 'Open' },
+    priority: { type: String, required: true, enum: ['Low', 'Medium', 'High'], default: 'Medium' },
+  },
+  { timestamps: true, collection: 'support_tickets' },
+);

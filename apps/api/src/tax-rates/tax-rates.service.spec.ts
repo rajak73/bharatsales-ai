@@ -1,6 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '../core/http-errors';
 import { TaxRatesService } from './tax-rates.service';
 
 describe('TaxRatesService', () => {
@@ -18,15 +16,8 @@ describe('TaxRatesService', () => {
 
   const chain = (result: any) => ({ exec: jest.fn().mockResolvedValue(result) });
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TaxRatesService,
-        { provide: getModelToken('TaxRate'), useValue: mockTaxRateModel },
-      ],
-    }).compile();
-
-    service = module.get<TaxRatesService>(TaxRatesService);
+  beforeEach(() => {
+    service = new TaxRatesService(mockTaxRateModel as any);
   });
 
   afterEach(() => {

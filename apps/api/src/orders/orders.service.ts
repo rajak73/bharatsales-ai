@@ -1,7 +1,7 @@
-import { Injectable, BadRequestException, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
-import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { BadRequestException, ForbiddenException } from '../core/http-errors';
+import { Logger } from '../core/logger';
 import { Model, Connection } from 'mongoose';
+import { RBAC, Action, Resource, Role } from '@bharatsales/permissions';
 import { Order, Outlet, Scheme, Distributor, Product } from '@bharatsales/shared-types';
 import { InventoryService } from '../inventory/inventory.service';
 import { ApprovalsService } from '../approvals/approvals.service';
@@ -9,25 +9,23 @@ import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { AttendanceService } from '../attendance/attendance.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
-@Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
   constructor(
-    @InjectModel('Order') private orderModel: Model<Order>,
-    @InjectModel('Outlet') private outletModel: Model<Outlet>,
-    @InjectModel('Scheme') private schemeModel: Model<Scheme>,
-    @InjectModel('Distributor') private distributorModel: Model<Distributor>,
-    @InjectModel('Product') private productModel: Model<Product>,
+    private orderModel: Model<Order>,
+    private outletModel: Model<Outlet>,
+    private schemeModel: Model<Scheme>,
+    private distributorModel: Model<Distributor>,
+    private productModel: Model<Product>,
     private inventoryService: InventoryService,
-    private moduleRef: ModuleRef,
+    // (ModuleRef was injected here under Nest but never used — removed.)
     private approvalsService: ApprovalsService,
     private hierarchyService: HierarchyService,
     private attendanceService: AttendanceService,
     private notificationsService: NotificationsService,
-    @InjectConnection() private connection: Connection,
+    private connection: Connection,
   ) {}
-
 
 
   async findAll(organizationId: string, user?: any, mine?: boolean): Promise<Order[]> {
@@ -178,7 +176,20 @@ export class OrdersService {
       }
 
       const baseSubTotal = item.unitPrice * item.quantity;
-      const subTotal = baseSubTotal - (item.discount || 0);
+      const discount = Number(item.discount) || 0;
+      if (discount < 0 || discount > baseSubTotal) {
+        throw new BadRequestException(
+          `Discount on ${product.name} (${discount}) cannot exceed the line value (${baseSubTotal}).`,
+        );
+      }
+      // A line discount lowers the effective unit price just like a price
+      // override does, so it goes through the same BR-022 approval.
+      const effectiveUnitPrice = item.quantity > 0 ? (baseSubTotal - discount) / item.quantity : item.unitPrice;
+      if (discount > 0 && effectiveUnitPrice < product.pricing.basePrice) {
+        requiresApproval = true;
+        approvalReason = `Discounted unit price of ${product.name} (${effectiveUnitPrice.toFixed(2)}) is below minimum base price of ${product.pricing.basePrice}.`;
+      }
+      const subTotal = baseSubTotal - discount;
       
       const gstRate = product.pricing.gstPercentage || 0;
       const gstAmount = parseFloat((subTotal * (gstRate / 100)).toFixed(2));
@@ -236,7 +247,10 @@ export class OrdersService {
       projectedDistributorExposure += ((assignedDistributor as any).commercial?.outstandingBalance || 0) + unbilledDistributorExposure;
     }
 
-    let initialStatus = orderData.status || 'Submitted';
+    // Clients may only choose between saving a Draft and submitting. Any other
+    // client-supplied status (e.g. 'Approved') is ignored — the server decides
+    // Pending_Approval / Hold_Credit / Hold_Stock below.
+    let initialStatus: Order['status'] = orderData.status === 'Draft' ? 'Draft' : 'Submitted';
     
     // Draft orders skip credit and stock checks completely until submitted
     if (initialStatus === 'Draft') {
@@ -267,6 +281,10 @@ export class OrdersService {
       }
     }
     } // Missing brace added
+
+    // Never trust client-supplied workflow/audit fields.
+    delete (orderData as any).statusHistory;
+    delete (orderData as any).createdByUserId;
 
     const newOrder = new this.orderModel({
       ...orderData,
@@ -359,15 +377,88 @@ export class OrdersService {
     return await order.save({ session }) as any;
   }
 
+  /**
+   * PUT /orders/:id/status. A bare status change must never let a user skip
+   * the real workflows (stock reservation on approve, stock deduction on
+   * dispatch, reservation release on cancel/reject), and only roles holding
+   * Orders:Approve may move an order forward. The one thing a user without
+   * Orders:Approve may do here is cancel an order they created themselves.
+   */
+  async changeStatus(
+    organizationId: string,
+    orderId: string,
+    status: Order['status'],
+    user: { sub: string; role: string; distributorId?: string },
+    reason?: string,
+  ): Promise<Order> {
+    const order: any = await this.findById(organizationId, orderId);
+    const canApprove = RBAC.can(user.role as Role, Action.Approve, Resource.Orders);
+    const isCreator = !!order.createdByUserId && order.createdByUserId.toString() === user.sub;
+
+    if (status === 'Cancelled') {
+      if (!canApprove && !isCreator) {
+        throw new ForbiddenException('Only the order creator or an approver can cancel this order');
+      }
+    } else if (!canApprove) {
+      throw new ForbiddenException(`User with role ${user.role} does not have approve permission on ${Resource.Orders}`);
+    }
+    if (!(status === 'Cancelled' && isCreator)) {
+      this.assertDistributorOwnsOrder(order, user);
+    }
+
+    switch (status) {
+      case 'Cancelled':
+        // Releases any stock reservations held by an Approved order.
+        return this.cancelOrder(organizationId, orderId, user.sub, reason);
+      case 'Approved':
+        // Goes through FEFO reservation, exactly like POST /orders/:id/approve.
+        return this.approveOrder(organizationId, orderId, user.sub, undefined, reason, this.reservationScope(user));
+      case 'Rejected':
+        return this.rejectOrder(organizationId, orderId, user.sub, reason);
+      case 'Dispatched':
+        // Deducts reserved stock, exactly like POST /orders/:id/dispatch.
+        return this.dispatchOrder(organizationId, orderId, user.sub);
+      default:
+        return this.updateStatus(organizationId, orderId, status, user.sub, reason);
+    }
+  }
+
+  /**
+   * A Distributor only ever sees orders routed to them (see findAll); make
+   * sure they also can't approve/dispatch/reject someone else's order by id.
+   */
+  async assertDistributorCanActOnOrder(
+    organizationId: string,
+    orderId: string,
+    user: { role: string; distributorId?: string },
+  ): Promise<void> {
+    if (user.role !== 'Distributor') return;
+    const order = await this.findById(organizationId, orderId);
+    this.assertDistributorOwnsOrder(order, user);
+  }
+
+  assertDistributorOwnsOrder(order: any, user: { role: string; distributorId?: string }): void {
+    if (user.role === 'Distributor') {
+      const assigned = order?.assignedDistributorId?.toString();
+      if (!user.distributorId || assigned !== user.distributorId) {
+        throw new ForbiddenException('This order is not assigned to you');
+      }
+    }
+  }
+
   async approveOrder(
     organizationId: string, 
     orderId: string, 
     actorId: string, 
     manualAllocations?: Record<string, { batch: string; quantity: number }[]>,
-    reason?: string
+    reason?: string,
+    // When the approver is a Distributor, only their own batches may be
+    // reserved (never another distributor's or the company's stock).
+    opts: { distributorId?: string } = {},
   ): Promise<Order> {
     const session = await this.connection.startSession();
     session.startTransaction();
+    let aborted = false;
     try {
       const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
       if (!order) {
@@ -397,14 +488,14 @@ export class OrdersService {
             undefined, 
             session,
             itemManualAllocations,
-            minShelfLife
+            minShelfLife,
+            opts.distributorId,
           );
           item.allocations = allocations;
-          console.log('ALLOCATIONS FROM INVENTORY:', allocations);
-          console.log('ORDER ITEM NOW HAS ALLOCATIONS:', item.allocations);
         } catch (error: any) {
           if (error.message.includes('Insufficient stock')) {
             hasInsufficientStock = true;
+            break;
           } else {
             throw error;
           }
@@ -412,12 +503,30 @@ export class OrdersService {
       }
 
       if (hasInsufficientStock) {
-        order.status = 'Hold_Stock' as any;
-        order.markModified('items');
-        await order.save({ session });
-        await this.updateStatus(organizationId, orderId, 'Hold_Stock', actorId, 'Insufficient stock during approval attempt', session);
-        await session.commitTransaction();
-        return order as any;
+        // Roll back every reservation already made for earlier items in this
+        // attempt: committing them alongside Hold_Stock leaked reservedStock,
+        // because re-approving a Hold_Stock order reserves (and overwrites
+        // item.allocations) all over again.
+        await session.abortTransaction();
+        aborted = true;
+        // Record the hold directly: going through updateStatus would attempt
+        // a Hold_Stock -> Hold_Stock transition, which isn't a valid transition.
+        const held = await this.orderModel.findOneAndUpdate(
+          { _id: orderId, organizationId },
+          {
+            $set: { status: 'Hold_Stock' },
+            $push: {
+              statusHistory: {
+                status: 'Hold_Stock',
+                actorId,
+                timestamp: new Date().toISOString(),
+                reason: 'Insufficient stock during approval attempt',
+              },
+            },
+          } as any,
+          { new: true },
+        );
+        return held as any;
       }
 
       order.markModified('items');
@@ -433,7 +542,7 @@ export class OrdersService {
 
       return updated;
     } catch (error) {
-      await session.abortTransaction();
+      if (!aborted) await session.abortTransaction();
       throw error;
     } finally {
       session.endSession();
@@ -467,6 +576,44 @@ export class OrdersService {
     } finally {
       session.endSession();
     }
+  }
+
+  /** Batch scope for stock reservations made on behalf of `user`. */
+  reservationScope(user: { role: string; distributorId?: string }): { distributorId?: string } {
+    if (user.role !== 'Distributor') return {};
+    if (!user.distributorId) throw new ForbiddenException('Distributor account is not linked to a distributor');
+    return { distributorId: user.distributorId };
+  }
+
+  /**
+   * GET /orders/:id — same visibility rules as findAll: reps see only their
+   * own orders, distributors only orders routed to them, other non-admins
+   * only orders for outlets in their territories. Anything else is a 404-style
+   * "not found" so ids of other users' orders are not confirmed.
+   */
+  async findByIdForUser(organizationId: string, orderId: string, user: any): Promise<Order> {
+    const order: any = await this.findById(organizationId, orderId);
+    if (!user || ['Super Admin', 'Organization Admin'].includes(user.role)) return order;
+
+    let visible: boolean;
+    if (user.role === 'Distributor') {
+      visible = !!user.distributorId && order.assignedDistributorId?.toString() === user.distributorId;
+    } else if (user.role === 'Sales Representative') {
+      visible = order.createdByUserId?.toString() === user.sub;
+    } else {
+      if (!user.territoryIds || user.territoryIds.length === 0) {
+        visible = false;
+      } else {
+        const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, user.territoryIds);
+        const outlet = await this.outletModel
+          .findOne({ _id: order.outletId, organizationId, territoryId: { $in: descendantIds } })
+          .select('_id')
+          .exec();
+        visible = !!outlet;
+      }
+    }
+    if (!visible) throw new BadRequestException(`Order ${orderId} not found`);
+    return order;
   }
 
   async findById(organizationId: string, orderId: string): Promise<Order> {

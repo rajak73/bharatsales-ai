@@ -1,21 +1,47 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { BadRequestException, NotFoundException } from '../core/http-errors';
+import { Logger } from '../core/logger';
 import { Model } from 'mongoose';
 import { Invoice, PaymentCollection, Outlet, Order } from '@bharatsales/shared-types';
+import type { HierarchyService } from '../hierarchy/hierarchy.service';
 
-@Injectable()
 export class FinanceService {
   private readonly logger = new Logger(FinanceService.name);
 
   constructor(
-    @InjectModel('Invoice') private invoiceModel: Model<Invoice>,
-    @InjectModel('Collection') private collectionModel: Model<PaymentCollection>,
-    @InjectModel('Outlet') private outletModel: Model<Outlet>,
-    @InjectModel('Order') private orderModel: Model<Order>,
+    private invoiceModel: Model<Invoice>,
+    private collectionModel: Model<PaymentCollection>,
+    private outletModel: Model<Outlet>,
+    private orderModel: Model<Order>,
+    // Needed to scope Sales Managers to their territories' outlets.
+    private hierarchyService?: HierarchyService,
   ) {}
 
-  async getInvoices(organizationId: string): Promise<Invoice[]> {
-    return this.invoiceModel.find({ organizationId }).sort({ createdAt: -1 }).exec();
+  /**
+   * Outlet ids the caller may see finance data for, or null for "all"
+   * (admins, or internal callers passing no user). Same rules as
+   * CollectionsService.findAll: a Distributor sees outlets whose orders are
+   * routed to them; other non-admins see outlets in their territories.
+   */
+  private async accessibleOutletIds(organizationId: string, user?: any): Promise<string[] | null> {
+    if (!user || ['Super Admin', 'Organization Admin'].includes(user.role)) return null;
+    if (user.role === 'Distributor') {
+      const ids = await this.orderModel.distinct('outletId', {
+        organizationId,
+        assignedDistributorId: user.distributorId || '__none__',
+      });
+      return ids.map((id: any) => String(id));
+    }
+    if (!user.territoryIds || user.territoryIds.length === 0 || !this.hierarchyService) return [];
+    const descendantIds = await this.hierarchyService.getDescendantTerritoryIds(organizationId, user.territoryIds);
+    const outlets = await this.outletModel.find({ organizationId, territoryId: { $in: descendantIds } }).select('_id').exec();
+    return outlets.map((o: any) => o._id.toString());
+  }
+
+  async getInvoices(organizationId: string, user?: any): Promise<Invoice[]> {
+    const query: any = { organizationId };
+    const outletIds = await this.accessibleOutletIds(organizationId, user);
+    if (outletIds) query.outletId = { $in: outletIds };
+    return this.invoiceModel.find(query).sort({ createdAt: -1 }).exec();
   }
 
   async generateInvoiceFromOrder(organizationId: string, orderId: string, session?: any, deliveredItems?: { productId: string, deliveredQty: number }[]): Promise<Invoice> {
@@ -100,7 +126,11 @@ export class FinanceService {
     return creditNote;
   }
 
-  async getLedger(organizationId: string, outletId: string): Promise<any[]> {
+  async getLedger(organizationId: string, outletId: string, user?: any): Promise<any[]> {
+    const outletIds = await this.accessibleOutletIds(organizationId, user);
+    if (outletIds && !outletIds.includes(String(outletId))) {
+      throw new NotFoundException('Outlet not found');
+    }
     const invoices = await this.invoiceModel.find({ organizationId, outletId }).exec();
     const collections = await this.collectionModel.find({ organizationId, outletId }).exec();
 
