@@ -1,6 +1,7 @@
 import { NotFoundException, BadRequestException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { HierarchyNode } from '@bharatsales/shared-types';
+import { toSafeUpdate } from '../core/query-safety';
 
 // parentId is typed ObjectId, but nodes written by raw inserts (seed scripts,
 // imports) hold it as a plain string. A normal `parentId: { $in: ids }` is
@@ -39,7 +40,7 @@ export class HierarchyService {
     delete (nodeData as any).updatedAt;
     
     if (nodeData.parentId) {
-      const parent = await this.hierarchyModel.findOne({ _id: nodeData.parentId, organizationId }).exec();
+      const parent = await this.hierarchyModel.findOne({ _id: String(nodeData.parentId), organizationId }).exec();
       if (!parent) {
         throw new BadRequestException('Parent node not found');
       }
@@ -68,8 +69,8 @@ export class HierarchyService {
   // prior assignment (avoids silently revoking a manager's other legitimate access).
   private async grantManagerAccess(organizationId: string, managerId: string, nodeId: string) {
     await this.userModel.updateOne(
-      { _id: managerId, organizationId },
-      { $addToSet: { territoryIds: nodeId } }
+      { _id: String(managerId), organizationId },
+      { $addToSet: { territoryIds: String(nodeId) } }
     ).exec();
   }
 
@@ -85,7 +86,7 @@ export class HierarchyService {
     }
 
     if (updateData.parentId && updateData.parentId.toString() !== thisNode.parentId?.toString()) {
-      const targetParent = await this.hierarchyModel.findOne({ _id: updateData.parentId, organizationId }).exec();
+      const targetParent = await this.hierarchyModel.findOne({ _id: String(updateData.parentId), organizationId }).exec();
       if (!targetParent) {
         throw new BadRequestException('Target parent node not found');
       }
@@ -110,7 +111,7 @@ export class HierarchyService {
 
     const node = await this.hierarchyModel.findOneAndUpdate(
       { _id: id, organizationId },
-      { $set: updateData },
+      { $set: toSafeUpdate(updateData) },
       { new: true }
     ).exec();
 

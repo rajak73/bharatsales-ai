@@ -4,6 +4,10 @@ import type { Readable } from 'stream';
 import mongoose, { Connection } from 'mongoose';
 import { Logger } from '../core/logger';
 import { ServiceUnavailableException } from '../core/http-errors';
+import { detectImageExtension } from './image-type';
+
+/** Server-generated upload names: 128 random bits as hex + image extension. */
+const LOCAL_FILENAME_RE = /^([0-9a-f]{32})(\.jpg|\.png|\.webp)$/;
 
 export interface StoredFile {
   stream: Readable;
@@ -87,9 +91,15 @@ export class LocalDiskStorageProvider implements IStorageProvider {
   }
 
   async upload(buffer: Buffer, filename: string): Promise<string> {
-    // `filename` is server-generated and already unguessable; keep it as-is so
-    // the URL has the same shape whichever driver stored it.
-    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    // The route already stores only content-verified images under a
+    // server-generated name; re-check both here so this disk write can never
+    // receive anything else (wrong bytes, or a name that escapes uploadDir).
+    const ext = detectImageExtension(buffer);
+    const match = LOCAL_FILENAME_RE.exec(filename);
+    if (!ext || !match || match[2] !== ext) {
+      throw new Error('LocalDiskStorageProvider only stores verified JPEG/PNG/WebP images under a generated name');
+    }
+    const safeName = `${match[1]}${ext}`;
     const filePath = path.join(this.uploadDir, safeName);
     await fs.promises.writeFile(filePath, buffer);
     this.logger.log(`Stored upload at ${filePath}`);

@@ -15,7 +15,7 @@ export class VisitsService {
   async checkIn(userId: string, organizationId: string, data: { outletId: string; lat: number; lng: number; accuracy: number; isMock?: boolean; deviceTimestamp?: string; photoUrl?: string; idempotencyKey?: string }) {
     // Retry of a previously-synced check-in (e.g. offline-first client resubmit)
     if (data.idempotencyKey) {
-      const existingByKey = await this.visitModel.findOne({ organizationId, idempotencyKey: data.idempotencyKey });
+      const existingByKey = await this.visitModel.findOne({ organizationId, idempotencyKey: String(data.idempotencyKey) });
       if (existingByKey) {
         return existingByKey;
       }

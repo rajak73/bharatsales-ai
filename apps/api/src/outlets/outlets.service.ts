@@ -8,6 +8,7 @@ import { Outlet as SharedOutlet } from '@bharatsales/shared-types';
 import { Tenant } from '../schemas/tenant.schema';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { toSafeUpdate } from '../core/query-safety';
 
 export class OutletsService {
   constructor(
@@ -207,7 +208,7 @@ export class OutletsService {
     // Safely apply dot-notation update using mongoose $set (e.g. { 'commercial.assignedDistributorId': 'dist_id' })
     const updated = await this.outletModel.findOneAndUpdate(
       { _id: id, organizationId },
-      { $set: data },
+      { $set: toSafeUpdate(data) },
       { new: true }
     );
     if (!updated) {
@@ -217,7 +218,7 @@ export class OutletsService {
     const newDistributorId = data['commercial.assignedDistributorId'];
     const previousDistributorId = outlet.commercial?.assignedDistributorId?.toString();
     if (newDistributorId && newDistributorId !== previousDistributorId) {
-      const distributorUsers = await this.userModel.find({ organizationId, role: 'Distributor', distributorId: newDistributorId }).exec();
+      const distributorUsers = await this.userModel.find({ organizationId, role: 'Distributor', distributorId: String(newDistributorId) }).exec();
       for (const distributorUser of distributorUsers) {
         this.notificationsService.create(organizationId, distributorUser._id.toString(), {
           type: 'distributor_assigned',

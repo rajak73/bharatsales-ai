@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { Product } from '../schemas/product.schema';
 import { Product as SharedProduct, Outlet } from '@bharatsales/shared-types';
+import { toSafeUpdate } from '../core/query-safety';
 
 export class ProductsService {
   constructor(
@@ -18,10 +19,10 @@ export class ProductsService {
   }
 
   async getProductForOutlet(organizationId: string, id: string, outletId: string): Promise<any> {
-    const product = await this.productModel.findOne({ _id: id, organizationId }).exec();
+    const product = await this.productModel.findOne({ _id: String(id), organizationId }).exec();
     if (!product) throw new NotFoundException('Product not found');
 
-    const outlet = await this.outletModel.findOne({ _id: outletId, organizationId }).exec();
+    const outlet = await this.outletModel.findOne({ _id: String(outletId), organizationId }).exec();
     if (!outlet) throw new NotFoundException('Outlet not found');
 
     const result = product.toObject();
@@ -69,8 +70,8 @@ export class ProductsService {
     }
 
     const product = await this.productModel.findOneAndUpdate(
-      { _id: id, organizationId },
-      { $set: updateData },
+      { _id: String(id), organizationId },
+      { $set: toSafeUpdate(updateData) },
       { new: true }
     ).exec();
     
@@ -82,7 +83,7 @@ export class ProductsService {
   }
 
   async remove(organizationId: string, id: string): Promise<{ deleted: boolean }> {
-    const product = await this.productModel.findOneAndDelete({ _id: id, organizationId }).exec();
+    const product = await this.productModel.findOneAndDelete({ _id: String(id), organizationId }).exec();
     if (!product) {
       throw new NotFoundException('Product not found');
     }

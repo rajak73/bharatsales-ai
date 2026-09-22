@@ -74,6 +74,29 @@ export function hashRefreshToken(token: string): string {
 // Keep a bounded history of rotated tokens per session for reuse detection.
 const MAX_ROTATED_TOKENS = 20;
 
+/** Which credential the client submitted; each is fully verified by login(). */
+function loginMethod(password: unknown, otp: unknown): 'password' | 'otp' | null {
+  if (typeof password === 'string' && password.length > 0) return 'password';
+  if (typeof otp === 'string' && otp.length > 0) return 'otp';
+  return null;
+}
+
+/** bcrypt check that is simply false when the account has no password set. */
+async function passwordMatches(candidate: unknown, hash: string | undefined | null): Promise<boolean> {
+  if (typeof candidate !== 'string' || !hash) return false;
+  return bcrypt.compare(candidate, hash);
+}
+
+/**
+ * Exact-match filter for a client-supplied secret (verification / reset /
+ * invitation token, OTP). The routes already validate these as strings; this
+ * keeps the query safe even if a caller forgets: a non-string can never become
+ * a Mongo operator or an implicit $in, and simply matches nothing.
+ */
+function eqString(value: unknown): { $eq: string } {
+  return { $eq: typeof value === 'string' ? value : '' };
+}
+
 export class AuthService {
   private smsProvider: ISMSProvider = new TwilioSMSProvider();
   public googleSSO: ISSOProvider = new MockGoogleSSOProvider();
@@ -153,7 +176,7 @@ export class AuthService {
 
   async verifyEmail(token: string) {
     const validToken = await this.tokenModel.findOne({
-      token,
+      token: eqString(token),
       type: 'EMAIL_VERIFICATION',
       used: false,
       expiresAt: { $gt: new Date() }
@@ -204,20 +227,20 @@ export class AuthService {
       throw new UnauthorizedException(`Account is locked due to too many failed attempts. Try again later.`);
     }
 
-    if (password) {
-      if (!user.password) {
-        await this.handleFailedLogin(user);
-        throw new UnauthorizedException('Invalid credentials');
-      }
-      const isMatch = await bcrypt.compare(password, user.password);
+    // Which credential the client chose is up to the client (password or
+    // OTP); either way the credential itself is verified below and every
+    // failure counts toward the same lockout, so the choice bypasses nothing.
+    const method = loginMethod(password, otp);
+    if (method === 'password') {
+      const isMatch = await passwordMatches(password, user.password);
       if (!isMatch) {
-        await this.handleFailedLogin(user);
+        await this.recordFailedAttempt(user);
         throw new UnauthorizedException('Invalid credentials');
       }
-    } else if (otp) {
+    } else if (method === 'otp') {
       const validToken = await this.tokenModel.findOne({
         userId: user._id.toString(),
-        token: otp,
+        token: eqString(otp),
         type: 'OTP',
         used: false,
         expiresAt: { $gt: new Date() }
@@ -226,7 +249,7 @@ export class AuthService {
       if (!validToken) {
         // A wrong OTP counts toward the same lockout as a wrong password,
         // otherwise the 6-digit code could be brute-forced.
-        await this.handleFailedLogin(user);
+        await this.recordFailedAttempt(user);
         throw new UnauthorizedException('Invalid or expired OTP');
       }
       validToken.used = true;
@@ -273,7 +296,7 @@ export class AuthService {
     return this.generateTokenResponse(user, refreshToken);
   }
 
-  private async handleFailedLogin(user: UserDocument) {
+  private async recordFailedAttempt(user: UserDocument) {
     user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
     if (user.failedLoginAttempts >= 5) {
       const lockTime = new Date();
@@ -336,7 +359,7 @@ export class AuthService {
 
     const validToken = await this.tokenModel.findOne({
       userId: user._id.toString(),
-      token: otp,
+      token: eqString(otp),
       type: 'OTP',
       used: false,
       expiresAt: { $gt: new Date() }
@@ -353,7 +376,7 @@ export class AuthService {
       return { success: true };
     }
     // Wrong OTPs count toward the same lockout as wrong passwords.
-    await this.handleFailedLogin(user);
+    await this.recordFailedAttempt(user);
     throw new UnauthorizedException('Invalid or expired OTP');
   }
 
@@ -394,7 +417,7 @@ export class AuthService {
 
   async resetPassword(token: string, newPassword: string) {
     const validToken = await this.tokenModel.findOne({
-      token,
+      token: eqString(token),
       type: 'PASSWORD_RESET',
       used: false,
       expiresAt: { $gt: new Date() }
@@ -438,7 +461,7 @@ export class AuthService {
 
   async acceptInvitation(token: string, newPassword: string) {
     const validToken = await this.tokenModel.findOne({
-      token,
+      token: eqString(token),
       type: 'INVITATION',
       used: false,
       expiresAt: { $gt: new Date() }

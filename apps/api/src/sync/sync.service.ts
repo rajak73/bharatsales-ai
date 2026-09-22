@@ -134,7 +134,7 @@ export class SyncService {
         for (const order of payload.orders) {
           // If order exists and is newer on server, conflict
           if (order._id) {
-            const existing = await this.orderModel.findOne({ _id: order._id, organizationId }).session(session);
+            const existing = await this.orderModel.findOne({ _id: String(order._id), organizationId }).session(session);
             if (existing && (existing as any).updatedAt > new Date(order.updatedAt)) {
               conflicts.push({ type: 'Order', id: order._id, reason: 'Newer version exists on server' });
               continue;
@@ -158,7 +158,7 @@ export class SyncService {
             conflicts.push({ type: 'Visit', id: visit._id || 'new', reason: 'idempotencyKey is required' });
             continue;
           }
-          const existing = await this.visitModel.findOne({ organizationId, idempotencyKey: visit.idempotencyKey }).session(session);
+          const existing = await this.visitModel.findOne({ organizationId, idempotencyKey: String(visit.idempotencyKey) }).session(session);
           if (existing) {
             continue; // Already synced — idempotent no-op
           }

@@ -3,6 +3,7 @@ import { Logger } from '../core/logger';
 import { Model } from 'mongoose';
 import { Invoice, PaymentCollection, Outlet, Order } from '@bharatsales/shared-types';
 import type { HierarchyService } from '../hierarchy/hierarchy.service';
+import { asId } from '../core/query-safety';
 
 export class FinanceService {
   private readonly logger = new Logger(FinanceService.name);
@@ -45,12 +46,12 @@ export class FinanceService {
   }
 
   async generateInvoiceFromOrder(organizationId: string, orderId: string, session?: any, deliveredItems?: { productId: string, deliveredQty: number }[]): Promise<Invoice> {
-    const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
+    const order = await this.orderModel.findOne({ _id: asId(orderId), organizationId }).session(session);
     if (!order) {
       throw new NotFoundException('Order not found');
     }
 
-    const existingInvoice = await this.invoiceModel.findOne({ orderId, organizationId }).session(session);
+    const existingInvoice = await this.invoiceModel.findOne({ orderId: asId(orderId), organizationId }).session(session);
     if (existingInvoice) {
       throw new BadRequestException('Invoice already generated for this order');
     }
@@ -94,7 +95,6 @@ export class FinanceService {
       { $inc: { 'commercial.outstandingBalance': invoiceTotal } },
       { session }
     );
-
 
     return savedInvoice;
   }

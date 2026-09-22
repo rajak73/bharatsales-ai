@@ -3,6 +3,7 @@ import { Logger } from '../core/logger';
 import { Model } from 'mongoose';
 import { Inventory } from '../schemas/inventory.schema';
 import { Inventory as SharedInventory } from '@bharatsales/shared-types';
+import { asId } from '../core/query-safety';
 
 const ADDITION_TYPES = ['Correction (Positive)', 'Transfer In', 'Purchase'];
 const SUBTRACTION_TYPES = ['Damage', 'Expiry', 'Correction (Negative)', 'Transfer Out'];
@@ -164,9 +165,9 @@ export class InventoryService {
       let allocatedTotal = 0;
       const finalAllocations: { inventoryId: string; batch: string; quantity: number }[] = [];
       for (const manual of manualAllocations) {
-        const query: any = { organizationId, productId, batch: manual.batch, ...eligibilityFilter() };
-        if (warehouseId) query.warehouseId = warehouseId;
-        if (distributorId) query.distributorId = distributorId;
+        const query: any = { organizationId, productId: asId(productId), batch: String(manual.batch), ...eligibilityFilter() };
+        if (warehouseId) query.warehouseId = String(warehouseId);
+        if (distributorId) query.distributorId = String(distributorId);
         const inventory = await this.inventoryModel.findOne(query).session(session).exec();
         
         if (!inventory || inventory.stock < manual.quantity) {
@@ -376,9 +377,9 @@ export class InventoryService {
       throw new BadRequestException('expiry must be a valid date');
     }
 
-    const query: any = { organizationId, productId: adjustment.productId, batch: adjustment.batch };
-    if (adjustment.warehouseId) query.warehouseId = adjustment.warehouseId;
-    if (adjustment.distributorId) query.distributorId = adjustment.distributorId;
+    const query: any = { organizationId, productId: asId(adjustment.productId), batch: asId(adjustment.batch) };
+    if (adjustment.warehouseId) query.warehouseId = String(adjustment.warehouseId);
+    if (adjustment.distributorId) query.distributorId = String(adjustment.distributorId);
 
     let inventory = await this.inventoryModel.findOne(query).session(session).exec();
     
@@ -403,7 +404,7 @@ export class InventoryService {
         throw new BadRequestException(`expiry is required when adding a new batch via ${adjustment.type}`);
       }
       
-      const product = await this.productModel.findOne({ _id: adjustment.productId, organizationId }).exec();
+      const product = await this.productModel.findOne({ _id: asId(adjustment.productId), organizationId }).exec();
       if (!product) {
         throw new BadRequestException(`Product ${adjustment.productId} not found`);
       }

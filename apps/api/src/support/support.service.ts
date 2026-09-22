@@ -30,7 +30,9 @@ export class SupportService {
   }
 
   async updateStatus(id: string, status: string) {
-    const ticket = await this.ticketModel.findByIdAndUpdate(id, { status }, { new: true }).exec();
+    // Both values come from the request (the status is zod-validated); coerce
+    // them to strings so neither can carry a MongoDB operator object.
+    const ticket = await this.ticketModel.findByIdAndUpdate(String(id), { status: String(status) }, { new: true }).exec();
     if (!ticket) {
       throw new NotFoundException('Ticket not found');
     }

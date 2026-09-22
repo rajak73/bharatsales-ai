@@ -2,6 +2,7 @@ import { Model, Connection, ClientSession } from 'mongoose';
 import { PaymentCollection, Outlet, Invoice, Order } from '@bharatsales/shared-types';
 import { NotFoundException, BadRequestException } from '../core/http-errors';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { asId } from '../core/query-safety';
 
 type Allocation = { invoiceId: string; amount: number };
 
@@ -79,6 +80,7 @@ export class CollectionsService {
   ): Promise<Allocation[]> {
     let unallocatedAmount = amount || 0;
     const actualAllocations: Allocation[] = [];
+    const outlet = asId(outletId);
 
     const apply = async (invoice: any, alloc: number) => {
       if (alloc <= 0) return;
@@ -97,7 +99,7 @@ export class CollectionsService {
         throw new BadRequestException(`Manual allocations total (${totalManual}) exceeds collection amount (${unallocatedAmount})`);
       }
       for (const alloc of request.allocations) {
-        const invoice = await this.invoiceModel.findOne({ _id: alloc.invoiceId, organizationId, outletId }).session(session);
+        const invoice = await this.invoiceModel.findOne({ _id: asId(alloc.invoiceId), organizationId, outletId: outlet }).session(session);
         if (!invoice) {
           if (!opts.strict) continue;
           throw new BadRequestException(`Invoice ${alloc.invoiceId} not found or does not belong to outlet`);
@@ -109,7 +111,7 @@ export class CollectionsService {
         await apply(invoice, Math.min(alloc.amount, remainingAmount));
       }
     } else if (request.invoiceId) {
-      const invoice = await this.invoiceModel.findOne({ _id: request.invoiceId, organizationId, outletId }).session(session);
+      const invoice = await this.invoiceModel.findOne({ _id: asId(request.invoiceId), organizationId, outletId: outlet }).session(session);
       if (!invoice) {
         if (opts.strict) {
           throw new BadRequestException('Invoice not found or does not belong to the specified outlet');
@@ -124,7 +126,7 @@ export class CollectionsService {
     } else if (opts.persist) {
       // FIFO can't fail validation, so there is nothing to check in a dry run.
       const unpaidInvoices = await this.invoiceModel.find({
-        organizationId, outletId, status: { $in: ['Unpaid', 'Partial'] }
+        organizationId, outletId: outlet, status: { $in: ['Unpaid', 'Partial'] }
       }).sort({ createdAt: 1 }).session(session);
       for (const invoice of unpaidInvoices) {
         if (unallocatedAmount <= 0) break;
@@ -150,7 +152,7 @@ export class CollectionsService {
 
   async create(organizationId: string, userId: string, data: Partial<PaymentCollection>): Promise<PaymentCollection> {
     if ((data as any).idempotencyKey) {
-      const existing = await this.collectionModel.findOne({ organizationId, idempotencyKey: (data as any).idempotencyKey });
+      const existing = await this.collectionModel.findOne({ organizationId, idempotencyKey: String((data as any).idempotencyKey) });
       if (existing) {
         return existing;
       }
@@ -180,7 +182,8 @@ export class CollectionsService {
     session.startTransaction();
 
     try {
-      const outlet = await this.outletModel.findOne({ _id: data.outletId, organizationId }).session(session);
+      const outletId = asId(data.outletId);
+      const outlet = await this.outletModel.findOne({ _id: outletId, organizationId }).session(session);
       if (!outlet) {
         throw new NotFoundException('Outlet not found');
       }
@@ -188,7 +191,7 @@ export class CollectionsService {
       if (data.paymentMode !== 'Cash' && data.referenceNumber) {
         const duplicate = await this.collectionModel.findOne({
           organizationId,
-          referenceNumber: data.referenceNumber,
+          referenceNumber: String(data.referenceNumber),
         }).session(session);
         if (duplicate) {
           throw new BadRequestException(`Duplicate payment reference detected: ${data.referenceNumber}`);
@@ -207,7 +210,7 @@ export class CollectionsService {
 
       if (status === 'Cleared') {
         collection.allocations = await this.allocateToInvoices(
-          organizationId, data.outletId as string, data.amount || 0,
+          organizationId, outletId as string, data.amount || 0,
           { allocations: data.allocations, invoiceId: data.invoiceId },
           session, { strict: true, persist: true }
         );
@@ -217,7 +220,7 @@ export class CollectionsService {
         // allocations array is what marks a Pending collection as not yet
         // applied (see updateStatus).
         await this.allocateToInvoices(
-          organizationId, data.outletId as string, data.amount || 0,
+          organizationId, outletId as string, data.amount || 0,
           { invoiceId: data.invoiceId },
           session, { strict: true, persist: false }
         );
@@ -233,7 +236,7 @@ export class CollectionsService {
         // symmetric (an overpayment shows as a negative balance / advance,
         // and reversing it restores the true figure).
         await this.outletModel.updateOne(
-          { _id: data.outletId, organizationId },
+          { _id: outletId, organizationId },
           { $inc: { 'commercial.outstandingBalance': -(data.amount || 0) } },
           { session }
         );

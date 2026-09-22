@@ -52,6 +52,11 @@ let corsWarningLogged = false;
 // (bharatsales-ai-web-<hash>-<scope>.vercel.app / -git-<branch>-<scope>).
 export const DEFAULT_PROD_ORIGIN = /^https:\/\/bharatsales-ai-web(-[a-z0-9-]+)?\.vercel\.app$/;
 
+// Local dev servers: http(s)://localhost | 127.0.0.1 | 10.x | 192.168.x |
+// 172.16-31.x, optional port.
+export const DEV_ORIGIN =
+  /^https?:\/\/(localhost|127\.0\.0\.1|10(\.\d{1,3}){3}|192\.168(\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2})(:\d{1,5})?$/;
+
 function corsOptions(): CorsOptions {
   const allowlist = (process.env.CORS_ORIGINS || '')
     .split(',')
@@ -68,11 +73,14 @@ function corsOptions(): CorsOptions {
       corsWarningLogged = true;
       return { credentials: true, origin: (origin, cb) => cb(null, !origin || DEFAULT_PROD_ORIGIN.test(origin)) };
     }
+    // Development / test without CORS_ORIGINS: allow only local dev servers
+    // (localhost, 127.0.0.1 and private-LAN hosts on any port, so a phone on
+    // the same Wi-Fi can load the PWA). Never reflect an arbitrary origin.
     if (!corsWarningLogged && process.env.NODE_ENV !== 'test') {
-      logger.warn('CORS_ORIGINS is not set: reflecting any request origin. Set CORS_ORIGINS (comma-separated) in production.');
+      logger.warn('CORS_ORIGINS is not set: allowing only localhost / private-LAN dev origins. Set CORS_ORIGINS (comma-separated) in production.');
     }
     corsWarningLogged = true;
-    return { origin: true, credentials: true };
+    return { credentials: true, origin: (origin, cb) => cb(null, !origin || DEV_ORIGIN.test(origin)) };
   }
 
   return {
@@ -100,7 +108,20 @@ export function createApp(c: Container): Express {
   // TRUST_PROXY accepts a hop count, 'false', or an Express trust-proxy list.
   app.set('trust proxy', trustProxySetting(process.env.TRUST_PROXY));
   app.disable('x-powered-by');
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // This is a JSON-only API (plus image downloads and one SSE stream); it never
+  // serves HTML, so the strictest CSP is safe: nothing may load or frame it.
+  // /uploads sets its own, equally strict, policy per response.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+        },
+      },
+    }),
+  );
   app.use(
     compression({
       // Never buffer Server-Sent Events (GET /live-map/stream): gzip would hold

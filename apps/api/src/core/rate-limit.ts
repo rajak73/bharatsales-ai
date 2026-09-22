@@ -80,17 +80,37 @@ export const credentialIpLimiter = makeLimiter(300, ipKey);
  * (live-map polling, offline-queue sync bursts, report polling); anonymous
  * requests fall back to a per-IP key.
  */
-function userOrIpKey(req: Request): string {
-  const [type, token] = req.headers.authorization?.split(' ') ?? [];
-  if (type === 'Bearer' && token && process.env.JWT_SECRET) {
-    try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] }) as any;
-      if (payload?.sub) return `user:${payload.sub}`;
-    } catch {
-      /* fall through to IP */
-    }
+const BEARER_RE = /^Bearer ([A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+)$/;
+const keyCache = new WeakMap<Request, string>();
+
+/**
+ * The `sub` of a validly signed, unexpired access token, else undefined.
+ * The Authorization header only ever selects *which* bucket a request is
+ * counted in, and only after the token's signature has been verified with the
+ * server secret: a missing, malformed or forged token is counted against the
+ * client IP instead, so no header value can skip the limiter.
+ */
+function verifiedSubject(req: Request): string | undefined {
+  const secret = process.env.JWT_SECRET;
+  const match = BEARER_RE.exec(String(req.headers.authorization ?? ''));
+  try {
+    // jwt.verify throws for an empty token / missing secret, which is the
+    // anonymous (per-IP) case.
+    const payload = jwt.verify(match ? match[1] : '', secret || '', { algorithms: ['HS256'] }) as any;
+    return typeof payload?.sub === 'string' && payload.sub ? payload.sub : undefined;
+  } catch {
+    return undefined;
   }
-  return `ip:${ipKey(req)}`;
+}
+
+function userOrIpKey(req: Request): string {
+  // `limit` and `keyGenerator` both need the key: verify the JWT once per request.
+  const cached = keyCache.get(req);
+  if (cached) return cached;
+  const sub = verifiedSubject(req);
+  const key = sub ? `user:${sub}` : `ip:${ipKey(req)}`;
+  keyCache.set(req, key);
+  return key;
 }
 
 export const apiLimiter = rateLimit({

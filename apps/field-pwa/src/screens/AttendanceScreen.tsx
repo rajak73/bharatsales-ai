@@ -4,6 +4,18 @@ import { Clock, MapPin, Loader2, CheckCircle2, Camera } from 'lucide-react';
 import { UploadsService } from '@bharatsales/api-client';
 import { compressImage } from '../utils/image';
 
+/**
+ * Local preview of a just-captured photo. Only ever a same-origin `blob:`
+ * object URL (never a string taken from the file or the DOM), shown in an
+ * <img>, so it cannot carry markup or a javascript: URL. The previous preview
+ * URL is revoked so repeated retakes do not leak memory.
+ */
+function localPreviewUrl(file: File, previous: string | null): string | null {
+  if (previous) URL.revokeObjectURL(previous);
+  const url = URL.createObjectURL(file);
+  return /^blob:/.test(url) ? url : null;
+}
+
 export function AttendanceScreen() {
   const { activeSession, startDay, endDay, isLoading } = useAttendance();
   const [isLocating, setIsLocating] = useState(false);
@@ -16,7 +28,7 @@ export function AttendanceScreen() {
     const file = e.target.files?.[0];
     if (!file) return;
     setSelfie(file);
-    setSelfiePreviewUrl(URL.createObjectURL(file));
+    setSelfiePreviewUrl(localPreviewUrl(file, selfiePreviewUrl));
   };
 
   const handleAttendanceAction = async () => {

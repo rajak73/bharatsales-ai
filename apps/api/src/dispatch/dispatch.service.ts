@@ -3,6 +3,7 @@ import { Model, Connection } from 'mongoose';
 import { Dispatch, Order } from '@bharatsales/shared-types';
 import { OrdersService } from '../orders/orders.service';
 import { ReturnsService } from '../returns/returns.service';
+import { asId } from '../core/query-safety';
 
 export class DispatchService {
   constructor(
@@ -28,7 +29,7 @@ export class DispatchService {
     data: { vehicle: string; driver: string },
     user?: any
   ): Promise<Dispatch> {
-    const order = await this.orderModel.findOne({ _id: orderId, organizationId }).exec();
+    const order = await this.orderModel.findOne({ _id: asId(orderId), organizationId }).exec();
     if (!order) {
       throw new BadRequestException(`Order ${orderId} not found`);
     }

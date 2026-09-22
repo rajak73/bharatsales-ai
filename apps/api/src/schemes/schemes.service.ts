@@ -2,6 +2,7 @@ import { NotFoundException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { Scheme } from '../schemas/scheme.schema';
 import { Scheme as SharedScheme } from '@bharatsales/shared-types';
+import { toSafeUpdate } from '../core/query-safety';
 
 export class SchemesService {
   constructor(private schemeModel: Model<Scheme>) {}
@@ -25,8 +26,8 @@ export class SchemesService {
     delete (data as any).createdAt;
     delete (data as any).updatedAt;
     const scheme = await this.schemeModel.findOneAndUpdate(
-      { _id: id, organizationId },
-      { $set: data },
+      { _id: String(id), organizationId },
+      { $set: toSafeUpdate(data) },
       { new: true }
     ).exec();
     if (!scheme) throw new NotFoundException('Scheme not found');
@@ -34,7 +35,7 @@ export class SchemesService {
   }
 
   async remove(organizationId: string, id: string): Promise<{ deleted: boolean }> {
-    const scheme = await this.schemeModel.findOneAndDelete({ _id: id, organizationId }).exec();
+    const scheme = await this.schemeModel.findOneAndDelete({ _id: String(id), organizationId }).exec();
     if (!scheme) throw new NotFoundException('Scheme not found');
     return { deleted: true };
   }

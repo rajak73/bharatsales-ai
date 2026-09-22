@@ -75,7 +75,7 @@ export class SuperadminService {
       throw new NotFoundException(`Invalid status: ${status}`);
     }
 
-    const tenant = await this.tenantModel.findByIdAndUpdate(id, { status }, { new: true }).exec();
+    const tenant = await this.tenantModel.findByIdAndUpdate(String(id), { status: String(status) }, { new: true }).exec();
     if (!tenant) {
       throw new NotFoundException('Organization not found');
     }
@@ -167,10 +167,12 @@ export class SuperadminService {
   // precedent as AuditService.getGlobalLogs(). Gated by checkSuperAdmin() at
   // the controller level, never exposed to tenant-scoped roles.
   async getAllUsers(filters?: { role?: string; organizationId?: string; status?: string }) {
-    const query: any = {};
-    if (filters?.role) query.role = filters.role;
-    if (filters?.organizationId) query.organizationId = filters.organizationId;
-    if (filters?.status) query.status = filters.status;
+    // These come straight from req.query, which may hold arrays or objects;
+    // only plain string filters are applied.
+    const query: Record<string, string> = {};
+    if (typeof filters?.role === 'string' && filters.role) query.role = String(filters.role);
+    if (typeof filters?.organizationId === 'string' && filters.organizationId) query.organizationId = String(filters.organizationId);
+    if (typeof filters?.status === 'string' && filters.status) query.status = String(filters.status);
 
     const users = await this.userModel.find(query).select('-password').lean().exec();
     const tenantIds = [...new Set(users.map(u => u.organizationId))];
@@ -186,12 +188,14 @@ export class SuperadminService {
   }
 
   async updateSubscription(id: string, data: { plan?: string; billingCycle?: string; subscriptionUsersLimit?: number }) {
-    const update: any = {};
-    if (data.plan) update.plan = data.plan;
-    if (data.billingCycle) update.billingCycle = data.billingCycle;
-    if (data.subscriptionUsersLimit !== undefined) update.subscriptionUsersLimit = data.subscriptionUsersLimit;
+    // Values come from the (zod-validated) request body; coerce each to its
+    // primitive type so none can carry a MongoDB operator object.
+    const update: { plan?: string; billingCycle?: string; subscriptionUsersLimit?: number } = {};
+    if (data.plan) update.plan = String(data.plan);
+    if (data.billingCycle) update.billingCycle = String(data.billingCycle);
+    if (data.subscriptionUsersLimit !== undefined) update.subscriptionUsersLimit = Number(data.subscriptionUsersLimit);
 
-    const tenant = await this.tenantModel.findByIdAndUpdate(id, update, { new: true }).exec();
+    const tenant = await this.tenantModel.findByIdAndUpdate(String(id), update, { new: true }).exec();
     if (!tenant) {
       throw new NotFoundException('Organization not found');
     }
@@ -237,7 +241,7 @@ export class SuperadminService {
   }
 
   async addBillingRecord(id: string, data: { amount: string; plan: string; status?: string }) {
-    const tenant = await this.tenantModel.findById(id).exec();
+    const tenant = await this.tenantModel.findById(String(id)).exec();
     if (!tenant) {
       throw new NotFoundException('Organization not found');
     }

@@ -43,11 +43,14 @@ export function isRedactedKey(key: string): boolean {
 function redact(value: any, depth = 0): any {
   if (depth > 10 || value === null || typeof value !== 'object') return value;
   if (Array.isArray(value)) return value.map((v) => redact(v, depth + 1));
-  const out: Record<string, any> = {};
-  for (const [k, v] of Object.entries(value)) {
-    out[k] = isRedactedKey(k) ? '[REDACTED]' : redact(v, depth + 1);
-  }
-  return out;
+  // Built with Object.fromEntries (define, not assign), and prototype-chain
+  // keys are skipped, so a body key such as "__proto__" can never change the
+  // copy's prototype.
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([k]) => k !== '__proto__' && k !== 'constructor' && k !== 'prototype')
+      .map(([k, v]) => [k, isRedactedKey(k) ? '[REDACTED]' : redact(v, depth + 1)]),
+  );
 }
 
 /**

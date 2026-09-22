@@ -3,6 +3,7 @@ import { Logger } from '../core/logger';
 import { Model, isValidObjectId } from 'mongoose';
 import { SalesTarget as Target, Order } from '@bharatsales/shared-types';
 import { NotificationsService } from '../notifications/notifications.service';
+import { toSafeUpdate } from '../core/query-safety';
 
 export class TargetsService {
   private readonly logger = new Logger(TargetsService.name);
@@ -250,7 +251,7 @@ export class TargetsService {
     }
     const target = await this.targetModel.findOneAndUpdate(
       { _id: id, organizationId },
-      { $set: data },
+      { $set: toSafeUpdate(data) },
       { new: true }
     ).exec();
     if (!target) throw new NotFoundException('Target not found');

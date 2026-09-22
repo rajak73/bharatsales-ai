@@ -6,6 +6,26 @@ import { ReturnOrder as SharedReturnOrder, Outlet, Invoice } from '@bharatsales/
 import { InventoryService } from '../inventory/inventory.service';
 import { FinanceService } from '../finance/finance.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { asId } from '../core/query-safety';
+
+// Coerce request values to primitives before they reach a Mongoose filter or
+// update, so a request body can never inject a Mongo operator object.
+function sanitizeItems(items: any): { product: string; qty: number }[] | undefined {
+  if (!Array.isArray(items)) return undefined;
+  return items.map((item: any) => ({ product: String(item?.product), qty: Number(item?.qty) }));
+}
+
+/** $set document for PUT /returns/:id built from an allow-list of fields. */
+function returnUpdate(data: any): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (!data || typeof data !== 'object') return out;
+  if (data.orderId !== undefined) out.orderId = data.orderId === null ? null : String(data.orderId);
+  if (data.outlet !== undefined) out.outlet = String(data.outlet);
+  if (data.reason !== undefined) out.reason = data.reason === null ? null : String(data.reason);
+  if (data.items !== undefined) out.items = sanitizeItems(data.items) ?? [];
+  if (data.value !== undefined) out.value = String(data.value);
+  return out;
+}
 
 export class ReturnsService {
   private readonly logger = new Logger(ReturnsService.name);
@@ -46,7 +66,7 @@ export class ReturnsService {
     let calculatedRefundAmount = 0;
 
     if (orderId) {
-      const order = await this.orderModel.findOne({ _id: orderId, organizationId });
+      const order = await this.orderModel.findOne({ _id: String(orderId), organizationId });
       if (order && items) {
         for (const returnItem of items) {
           const originalItem = order.items.find((i: any) => i.productId === returnItem.product || i.productId?.toString() === returnItem.product);
@@ -54,7 +74,7 @@ export class ReturnsService {
             calculatedRefundAmount += (originalItem.unitPrice * returnItem.qty);
           } else {
              // Fallback to fetch product
-            const product = await this.productModel.findOne({ _id: returnItem.product, organizationId });
+            const product = await this.productModel.findOne({ _id: asId(returnItem.product), organizationId });
             if (product) {
               calculatedRefundAmount += (product.pricing.basePrice * returnItem.qty);
             }
@@ -63,7 +83,7 @@ export class ReturnsService {
       }
     } else if (items) {
         for (const returnItem of items) {
-            const product = await this.productModel.findOne({ _id: returnItem.product, organizationId });
+            const product = await this.productModel.findOne({ _id: asId(returnItem.product), organizationId });
             if (product) {
               calculatedRefundAmount += (product.pricing.basePrice * returnItem.qty);
             }
@@ -99,7 +119,7 @@ export class ReturnsService {
     data: Omit<SharedReturnOrder, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>,
     userId: string
   ): Promise<ReturnOrder> {
-    const outlet = await this.outletModel.findOne({ _id: data.outlet, organizationId });
+    const outlet = await this.outletModel.findOne({ _id: asId(data.outlet), organizationId });
     if (!outlet) {
       throw new NotFoundException('Outlet not found');
     }
@@ -223,7 +243,7 @@ export class ReturnsService {
     }
     const returnOrder = await this.returnModel.findOneAndUpdate(
       { _id: id, organizationId },
-      { $set: data },
+      { $set: returnUpdate(data) },
       { new: true }
     ).exec();
     if (!returnOrder) throw new NotFoundException('Return order not found');

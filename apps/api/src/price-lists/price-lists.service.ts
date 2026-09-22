@@ -2,6 +2,7 @@ import { NotFoundException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { PriceList } from '../schemas/price-list.schema';
 import { PriceList as SharedPriceList } from '@bharatsales/shared-types';
+import { toSafeUpdate } from '../core/query-safety';
 
 export class PriceListsService {
   constructor(private priceListModel: Model<PriceList>) {}
@@ -25,8 +26,8 @@ export class PriceListsService {
     delete (data as any).createdAt;
     delete (data as any).updatedAt;
     const priceList = await this.priceListModel.findOneAndUpdate(
-      { _id: id, organizationId },
-      { $set: data },
+      { _id: String(id), organizationId },
+      { $set: toSafeUpdate(data) },
       { new: true }
     ).exec();
     if (!priceList) throw new NotFoundException('Price list not found');
@@ -34,7 +35,7 @@ export class PriceListsService {
   }
 
   async remove(organizationId: string, id: string): Promise<{ deleted: boolean }> {
-    const priceList = await this.priceListModel.findOneAndDelete({ _id: id, organizationId }).exec();
+    const priceList = await this.priceListModel.findOneAndDelete({ _id: String(id), organizationId }).exec();
     if (!priceList) throw new NotFoundException('Price list not found');
     return { deleted: true };
   }

@@ -176,6 +176,25 @@ describe('BeatsService', () => {
     });
   });
 
+  describe('updateBeat — operator-safe $set', () => {
+    it('keeps the validated fields but drops $-prefixed keys from the update', async () => {
+      mockBeatModel.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'beat1' }) });
+
+      await service.updateBeat('org1', 'beat1', {
+        name: 'Route A',
+        description: undefined,
+        sequence: [{ outletId: 'o1', sequenceOrder: 1, $where: 'sleep(1)' }],
+        $where: '1',
+      } as any);
+
+      expect(mockBeatModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: 'beat1', organizationId: 'org1' },
+        { $set: { name: 'Route A', sequence: [{ outletId: 'o1', sequenceOrder: 1 }] } },
+        { new: true },
+      );
+    });
+  });
+
   describe('notifyMissedOutlets', () => {
     it('should notify a rep who left outlets unvisited on a completed beat day', async () => {
       mockBeatScheduleModel.find.mockReturnValue({

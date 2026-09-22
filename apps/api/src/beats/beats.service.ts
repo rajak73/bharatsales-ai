@@ -5,6 +5,7 @@ import { Beat, BeatSchedule, Visit, LocationPing, AttendanceSession } from '../s
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { calculateDistanceMeters } from '../common/geo.util';
+import { toSafeUpdate } from '../core/query-safety';
 
 export class BeatsService {
   private readonly logger = new Logger(BeatsService.name);
@@ -117,7 +118,7 @@ export class BeatsService {
     delete (data as any).updatedAt;
     const updated = await this.beatModel.findOneAndUpdate(
       { _id: beatId, organizationId },
-      { $set: data },
+      { $set: toSafeUpdate(data) },
       { new: true }
     ).exec();
     
@@ -226,7 +227,8 @@ export class BeatsService {
   // Route Analytics (BRD "Daily Sales Report & Route Analytics"): total GPS
   // distance covered, time spent productively at outlets vs travelling
   // between them, from real LocationPing/Visit/AttendanceSession data.
-  private async computeRouteAnalytics(organizationId: string, userId: string, dayStart: Date, dayEnd: Date) {
+  private async computeRouteAnalytics(organizationId: string, rawUserId: string, dayStart: Date, dayEnd: Date) {
+    const userId = String(rawUserId);
     const pings = await this.locationPingModel.find({
       organizationId, user: userId, deviceTimestamp: { $gte: dayStart, $lte: dayEnd }
     }).sort({ deviceTimestamp: 1 }).exec();
@@ -268,7 +270,10 @@ export class BeatsService {
   // Compares the planned outlet visit order (Beat.sequence) against the
   // actual order outlets were checked into today, for a given rep (BRD Phase 6),
   // plus route analytics (distance travelled, productive vs travel time).
-  async checkRouteDeviation(organizationId: string, userId: string, date?: string) {
+  async checkRouteDeviation(organizationId: string, rawUserId: string, date?: string) {
+    // ?userId= arrives from req.query, so it could be an array/object; the
+    // filters below must only ever see a plain string id.
+    const userId = String(rawUserId);
     const dayStart = date ? new Date(date) : new Date();
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(dayStart);

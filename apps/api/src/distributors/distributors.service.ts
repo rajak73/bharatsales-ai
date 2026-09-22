@@ -3,6 +3,7 @@ import { Logger } from '../core/logger';
 import { Model } from 'mongoose';
 import { Distributor } from '../schemas/distributor.schema';
 import { Distributor as SharedDistributor } from '@bharatsales/shared-types';
+import { toSafeUpdate } from '../core/query-safety';
 
 const ACTIVE_ORDER_STATUSES = ['Submitted', 'Hold_Credit', 'Hold_Stock', 'Pending_Approval', 'Approved', 'Dispatched', 'Partial_Delivery'];
 
@@ -69,7 +70,7 @@ export class DistributorsService {
 
     return this.distributorModel.findOneAndUpdate(
       { _id: id, organizationId },
-      { $set: data },
+      { $set: toSafeUpdate(data) },
       { new: true }
     ).exec();
   }

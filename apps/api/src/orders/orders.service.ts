@@ -8,6 +8,7 @@ import { ApprovalsService } from '../approvals/approvals.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { AttendanceService } from '../attendance/attendance.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { asId } from '../core/query-safety';
 
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -26,7 +27,6 @@ export class OrdersService {
     private notificationsService: NotificationsService,
     private connection: Connection,
   ) {}
-
 
   async findAll(organizationId: string, user?: any, mine?: boolean): Promise<Order[]> {
     const query: any = { organizationId };
@@ -74,9 +74,10 @@ export class OrdersService {
     }
 
     // 1. Idempotency Check (BR-019)
+    const idempotencyKey = String(orderData.idempotencyKey);
     const existingOrder = await this.orderModel.findOne({ 
       organizationId, 
-      idempotencyKey: orderData.idempotencyKey 
+      idempotencyKey 
     });
 
     if (existingOrder) {
@@ -93,7 +94,7 @@ export class OrdersService {
       }
     }
 
-    const outlet = await this.outletModel.findOne({ _id: orderData.outletId, organizationId });
+    const outlet = await this.outletModel.findOne({ _id: asId(orderData.outletId), organizationId });
     if (!outlet) {
       throw new BadRequestException('Outlet not found');
     }
@@ -127,7 +128,7 @@ export class OrdersService {
 
     let assignedDistributor = null;
     if (orderData.assignedDistributorId) {
-      assignedDistributor = await this.distributorModel.findOne({ _id: orderData.assignedDistributorId, organizationId });
+      assignedDistributor = await this.distributorModel.findOne({ _id: String(orderData.assignedDistributorId), organizationId });
       if (assignedDistributor) {
         if (assignedDistributor.status !== 'Active') {
           throw new BadRequestException(`Cannot route order to inactive distributor ${assignedDistributor.name}`);
@@ -321,7 +322,7 @@ export class OrdersService {
       // Handle race condition on idempotency key
       if (error.code === 11000 && error.keyPattern?.idempotencyKey) {
         this.logger.log(`Idempotent return (race condition) for order ${orderData.idempotencyKey}`);
-        return this.orderModel.findOne({ organizationId, idempotencyKey: orderData.idempotencyKey }) as any;
+        return this.orderModel.findOne({ organizationId, idempotencyKey }) as any;
       }
       throw error;
     } finally {
@@ -337,7 +338,7 @@ export class OrdersService {
     reason?: string,
     session?: any
   ): Promise<Order> {
-    const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
+    const order = await this.orderModel.findOne({ _id: asId(orderId), organizationId }).session(session);
     if (!order) {
       throw new BadRequestException(`Order ${orderId} not found`);
     }
@@ -460,7 +461,7 @@ export class OrdersService {
     session.startTransaction();
     let aborted = false;
     try {
-      const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
+      const order = await this.orderModel.findOne({ _id: asId(orderId), organizationId }).session(session);
       if (!order) {
         throw new BadRequestException(`Order ${orderId} not found`);
       }
@@ -553,7 +554,7 @@ export class OrdersService {
     const session = await this.connection.startSession();
     session.startTransaction();
     try {
-      const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
+      const order = await this.orderModel.findOne({ _id: asId(orderId), organizationId }).session(session);
       if (!order) {
         throw new BadRequestException(`Order ${orderId} not found`);
       }
@@ -628,7 +629,7 @@ export class OrdersService {
     const session = await this.connection.startSession();
     session.startTransaction();
     try {
-      const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
+      const order = await this.orderModel.findOne({ _id: asId(orderId), organizationId }).session(session);
       if (!order) {
         throw new BadRequestException(`Order ${orderId} not found`);
       }
@@ -666,7 +667,7 @@ export class OrdersService {
     const session = await this.connection.startSession();
     session.startTransaction();
     try {
-      const order = await this.orderModel.findOne({ _id: orderId, organizationId }).session(session);
+      const order = await this.orderModel.findOne({ _id: asId(orderId), organizationId }).session(session);
       if (!order) {
         throw new BadRequestException(`Order ${orderId} not found`);
       }

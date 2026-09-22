@@ -7,6 +7,18 @@ import { MapPin, CheckCircle2, AlertTriangle, Loader2, Navigation, ShoppingCart,
 import CollectionScreen from './CollectionScreen';
 import { compressImage } from '../utils/image';
 
+/**
+ * Local preview of a just-captured photo. Only ever a same-origin `blob:`
+ * object URL (never a string taken from the file or the DOM), shown in an
+ * <img>, so it cannot carry markup or a javascript: URL. The previous preview
+ * URL is revoked so repeated retakes do not leak memory.
+ */
+function localPreviewUrl(file: File, previous: string | null): string | null {
+  if (previous) URL.revokeObjectURL(previous);
+  const url = URL.createObjectURL(file);
+  return /^blob:/.test(url) ? url : null;
+}
+
 export function OutletVisitScreen() {
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -38,7 +50,7 @@ export function OutletVisitScreen() {
     const file = e.target.files?.[0];
     if (!file) return;
     setShopfrontPhoto(file);
-    setPhotoPreviewUrl(URL.createObjectURL(file));
+    setPhotoPreviewUrl(localPreviewUrl(file, photoPreviewUrl));
   };
 
   const handleCheckIn = async () => {
