@@ -6,20 +6,23 @@ import { colors, formatCurrency, formatDate } from '../../../src/lib/theme';
 import { spacing, typography } from '../../../src/theme/tokens';
 import { useLocalOrders } from '../../../src/hooks/useLocalData';
 import { useIsOnline } from '../../../src/hooks/useIsOnline';
+import { useServerRefresh } from '../../../src/hooks/useServerRefresh';
 import { statusTone, orderStatusLabel } from '../../../src/lib/orderStatus';
 import { ScreenHeader, EmptyState, ErrorState, SkeletonList, StatusPill, ListItem, Chip, ChipRow } from '../../../src/components/ui';
 
 type FilterKey = 'incoming' | 'pending' | 'delivered' | 'all';
 
 const FILTERS: { key: FilterKey; label: string; statuses: string[] | null; empty: string }[] = [
-  { key: 'incoming', label: 'Incoming', statuses: ['Submitted', 'Pending_Approval'], empty: 'No new orders waiting for review.' },
+  { key: 'incoming', label: 'Incoming', statuses: ['Submitted', 'Hold_Stock', 'Pending_Approval'], empty: 'No new orders waiting for review.' },
   { key: 'pending', label: 'To Dispatch', statuses: ['Approved'], empty: 'Accepted orders ready to dispatch will appear here.' },
   { key: 'delivered', label: 'Delivered', statuses: ['Delivered', 'Partial_Delivery'], empty: 'Completed deliveries will appear here.' },
   { key: 'all', label: 'All', statuses: null, empty: 'Orders from sales reps will appear here.' },
 ];
 
 export default function DistributorOrdersScreen() {
-  const { data: orders = [], refetch, isRefetching, isLoading, isError } = useLocalOrders();
+  const { data: orders = [], refetch, isLoading, isError } = useLocalOrders();
+  // Pull-to-refresh re-downloads, so new orders from reps show up.
+  const { refreshing, onRefresh } = useServerRefresh(refetch);
   const isOnline = useIsOnline();
   const [filter, setFilter] = useState<FilterKey>('incoming');
 
@@ -48,7 +51,7 @@ export default function DistributorOrdersScreen() {
           contentContainerStyle={styles.list}
           data={filtered}
           keyExtractor={(item: any) => item.id}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.primary]} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
           ListEmptyComponent={<EmptyState icon="receipt-outline" title="No orders in this view" message={activeFilter.empty} />}
           renderItem={({ item }: any) => (

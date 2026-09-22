@@ -148,6 +148,21 @@ export async function getUnsyncedOrders(currentUserId: string | null): Promise<(
   return rows.map((r) => ({ ...toItem(r), status: r.status }));
 }
 
+/**
+ * The current user's queued distributor decisions (accept / reject /
+ * dispatch an order, confirm a delivery) that haven't reached the server
+ * yet, oldest first. Used to show the decision on the cached order/delivery
+ * straight away and to stop it being taken twice.
+ */
+export async function getQueuedOrderActions(currentUserId: string | null): Promise<QueueItem[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<SyncQueueRow>(
+    `SELECT * FROM syncQueue WHERE action IN ('APPROVE_ORDER', 'REJECT_ORDER', 'DISPATCH_ORDER', 'CONFIRM_DELIVERY') AND status IN ('PENDING', 'SYNCING') AND ${OWN} ORDER BY createdAt ASC, id ASC;`,
+    [uid(currentUserId)]
+  );
+  return rows.map(toItem);
+}
+
 export async function markSyncing(id: number): Promise<void> {
   const db = await getDb();
   await db.runAsync(`UPDATE syncQueue SET status = 'SYNCING' WHERE id = ?;`, [id]);

@@ -5,11 +5,14 @@ import { colors, formatCurrency, formatDate } from '../../../src/lib/theme';
 import { spacing, typography } from '../../../src/theme/tokens';
 import { useLocalOrders, useLocalOutlets } from '../../../src/hooks/useLocalData';
 import { useIsOnline } from '../../../src/hooks/useIsOnline';
+import { useServerRefresh } from '../../../src/hooks/useServerRefresh';
 import { statusTone, orderStatusLabel } from '../../../src/lib/orderStatus';
 import { ScreenHeader, EmptyState, ErrorState, SkeletonList, StatusPill, ListItem } from '../../../src/components/ui';
 
 export default function OrdersScreen() {
-  const { data: orders = [], refetch, isRefetching, isLoading, isError } = useLocalOrders();
+  const { data: orders = [], refetch, isLoading, isError } = useLocalOrders();
+  // Pull-to-refresh re-downloads, so Dispatched / Delivered updates show up.
+  const { refreshing, onRefresh } = useServerRefresh(refetch);
   const { data: outlets = [] } = useLocalOutlets();
   const isOnline = useIsOnline();
 
@@ -34,7 +37,7 @@ export default function OrdersScreen() {
           contentContainerStyle={styles.list}
           data={sorted}
           keyExtractor={(item: any) => item.id}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.primary]} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
           ListEmptyComponent={
             <EmptyState
@@ -49,7 +52,8 @@ export default function OrdersScreen() {
             <ListItem
               icon="receipt-outline"
               title={outletName(item.outletId)}
-              subtitle={`${item.orderNumber || 'Order'} · ${formatDate(item.createdAt)}`}
+              subtitle={item.orderNumber || 'Order'}
+              meta={formatDate(item.createdAt)}
               accessibilityLabel={`${outletName(item.outletId)}, ${item.orderNumber}, ${formatCurrency(item.totals?.grandTotal)}, ${orderStatusLabel(item.status)}`}
               trailing={
                 <View style={styles.trailing}>

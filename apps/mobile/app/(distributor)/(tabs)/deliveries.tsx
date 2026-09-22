@@ -6,13 +6,17 @@ import { colors, formatDate } from '../../../src/lib/theme';
 import { spacing, radius, typography } from '../../../src/theme/tokens';
 import { useLocalDispatches } from '../../../src/hooks/useLocalData';
 import { useIsOnline } from '../../../src/hooks/useIsOnline';
+import { useServerRefresh } from '../../../src/hooks/useServerRefresh';
 import { statusTone } from '../../../src/lib/orderStatus';
 import { ScreenHeader, EmptyState, ErrorState, SkeletonList, StatusPill, Button, Card } from '../../../src/components/ui';
 
 export default function DeliveriesScreen() {
-  const { data: dispatches = [], refetch, isRefetching, isLoading, isError } = useLocalDispatches();
+  const { data: dispatches = [], refetch, isLoading, isError } = useLocalDispatches();
+  const { refreshing, onRefresh } = useServerRefresh(refetch);
   const isOnline = useIsOnline();
-  const active = (dispatches as any[]).filter((d) => !['Delivered', 'Cancelled', 'Refused'].includes(d.status));
+  // Only deliveries the server will still let you confirm (DispatchService
+  // accepts Pending / In Transit); e.g. a Partial_Delivery is already done.
+  const active = (dispatches as any[]).filter((d) => ['Pending', 'In Transit'].includes(d.status));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -31,7 +35,7 @@ export default function DeliveriesScreen() {
           contentContainerStyle={styles.list}
           data={active}
           keyExtractor={(item: any) => item.id}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.primary]} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
           ListEmptyComponent={<EmptyState icon="car-outline" title="No active deliveries" message="Orders you dispatch will show up here until they're delivered." />}
           renderItem={({ item }: any) => (

@@ -5,12 +5,14 @@ import { colors, formatDate, formatNumber } from '../../../src/lib/theme';
 import { spacing, typography } from '../../../src/theme/tokens';
 import { useLocalInventory } from '../../../src/hooks/useLocalData';
 import { useIsOnline } from '../../../src/hooks/useIsOnline';
+import { useServerRefresh } from '../../../src/hooks/useServerRefresh';
 import { ScreenHeader, EmptyState, ErrorState, SkeletonList, TextField, IconButton, ListItem, StatusPill, Chip, ChipRow } from '../../../src/components/ui';
 
 const LOW_STOCK_THRESHOLD = 10;
 
 export default function InventoryScreen() {
-  const { data: inventory = [], refetch, isRefetching, isLoading, isError } = useLocalInventory();
+  const { data: inventory = [], refetch, isLoading, isError } = useLocalInventory();
+  const { refreshing, onRefresh } = useServerRefresh(refetch);
   const isOnline = useIsOnline();
   const [search, setSearch] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
@@ -54,7 +56,7 @@ export default function InventoryScreen() {
           keyExtractor={(item: any) => item.id}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.primary]} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
           ListEmptyComponent={
             <EmptyState

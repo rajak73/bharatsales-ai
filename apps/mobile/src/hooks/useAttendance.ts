@@ -3,14 +3,35 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { AttendanceService } from '@bharatsales/api-client';
 import { enqueueAndSync } from '../sync/syncEngine';
+import { readAppState, writeAppState, isNoResponseError } from '../db/appState';
 
 const SESSION_QUERY_KEY = ['attendance', 'current'];
+const SESSION_STATE_KEY = 'attendanceSession';
+
+// Live when online; when the server can't be reached (e.g. the app was
+// restarted offline) fall back to the last session this phone saw, so an
+// on-duty rep isn't shown "You're off duty / Start Day".
+async function fetchCurrentSession() {
+  try {
+    const session = await AttendanceService.getCurrentSession();
+    await writeAppState(SESSION_STATE_KEY, session ?? null);
+    return session;
+  } catch (error) {
+    if (isNoResponseError(error)) {
+      const cached = await readAppState<any>(SESSION_STATE_KEY);
+      if (cached !== undefined) return cached;
+    }
+    throw error;
+  }
+}
 const BACKGROUND_PING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes, matches field-pwa
 
 export function useCurrentAttendanceSession() {
   return useQuery({
     queryKey: SESSION_QUERY_KEY,
-    queryFn: () => AttendanceService.getCurrentSession(),
+    queryFn: fetchCurrentSession,
+    // Run even when the device reports offline, so the cached fallback is used.
+    networkMode: 'offlineFirst',
     staleTime: 60_000,
   });
 }
@@ -81,6 +102,7 @@ export function useAttendanceActions() {
     const loc = await getCurrentLocation();
     const session = await AttendanceService.startDay({ ...loc, deviceTimestamp: new Date().toISOString(), photoUrl });
     queryClient.setQueryData(SESSION_QUERY_KEY, session);
+    await writeAppState(SESSION_STATE_KEY, session ?? null);
     return session;
   };
 
@@ -88,6 +110,7 @@ export function useAttendanceActions() {
     const loc = await getCurrentLocation();
     await AttendanceService.endDay(loc);
     queryClient.setQueryData(SESSION_QUERY_KEY, null);
+    await writeAppState(SESSION_STATE_KEY, null);
   };
 
   return { startDay, endDay };

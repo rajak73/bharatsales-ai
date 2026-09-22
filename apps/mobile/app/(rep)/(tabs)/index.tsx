@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { TargetsService } from '@bharatsales/api-client';
+import { pickCurrentTarget } from '../../../src/lib/targets';
+import { useSessionStore } from '../../../src/store/sessionStore';
 import { colors, formatCurrency, isToday } from '../../../src/lib/theme';
 import { radius, spacing, typography } from '../../../src/theme/tokens';
 import { useCurrentAttendanceSession, useAttendanceActions } from '../../../src/hooks/useAttendance';
@@ -17,6 +19,7 @@ type QuickAction = { key: string; label: string; icon: keyof typeof Ionicons.gly
 export default function RepHome() {
   const { data: session } = useCurrentAttendanceSession();
   const { endDay } = useAttendanceActions();
+  const user = useSessionStore((st) => st.user);
   const { data: outlets = [], refetch: refetchOutlets } = useLocalOutlets();
   const { data: beatSchedules = [], refetch: refetchBeats } = useLocalBeatSchedules();
   const { data: orders = [] } = useLocalOrders();
@@ -27,10 +30,9 @@ export default function RepHome() {
     queryFn: () => TargetsService.getTargets(),
   });
 
-  const myTarget = useMemo(() => {
-    if (!targets) return null;
-    return (targets as any[]).find((t) => t.entityType === 'User' && t.period === 'Daily') || null;
-  }, [targets]);
+  // The shortest-period target running today (a Daily one if the manager set
+  // one, otherwise e.g. the Monthly target) — reps usually only get Monthly.
+  const myTarget = useMemo(() => pickCurrentTarget(targets as any[] | undefined, user?.id), [targets, user?.id]);
 
   const targetPercentage = myTarget?.targetValue ? Math.round(((myTarget.actualValue || 0) / myTarget.targetValue) * 100) : 0;
 
@@ -148,11 +150,11 @@ export default function RepHome() {
         </View>
 
         {/* Target Progress */}
-        <SectionHeader title="Today's Target" actionLabel={myTarget ? 'Details' : undefined} onAction={() => router.push('/(rep)/target')} />
+        <SectionHeader title={myTarget && myTarget.period !== 'Daily' ? `${myTarget.period} Target` : "Today's Target"} actionLabel={myTarget ? 'Details' : undefined} onAction={() => router.push('/(rep)/target')} />
         {!myTarget ? (
           <EmptyState icon="flag-outline" title="No target assigned" message="Please check with your manager." />
         ) : (
-          <Card onPress={() => router.push('/(rep)/target')} accessibilityLabel={`Today's target ${formatCurrency(myTarget.targetValue)}, achieved ${formatCurrency(myTarget.actualValue)}, ${targetPercentage} percent`}>
+          <Card onPress={() => router.push('/(rep)/target')} accessibilityLabel={`${myTarget.period || "Today's"} target ${formatCurrency(myTarget.targetValue)}, achieved ${formatCurrency(myTarget.actualValue)}, ${targetPercentage} percent`}>
             <View style={styles.targetRow}>
               <View>
                 <Text style={styles.targetLabel}>Achieved</Text>

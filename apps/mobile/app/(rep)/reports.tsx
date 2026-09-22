@@ -11,7 +11,11 @@ import { useIsOnline } from '../../src/hooks/useIsOnline';
 import { ScreenHeader, ErrorState, SkeletonList, Card, SectionHeader } from '../../src/components/ui';
 
 export default function ReportsScreen() {
-  const [date] = useState(new Date().toISOString().slice(0, 10));
+  // Local calendar date: toISOString() is the UTC date, i.e. yesterday in India before 05:30.
+  const [date] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const isOnline = useIsOnline();
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['dsr', date],

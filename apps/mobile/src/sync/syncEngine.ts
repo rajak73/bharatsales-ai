@@ -13,7 +13,7 @@ import {
 import { queryClient } from '../lib/queryClient';
 import { useSessionStore, getCurrentUserId } from '../store/sessionStore';
 import { dispatchSyncAction } from './dispatch';
-import { decideRetry } from './retryPolicy';
+import { decideRetry, describeSyncError } from './retryPolicy';
 
 export interface SyncStatus { isSyncing: boolean; pendingCount: number; failedCount: number }
 type SyncListener = (state: SyncStatus) => void;
@@ -37,6 +37,16 @@ const REFRESH_AFTER: ReadonlySet<SyncAction> = new Set<SyncAction>([
 
 let isSyncing = false;
 let rerunRequested = false;
+let pullInFlight: Promise<void> | null = null;
+let lastPullAt = 0;
+
+// Automatic (interval / foreground) re-downloads run at most this often;
+// pull-to-refresh always re-downloads. The foreground interval is 2 minutes,
+// so in practice a screen is at most that far behind the server.
+export const AUTO_PULL_MIN_INTERVAL_MS = 60 * 1000;
+
+type PullRole = 'Sales Representative' | 'Distributor';
+const isPullRole = (role: unknown): role is PullRole => role === 'Sales Representative' || role === 'Distributor';
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function isOnline(): Promise<boolean> {
@@ -88,8 +98,18 @@ export const SyncEngine = {
   // exact same per-role RBAC scoping already enforced by each individual
   // endpoint (e.g. Distributor sees only their own orders/dispatches) applies
   // here too, without re-deriving that logic client-side.
-  async pullSync(role: 'Sales Representative' | 'Distributor'): Promise<void> {
+  async pullSync(role: PullRole): Promise<void> {
+    // One download at a time: concurrent callers share the one in flight.
+    if (pullInFlight) return pullInFlight;
+    pullInFlight = SyncEngine.doPull(role).finally(() => {
+      pullInFlight = null;
+    });
+    return pullInFlight;
+  },
+
+  async doPull(role: PullRole): Promise<void> {
     if (!(await isOnline())) return;
+    lastPullAt = Date.now();
 
     if (role === 'Sales Representative') {
       const [outlets, products, distributors, beat, schemes, orders] = await Promise.allSettled([
@@ -165,6 +185,15 @@ export const SyncEngine = {
             await upsertRow('orders', item.payload).catch(() => {});
           }
         } catch (error: unknown) {
+          if ((error as any)?.response?.status === 401 || !useSessionStore.getState().user) {
+            // The session ended mid-sync (refresh token expired or revoked;
+            // api-client has already logged the user out). That isn't this
+            // item's fault: put it back untouched for the next login and stop,
+            // instead of failing every remaining item with the same 401.
+            await markRetry(item.id, item.attempts, 0, describeSyncError(error));
+            processed++;
+            break;
+          }
           const decision = decideRetry(error, item.attempts);
           if (decision.kind === 'retry') {
             await markRetry(item.id, decision.attempts, decision.nextAttemptAt, decision.error);
@@ -183,7 +212,7 @@ export const SyncEngine = {
 
     if (needsRefresh) {
       const role = useSessionStore.getState().user?.role;
-      if (role === 'Sales Representative' || role === 'Distributor') {
+      if (isPullRole(role)) {
         await SyncEngine.pullSync(role).catch((err) => console.warn('[Sync] refresh after sync failed', err));
       }
     }
@@ -192,6 +221,20 @@ export const SyncEngine = {
       rerunRequested = false;
       await SyncEngine.triggerSync();
     }
+  },
+
+  /**
+   * Push the queue, then re-download the logged-in user's data so changes
+   * made by other people (a new order for a distributor, an order dispatched
+   * or delivered for a rep) show up. `force` is for pull-to-refresh; the
+   * automatic triggers are throttled to AUTO_PULL_MIN_INTERVAL_MS.
+   */
+  async refreshFromServer(opts: { force?: boolean } = {}): Promise<void> {
+    await SyncEngine.triggerSync().catch(() => {});
+    const role = useSessionStore.getState().user?.role;
+    if (!isPullRole(role)) return;
+    if (!opts.force && Date.now() - lastPullAt < AUTO_PULL_MIN_INTERVAL_MS) return;
+    await SyncEngine.pullSync(role);
   },
 };
 
@@ -231,7 +274,7 @@ export function startForegroundSync(): () => void {
   const startInterval = () => {
     if (interval) return;
     interval = setInterval(() => {
-      SyncEngine.triggerSync().catch(() => {});
+      SyncEngine.refreshFromServer().catch(() => {});
     }, FOREGROUND_SYNC_INTERVAL_MS);
   };
   const stopInterval = () => {
@@ -243,7 +286,7 @@ export function startForegroundSync(): () => void {
   const sub = AppState.addEventListener('change', (next) => {
     if (next === 'active') {
       startInterval();
-      SyncEngine.triggerSync().catch(() => {});
+      SyncEngine.refreshFromServer().catch(() => {});
     } else {
       stopInterval();
     }

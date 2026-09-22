@@ -12,6 +12,9 @@ import * as SQLite from 'expo-sqlite';
 const JSON_BLOB_TABLES = [
   'outlets', 'products', 'orders', 'schemes', 'distributors',
   'invoices', 'collections', 'beats', 'beatSchedules', 'dispatches', 'inventory',
+  // Small per-user values that must survive an offline app restart (current
+  // attendance session, org branding); wiped with the rest on logout.
+  'appState',
 ] as const;
 export type JsonBlobTable = typeof JSON_BLOB_TABLES[number];
 

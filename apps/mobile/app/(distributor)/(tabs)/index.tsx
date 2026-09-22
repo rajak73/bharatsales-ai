@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,15 +7,17 @@ import { colors, formatCurrency } from '../../../src/lib/theme';
 import { radius, spacing, typography } from '../../../src/theme/tokens';
 import { useLocalOrders, useLocalDispatches, useLocalInventory } from '../../../src/hooks/useLocalData';
 import { SyncBanner } from '../../../src/components/SyncBanner';
+import { useServerRefresh } from '../../../src/hooks/useServerRefresh';
 import { OrgHeader, KPICard, Card, Button, Banner, SectionHeader, ListItem, StatusPill } from '../../../src/components/ui';
 import { statusTone, orderStatusLabel } from '../../../src/lib/orderStatus';
 
 export default function DistributorHome() {
-  const { data: orders = [], refetch: refetchOrders, isRefetching } = useLocalOrders();
+  const { data: orders = [], refetch: refetchOrders } = useLocalOrders();
   const { refetch: refetchDispatches } = useLocalDispatches();
   const { data: inventory = [], refetch: refetchInventory } = useLocalInventory();
 
-  const incoming = (orders as any[]).filter((o) => ['Submitted', 'Pending_Approval'].includes(o.status));
+  // Orders this distributor can act on now (Pending_Approval waits for a manager).
+  const incoming = (orders as any[]).filter((o) => ['Submitted', 'Hold_Stock'].includes(o.status));
   const pending = (orders as any[]).filter((o) => o.status === 'Approved');
   const delivered = (orders as any[]).filter((o) => o.status === 'Delivered');
   const lowStock = (inventory as any[]).filter((i) => i.stock <= (i.reservedStock || 0) + 10);
@@ -23,11 +26,8 @@ export default function DistributorHome() {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 3);
 
-  const onRefresh = () => {
-    refetchOrders();
-    refetchDispatches();
-    refetchInventory();
-  };
+  const refetchAll = useCallback(() => Promise.all([refetchOrders(), refetchDispatches(), refetchInventory()]), [refetchOrders, refetchDispatches, refetchInventory]);
+  const { refreshing, onRefresh } = useServerRefresh(refetchAll);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -36,7 +36,7 @@ export default function DistributorHome() {
 
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
       >
         {/* Primary action — orders waiting on this distributor */}
         {incoming.length > 0 ? (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +19,19 @@ export default function DistributorOrderDetailScreen() {
   const [rejectReason, setRejectReason] = useState('');
   const [actionDone, setActionDone] = useState<string | null>(null);
 
+  // Once the queued decision has reached the server and the fresh order has
+  // been downloaded, drop the "will sync shortly" banner so the next step
+  // (e.g. Mark as Dispatched on a now-Approved order) becomes available.
+  const pendingAction: string | undefined = order?.pendingAction;
+  const hadPending = useRef(false);
+  useEffect(() => {
+    if (pendingAction) hadPending.current = true;
+    else if (hadPending.current) {
+      hadPending.current = false;
+      setActionDone(null);
+    }
+  }, [pendingAction]);
+
   if (!order) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -37,8 +50,14 @@ export default function DistributorOrderDetailScreen() {
     );
   }
 
-  const canAccept = ['Submitted', 'Pending_Approval'].includes(order.status);
-  const canDispatch = order.status === 'Approved';
+  // A decision already queued on this device (or just taken on this screen)
+  // is shown as the order's status; its buttons stay hidden until the server
+  // has answered, so the same decision can't be queued twice.
+  const decisionPending = !!pendingAction || !!actionDone;
+  // Pending_Approval orders need a manager to approve their pricing first;
+  // Hold_Stock orders can be accepted again once stock has been added.
+  const canAccept = !decisionPending && ['Submitted', 'Hold_Stock'].includes(order.status);
+  const canDispatch = !decisionPending && order.status === 'Approved';
 
   const handleAccept = async () => {
     setBusy(true);
@@ -89,6 +108,15 @@ export default function DistributorOrderDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {actionDone && <Banner tone="success" message={actionDone} />}
+        {!actionDone && order.pendingAction && (
+          <Banner tone="info" message="Your decision on this order is saved on this phone and will sync shortly." />
+        )}
+        {order.status === 'Pending_Approval' && (
+          <Banner tone="warning" message="Waiting for a sales manager to approve this order's pricing before it can be accepted." />
+        )}
+        {order.status === 'Hold_Stock' && !decisionPending && (
+          <Banner tone="warning" message="On hold: there wasn't enough stock to allocate. Add stock, then accept again." />
+        )}
 
         <Card style={styles.summaryCard}>
           <View style={{ flex: 1 }}>

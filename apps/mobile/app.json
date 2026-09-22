@@ -48,7 +48,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "BharatSales AI needs photo library access to attach images to visit notes."
+          "photosPermission": "BharatSales AI needs photo library access to attach images to visit notes.",
+          "microphonePermission": false
         }
       ],
       [

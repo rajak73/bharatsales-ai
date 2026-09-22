@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,16 +25,24 @@ export default function DeliveryConfirmScreen() {
   const dispatch: any = dispatches.find((d: any) => d.id === id);
   const order: any = orders.find((o: any) => o.id === dispatch?.orderId);
 
-  const [lines, setLines] = useState<LineState[]>(() =>
-    (order?.items || []).map((item: any) => ({
-      productId: item.productId,
-      name: item.name,
-      orderedQty: item.quantity,
-      deliveredQty: String(item.quantity),
-      damagedQty: '0',
-      reason: '',
-    }))
+  // Derived from the cached order (which can arrive after the first render,
+  // since it is read from SQLite) plus whatever the user has typed, so the
+  // screen never gets stuck on "Order items not found".
+  const [edits, setEdits] = useState<Record<string, Partial<LineState>>>({});
+  const lines: LineState[] = useMemo(
+    () =>
+      (order?.items || []).map((item: any) => ({
+        productId: item.productId,
+        name: item.name,
+        orderedQty: item.quantity,
+        deliveredQty: String(item.quantity),
+        damagedQty: '0',
+        reason: '',
+        ...(edits[item.productId] || {}),
+      })),
+    [order, edits],
   );
+
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -57,7 +65,9 @@ export default function DeliveryConfirmScreen() {
   }
 
   const updateLine = (idx: number, patch: Partial<LineState>) => {
-    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+    const productId = lines[idx]?.productId;
+    if (!productId) return;
+    setEdits((prev) => ({ ...prev, [productId]: { ...prev[productId], ...patch } }));
   };
 
   const handleSubmit = async () => {

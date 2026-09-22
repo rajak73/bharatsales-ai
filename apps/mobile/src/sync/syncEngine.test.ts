@@ -1,6 +1,6 @@
 import { OrdersService, DispatchService, InventoryService } from '@bharatsales/api-client';
 import { replaceTable } from '../db/client';
-import { getPending } from '../db/syncQueue';
+import { getPending, markFailed, markRetry } from '../db/syncQueue';
 import { dispatchSyncAction } from './dispatch';
 import { SyncEngine } from './syncEngine';
 import { useSessionStore } from '../store/sessionStore';
@@ -78,5 +78,51 @@ describe('SyncEngine.triggerSync cache refresh', () => {
     await SyncEngine.triggerSync();
 
     expect(OrdersService.getOrders).not.toHaveBeenCalled();
+  });
+});
+
+describe('SyncEngine.triggerSync when the session ends mid-sync', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useSessionStore.setState({ user: { id: 'u1', role: 'Sales Representative' } });
+  });
+
+  it('puts the item back untouched and stops, instead of failing every queued item with 401', async () => {
+    (getPending as jest.Mock).mockResolvedValueOnce([
+      { id: 1, action: 'CREATE_ORDER', payload: { id: 'a' }, attempts: 2 },
+      { id: 2, action: 'CREATE_PAYMENT', payload: {}, attempts: 0 },
+      { id: 3, action: 'CREATE_ORDER', payload: { id: 'b' }, attempts: 0 },
+    ]);
+    (dispatchSyncAction as jest.Mock).mockImplementationOnce(async () => {
+      // api-client's refresh was rejected: it clears the session, then rejects.
+      useSessionStore.setState({ user: null });
+      throw Object.assign(new Error('Invalid or expired refresh token'), { response: { status: 401 } });
+    });
+
+    await SyncEngine.triggerSync();
+
+    expect(dispatchSyncAction).toHaveBeenCalledTimes(1);
+    expect(markFailed).not.toHaveBeenCalled();
+    expect(markRetry).toHaveBeenCalledWith(1, 2, 0, expect.stringContaining('401'));
+  });
+});
+
+describe('SyncEngine.refreshFromServer', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useSessionStore.setState({ user: { id: 'u1', role: 'Distributor' } });
+  });
+
+  it('re-downloads on pull-to-refresh even when nothing was queued, and throttles automatic refreshes', async () => {
+    await SyncEngine.refreshFromServer({ force: true });
+    expect(OrdersService.getOrders).toHaveBeenCalledTimes(1);
+
+    // An automatic (interval / foreground) refresh right after is skipped...
+    await SyncEngine.refreshFromServer();
+    expect(OrdersService.getOrders).toHaveBeenCalledTimes(1);
+
+    // ...but pull-to-refresh always downloads.
+    await SyncEngine.refreshFromServer({ force: true });
+    expect(OrdersService.getOrders).toHaveBeenCalledTimes(2);
   });
 });

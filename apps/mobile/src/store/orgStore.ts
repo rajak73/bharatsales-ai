@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { SettingsService } from '@bharatsales/api-client';
+import { readAppState, writeAppState } from '../db/appState';
+
+type CachedBranding = { name: string | null; logoUrl: string | null; primaryColor: string | null };
 
 interface OrgState {
   name: string | null;
@@ -23,10 +26,14 @@ export const useOrgStore = create<OrgState>((set) => ({
   loadOrgBranding: async () => {
     try {
       const { name, branding } = await SettingsService.getBranding();
-      set({ name, logoUrl: branding?.logoUrl || null, primaryColor: branding?.primaryColor || null, isLoaded: true });
+      const value: CachedBranding = { name, logoUrl: branding?.logoUrl || null, primaryColor: branding?.primaryColor || null };
+      set({ ...value, isLoaded: true });
+      await writeAppState('orgBranding', value);
     } catch (err) {
       console.warn('[Org] Failed to load org branding', err);
-      set({ isLoaded: true });
+      // Offline start: keep showing the company name from the last login.
+      const cached = await readAppState<CachedBranding>('orgBranding');
+      set({ ...(cached || {}), isLoaded: true });
     }
   },
   reset: () => set({ name: null, logoUrl: null, primaryColor: null, isLoaded: false }),
