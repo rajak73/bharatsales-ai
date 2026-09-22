@@ -1,65 +1,118 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Test-only secrets. Real secrets live in Render/Vercel, never in CI.
+  JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-test-jwt-secret-not-for-production-use' }}
+  JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET || 'ci-test-refresh-secret-not-for-production-use' }}
+  TURBO_TELEMETRY_DISABLED: 1
 
 jobs:
-  build:
-    name: Build & Test
+  verify:
+    name: Type-check, lint, test, build
     runs-on: ubuntu-latest
-    env:
-      JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-test-jwt-secret-not-for-production-use' }}
-      JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET || 'ci-test-refresh-secret-not-for-production-use' }}
-
+    timeout-minutes: 30
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
+      # Reads the pnpm version from package.json "packageManager".
       - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
+        uses: pnpm/action-setup@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js (with pnpm store cache)
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: 'pnpm'
+          node-version-file: .node-version
+          cache: pnpm
 
-      - name: Start MongoDB Replica Set
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      - name: Start MongoDB replica set
         run: |
           docker run --name mongodb -d -p 27017:27017 mongo:7.0 mongod --replSet rs0
           sleep 5
           docker exec mongodb mongosh --eval 'rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]})'
           sleep 5
           # MongoDB's default lock-wait for multi-document transactions is
-          # only 5ms — plenty on a dedicated dev machine, but CI's shared
-          # runners are slow/noisy enough that legitimate (non-deadlocked)
-          # lock acquisitions routinely miss that window, failing tests
+          # only 5ms. CI's shared runners are slow/noisy enough that legitimate
+          # (non-deadlocked) lock acquisitions miss that window, failing tests
           # that use transactions (e.g. OrdersService.create) with
           # "Unable to acquire IX lock ... within 5ms". Raise it generously.
           docker exec mongodb mongosh --eval 'db.adminCommand({setParameter: 1, maxTransactionLockRequestTimeoutMillis: 5000})'
 
-      - name: Start Redis
-        run: |
-          docker run --name redis -d -p 6379:6379 redis:7-alpine
-          sleep 2
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Install Dependencies
-        run: pnpm install --no-frozen-lockfile
+      - name: Type-check
+        run: pnpm turbo run type-check --cache-dir=.turbo/cache
 
+      - name: Lint
+        run: pnpm turbo run lint --cache-dir=.turbo/cache
 
-      - name: Type Check
-        run: pnpm run type-check
+      - name: Seed database (smoke-tests the seed script)
+        run: pnpm --filter @bharatsales/api seed
+        env:
+          MONGODB_URI: mongodb://localhost:27017/bharatsales?replicaSet=rs0
 
-      - name: Seed Database
-        run: pnpm run --filter @bharatsales/api seed
+      - name: Test
+        run: pnpm turbo run test --cache-dir=.turbo/cache
+        env:
+          # The API specs use this server (one database per Jest worker)
+          # instead of downloading mongodb-memory-server.
+          MONGODB_URI: mongodb://localhost:27017/?replicaSet=rs0
 
-      - name: Run Unit Tests
-        run: pnpm run test
+      - name: Build
+        run: pnpm turbo run build --cache-dir=.turbo/cache
 
-      - name: Build Monorepo (Turbo)
-        run: pnpm run build
+  web:
+    name: Build web (Vite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js (with pnpm store cache)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Builds the workspace packages the web app depends on, then
+      # `tsc --noEmit && vite build` in apps/web (same as Vercel).
+      - name: Build apps/web
+        run: pnpm --filter "@bharatsales/web..." build
+        env:
+          VITE_API_URL: https://api.example.invalid
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+          retention-days: 7

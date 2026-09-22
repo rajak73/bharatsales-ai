@@ -42,12 +42,12 @@ The system has been heavily audited and hardened against the "Master BRD".
 
 ## Demo Users (Seed Data)
 The database has been seeded with demo organizations ("Bharat Foods Pvt Ltd", "Raj Pharma Distributors").
-Login credentials for testing:
+Demo logins (local seed only):
 - **Super Admin:** `admin@bharatsales.ai`
 - **Organization Owner:** `admin@bharatfoods.com`
 - **Sales Representative:** `rep@bharatfoods.com`
 - **Distributor Owner:** `owner@citydistributors.com`
-- **Password for all:** `password123`
+- **Password:** printed by the local seed script. These accounts are created by the LOCAL seed only and must never exist on production.
 
 ## How to Run & Test
 1. **Start infrastructure:** `docker-compose up -d` (starts MongoDB & Redis)

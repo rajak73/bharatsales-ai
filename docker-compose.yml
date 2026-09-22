@@ -4,17 +4,20 @@ services:
   mongo:
     image: mongo:6.0
     container_name: bharatsales-mongodb
+    # Single-member replica set: the API uses multi-document transactions
+    # (orders, dispatch, collections), which MongoDB only supports on a replica set.
+    command: ["--replSet", "rs0", "--bind_ip_all"]
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo-data:/data/db
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: bharatsales-redis
-    ports:
-      - "6379:6379"
+    healthcheck:
+      # Initiates the replica set on first start, then reports healthy once it is up.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }).ok }"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
     restart: unless-stopped
 
   api:
@@ -26,13 +29,17 @@ services:
       - "6002:6002"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongo:27017/bharatsales
+      - MONGODB_URI=mongodb://mongo:27017/bharatsales?replicaSet=rs0
       - PORT=6002
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      # Required: the API refuses to start without them. Override with real secrets
+      # (e.g. `JWT_SECRET=... docker compose up`), never commit real values.
+      - JWT_SECRET=${JWT_SECRET:-change-me-access-secret}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-change-me-refresh-secret}
+      # Comma-separated browser origins allowed by CORS.
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:6003}
     depends_on:
-      - mongo
-      - redis
+      mongo:
+        condition: service_healthy
     restart: unless-stopped
 
   web:
@@ -40,13 +47,12 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:6002
+        # Vite inlines VITE_* at build time; the nginx image has no runtime env.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:6002}
+        VITE_FIELD_PWA_URL: ${VITE_FIELD_PWA_URL:-http://localhost:6001}
     container_name: bharatsales-web
     ports:
       - "6003:3000"
-    environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:6002
     depends_on:
       - api
     restart: unless-stopped

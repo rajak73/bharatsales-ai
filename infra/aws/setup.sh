@@ -31,4 +31,4 @@ sudo usermod -aG docker $USER
 
 echo "✅ Docker installed successfully."
 echo "⚠️  IMPORTANT: Please log out and log back in for the Docker group changes to take effect."
-echo "After logging back in, your instance will be ready to receive deployments via GitHub Actions!"
+echo "After logging back in, your instance will be ready: clone the repo and run `docker compose -f infra/aws/docker-compose.prod.yml up -d --build`."

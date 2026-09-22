@@ -3,7 +3,7 @@
 ## 1. Test Environment Setup
 - **Seed Data Generated**: `seed.ts` properly populates 2 main test tenants: `Bharat Foods Pvt Ltd` (org1Id) and `Raj Pharma Distributors` (org2Id).
 - **Products**: 20 test products were added with realistic values.
-- **Roles**: All 11 roles defined in the RBAC matrix are seeded with matching test accounts (e.g., `superadmin@bharatsales.com`, `admin@bharatfoods.com`, `rep@bharatfoods.com`).
+- **Roles**: All 11 roles defined in the RBAC matrix are seeded with matching test accounts (e.g., `superadmin@bharatsales.com`, `admin@bharatfoods.com`, `rep@bharatfoods.com`) by the local seed only. These demo accounts must never exist on production.
 
 ## 2. CI/CD Verification
 - **Lint**: `pnpm run lint` passed. Minor unused-var warnings logged but 0 errors.

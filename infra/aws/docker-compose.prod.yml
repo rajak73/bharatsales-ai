@@ -1,25 +1,37 @@
-version: '3.8'
+# Self-hosted production stack (single EC2 box behind the host nginx in
+# infra/aws/nginx/nginx.conf). The primary deployment is Render (API, see
+# render.yaml) + Vercel (web); use this only when self-hosting.
+#
+# Every container port is bound to 127.0.0.1: only the host nginx (ports 80/443)
+# is reachable from the internet. MongoDB is never exposed publicly.
+#
+# Required env (export them or put them in an .env file next to this compose
+# file, never commit real values):
+#   JWT_SECRET          >= 32 chars; the API refuses to start in production otherwise
+#   JWT_REFRESH_SECRET  kept for older configs; set a random value
+#   CORS_ORIGINS        e.g. https://admin.yourdomain.com
+#   VITE_API_URL        e.g. https://api.yourdomain.com (inlined into the web build)
+#   FRONTEND_URL        e.g. https://admin.yourdomain.com (links in emails)
 
 services:
-  # NOTE: For a highly-available production setup, we recommend removing this 
-  # mongo service and using a managed MongoDB Atlas cluster instead.
+  # For a highly-available setup, remove this service and point MONGODB_URI
+  # at a managed MongoDB Atlas cluster instead.
   mongo:
-    image: mongo:6.0
+    image: mongo:7.0
     container_name: bharatsales-mongo-prod
+    # Single-member replica set: orders, dispatch and collections use
+    # multi-document transactions, which MongoDB only supports on a replica set.
+    command: ["--replSet", "rs0", "--bind_ip_all"]
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo-data-prod:/data/db
-    restart: always
-
-  # Redis is required for BullMQ asynchronous exports in production
-  redis:
-    image: redis:7.0-alpine
-    container_name: bharatsales-redis-prod
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data-prod:/data
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }).ok }"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
     restart: always
 
   api:
@@ -28,37 +40,44 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: bharatsales-api-prod
     ports:
-      - "6002:6002"
+      - "127.0.0.1:6002:6002"
     environment:
       - NODE_ENV=production
-      - MONGO_URI=${MONGO_URI:-mongodb://mongo:27017/bharatsales}
-      - JWT_SECRET=${JWT_SECRET}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PORT=6002
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - TALLY_SERVER_URL=${TALLY_SERVER_URL}
-      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
-      - WHATSAPP_API_URL=${WHATSAPP_API_URL}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/bharatsales?replicaSet=rs0}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      - CORS_ORIGINS=${CORS_ORIGINS:?CORS_ORIGINS is required}
+      - FRONTEND_URL=${FRONTEND_URL:-}
+      # One reverse-proxy hop (the host nginx) in front of the API.
+      - TRUST_PROXY=${TRUST_PROXY:-1}
+      # Uploaded photos live in MongoDB GridFS so they survive redeploys.
+      - STORAGE_DRIVER=${STORAGE_DRIVER:-gridfs}
+      - BREVO_API_KEY=${BREVO_API_KEY:-}
+      - BREVO_SENDER_EMAIL=${BREVO_SENDER_EMAIL:-}
+      - BREVO_SENDER_NAME=${BREVO_SENDER_NAME:-}
+      - BREVO_SMS_SENDER=${BREVO_SMS_SENDER:-}
     depends_on:
-      - mongo
-      - redis
+      mongo:
+        condition: service_healthy
     restart: always
 
   web:
     build:
       context: ../../
       dockerfile: apps/web/Dockerfile
+      args:
+        # Vite inlines VITE_* at build time; the nginx image has no runtime env.
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required}
+        VITE_FIELD_PWA_URL: ${VITE_FIELD_PWA_URL:-}
     container_name: bharatsales-web-prod
     ports:
-      - "80:3000" # Map port 80 to Next.js 3000
-    environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:6002/api/v1}
+      # Static React (Vite) build served by nginx inside the container on 3000;
+      # the host nginx proxies admin.yourdomain.com to 127.0.0.1:6003.
+      - "127.0.0.1:6003:3000"
     depends_on:
       - api
     restart: always
 
 volumes:
   mongo-data-prod:
-  redis-data-prod:

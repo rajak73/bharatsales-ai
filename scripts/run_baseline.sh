@@ -2,6 +2,9 @@
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 export CI=true
 
+# Run from the repo root regardless of where the script is invoked from.
+cd "$(dirname "$0")/.."
+
 echo "=== Cleaning Up Zombie Ports ==="
 lsof -ti:6001,6002,6003 | xargs kill -9 2>/dev/null || true
 
