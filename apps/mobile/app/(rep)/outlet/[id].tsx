@@ -16,6 +16,10 @@ import { Button, Banner, Card, EmptyState, IconButton, ScreenHeader, StatusPill 
 import { useSessionStore } from '../../../src/store/sessionStore';
 import { getStoredActiveVisit, setStoredActiveVisit, clearStoredActiveVisit, uuidV4 } from '../../../src/lib/activeVisit';
 
+// Event-handler timestamp; kept out of the component body so the React
+// compiler lint doesn't treat it as an impure call during render.
+const nowMs = () => Date.now();
+
 export default function OutletVisitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: session } = useCurrentAttendanceSession();
@@ -102,7 +106,7 @@ export default function OutletVisitScreen() {
       checkInKeyRef.current = null;
       setActiveVisitId(visitId);
       setStatus('checked_in');
-      await setStoredActiveVisit({ outletId: outlet.id, visitId, userId, checkedInAt: Date.now() });
+      await setStoredActiveVisit({ outletId: outlet.id, visitId, userId, checkedInAt: nowMs() });
       if (!visit.isWithinGeofence) {
         setGeofenceWarning(`You checked in from ${visit.distanceFromOutlet}m away. This is outside the allowed radius and has been flagged.`);
       }

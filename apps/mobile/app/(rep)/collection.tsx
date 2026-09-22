@@ -10,6 +10,10 @@ import { useSessionStore } from '../../src/store/sessionStore';
 import { enqueueAndSync } from '../../src/sync/syncEngine';
 import { ScreenHeader, Button, Banner, Card, TextField, Chip, BottomBar, KeyboardAware, SuccessState } from '../../src/components/ui';
 
+// Event-handler timestamp; kept out of the component body so the React
+// compiler lint doesn't treat it as an impure call during render.
+const nowMs = () => Date.now();
+
 const PAYMENT_MODES = ['Cash', 'UPI', 'Cheque', 'Bank Transfer'] as const;
 
 const MODE_ICONS: Record<(typeof PAYMENT_MODES)[number], 'cash-outline' | 'phone-portrait-outline' | 'document-text-outline' | 'business-outline'> = {
@@ -59,7 +63,7 @@ export default function CollectionScreen() {
       await enqueueAndSync('CREATE_PAYMENT', {
         id: idempotencyKey,
         organizationId: outlet?.organizationId,
-        receiptNumber: `REC-${Date.now()}`,
+        receiptNumber: `REC-${nowMs()}`,
         outletId,
         collectedByUserId: user?.id,
         amount: numericAmount,
