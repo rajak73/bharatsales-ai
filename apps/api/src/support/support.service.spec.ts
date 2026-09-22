@@ -1,6 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { SupportService } from './support.service';
-import { getModelToken } from '@nestjs/mongoose';
 
 describe('SupportService', () => {
   let service: SupportService;
@@ -11,14 +9,7 @@ describe('SupportService', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SupportService,
-        { provide: getModelToken('SupportTicket'), useValue: mockTicketModel },
-      ],
-    }).compile();
-
-    service = module.get<SupportService>(SupportService);
+    service = new SupportService(mockTicketModel as any);
     (service as any).ticketModel = function (data: any) {
       this.save = jest.fn().mockResolvedValue({ ...data, _id: 'ticket1' });
     };

@@ -1,8 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { CollectionsService } from './collections.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { getConnectionToken } from '@nestjs/mongoose';
-import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 describe('CollectionsService', () => {
   let service: CollectionsService;
@@ -36,37 +32,14 @@ describe('CollectionsService', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        CollectionsService,
-        {
-          provide: getModelToken('Collection'),
-          useValue: mockCollectionModel,
-        },
-        {
-          provide: getModelToken('Outlet'),
-          useValue: mockOutletModel,
-        },
-        {
-          provide: getModelToken('Invoice'),
-          useValue: mockInvoiceModel,
-        },
-        {
-          provide: getModelToken('Order'),
-          useValue: mockOrderModel,
-        },
-        {
-          provide: getConnectionToken(),
-          useValue: mockConnection,
-        },
-        {
-          provide: HierarchyService,
-          useValue: { getDescendantTerritoryIds: jest.fn().mockResolvedValue([]) }
-        },
-      ],
-    }).compile();
-
-    service = module.get<CollectionsService>(CollectionsService);
+    service = new CollectionsService(
+      mockCollectionModel as any,
+      mockOutletModel as any,
+      mockInvoiceModel as any,
+      mockOrderModel as any,
+      mockConnection as any,
+      { getDescendantTerritoryIds: jest.fn().mockResolvedValue([]) } as any,
+    );
     // override constructor
     (service as any).collectionModel = function(data: any) {
       this.save = jest.fn().mockResolvedValue(data);
@@ -184,6 +157,145 @@ describe('CollectionsService', () => {
       } as any);
 
       await expect(service.reverseCollection('org1', 'col1', 'user1')).rejects.toThrow('already reversed');
+    });
+  });
+
+  describe('Pending (cheque) collections', () => {
+    const makeInvoice = (paidAmount = 0) => ({
+      _id: 'inv1', paidAmount, totalAmount: 1000, status: paidAmount ? 'Partial' : 'Unpaid',
+      save: jest.fn().mockResolvedValue(true),
+    });
+
+    beforeEach(() => {
+      // A model mock whose instances actually carry their fields, so the
+      // returned collection's status/allocations can be asserted.
+      (service as any).collectionModel = function (this: any, data: any) {
+        Object.assign(this, data);
+        this.save = jest.fn().mockResolvedValue(this);
+      };
+      Object.assign((service as any).collectionModel, mockCollectionModel);
+      mockOutletModel.findOne.mockReturnValue({ session: jest.fn().mockResolvedValue({ _id: 'outlet1' }) } as any);
+      mockOutletModel.updateOne.mockResolvedValue({});
+    });
+
+    it('does not touch invoices or outstanding when a Cheque is recorded, and ignores a client-supplied Cleared status', async () => {
+      const invoice = makeInvoice();
+      mockCollectionModel.findOne.mockReturnValue({ session: jest.fn().mockResolvedValue(null) } as any);
+      mockInvoiceModel.findOne.mockReturnValue({ session: jest.fn().mockResolvedValue(invoice) } as any);
+
+      const created: any = await service.create('org1', 'user1', {
+        outletId: 'outlet1', paymentMode: 'Cheque', amount: 400, invoiceId: 'inv1',
+        referenceNumber: 'CHQ-1', status: 'Cleared',
+      } as any);
+
+      expect(created.status).toBe('Pending');
+      expect(created.allocations).toEqual([]);
+      expect(invoice.paidAmount).toBe(0);
+      expect(invoice.save).not.toHaveBeenCalled();
+      expect(mockOutletModel.updateOne).not.toHaveBeenCalled();
+    });
+
+    it('still validates the target invoice of a Cheque at entry time', async () => {
+      mockCollectionModel.findOne.mockReturnValue({ session: jest.fn().mockResolvedValue(null) } as any);
+      mockInvoiceModel.findOne.mockReturnValue({ session: jest.fn().mockResolvedValue(makeInvoice(900)) } as any);
+
+      await expect(service.create('org1', 'user1', {
+        outletId: 'outlet1', paymentMode: 'Cheque', amount: 400, invoiceId: 'inv1', referenceNumber: 'CHQ-2',
+      } as any)).rejects.toThrow('exceeds the remaining invoice balance');
+    });
+
+    it('treats Cash as Cleared even when the client sends status Pending', async () => {
+      const invoice = makeInvoice();
+      mockInvoiceModel.findOne.mockReturnValue({ session: jest.fn().mockResolvedValue(invoice) } as any);
+
+      const created: any = await service.create('org1', 'user1', {
+        outletId: 'outlet1', paymentMode: 'Cash', amount: 300, invoiceId: 'inv1', status: 'Pending',
+      } as any);
+
+      expect(created.status).toBe('Cleared');
+      expect(invoice.paidAmount).toBe(300);
+      expect(mockOutletModel.updateOne).toHaveBeenCalled();
+    });
+
+    it('allocates to the invoice and reduces outstanding when Pending -> Cleared', async () => {
+      const invoice = makeInvoice();
+      const collection: any = {
+        _id: 'col1', status: 'Pending', amount: 400, outletId: 'outlet1', invoiceId: 'inv1', allocations: [],
+        save: jest.fn().mockImplementation(function (this: any) { return Promise.resolve(this); }),
+      };
+      mockCollectionModel.findOne.mockReturnValue({ session: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(collection) }) } as any);
+      mockInvoiceModel.findOne.mockReturnValue({ session: jest.fn().mockResolvedValue(invoice) } as any);
+
+      await service.updateStatus('org1', 'col1', 'Cleared');
+
+      expect(collection.status).toBe('Cleared');
+      expect(invoice.paidAmount).toBe(400);
+      expect(invoice.status).toBe('Partial');
+      expect(collection.allocations).toEqual([{ invoiceId: 'inv1', amount: 400 }]);
+      expect(mockOutletModel.updateOne).toHaveBeenCalledWith(
+        { _id: 'outlet1', organizationId: 'org1' },
+        { $inc: { 'commercial.outstandingBalance': -400 } },
+        expect.anything(),
+      );
+    });
+
+    it('leaves invoices unpaid and outstanding untouched when Pending -> Bounced', async () => {
+      const invoice = makeInvoice();
+      const collection: any = {
+        _id: 'col1', status: 'Pending', amount: 400, outletId: 'outlet1', invoiceId: 'inv1', allocations: [],
+        save: jest.fn().mockResolvedValue(true),
+      };
+      mockCollectionModel.findOne.mockReturnValue({ session: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(collection) }) } as any);
+      mockInvoiceModel.findOne.mockReturnValue({ session: jest.fn().mockResolvedValue(invoice) } as any);
+
+      await service.updateStatus('org1', 'col1', 'Bounced');
+
+      expect(collection.status).toBe('Bounced');
+      expect(invoice.paidAmount).toBe(0);
+      expect(invoice.save).not.toHaveBeenCalled();
+      expect(mockOutletModel.updateOne).not.toHaveBeenCalled();
+    });
+
+    it('refuses to reverse a Pending collection (nothing was deducted)', async () => {
+      mockCollectionModel.findOne.mockReturnValue({
+        session: jest.fn().mockResolvedValue({ status: 'Pending', amount: 400, save: jest.fn() })
+      } as any);
+
+      await expect(service.reverseCollection('org1', 'col1', 'user1')).rejects.toThrow('Only a Cleared collection can be reversed');
+      expect(mockOutletModel.updateOne).not.toHaveBeenCalled();
+    });
+
+    it('refuses any status change on a reversal entry (would double-count the reversal)', async () => {
+      const reversal: any = {
+        _id: 'rev1', status: 'Cleared', amount: -400, receiptNumber: 'REV-R1', outletId: 'outlet1', allocations: [], save: jest.fn(),
+      };
+      mockCollectionModel.findOne.mockReturnValue({ session: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(reversal) }) } as any);
+
+      await expect(service.updateStatus('org1', 'rev1', 'Bounced')).rejects.toThrow('Reversal and credit-note entries cannot change status');
+      expect(mockOutletModel.updateOne).not.toHaveBeenCalled();
+      expect(reversal.save).not.toHaveBeenCalled();
+    });
+
+    it('refuses Cleared -> Pending', async () => {
+      const collection: any = { _id: 'col1', status: 'Cleared', amount: 400, outletId: 'outlet1', allocations: [], save: jest.fn() };
+      mockCollectionModel.findOne.mockReturnValue({ session: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(collection) }) } as any);
+
+      await expect(service.updateStatus('org1', 'col1', 'Pending')).rejects.toThrow('Cannot change collection status');
+    });
+  });
+
+  describe('update (PUT)', () => {
+    it('only $sets whitelisted non-financial fields', async () => {
+      mockCollectionModel.findOne.mockResolvedValue(null);
+      mockCollectionModel.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({ _id: 'col1' }) });
+
+      await service.update('org1', 'col1', { referenceNumber: 'UTR-9', amount: 1, status: 'Cleared', allocations: [], outletId: 'x' });
+
+      expect(mockCollectionModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: 'col1', organizationId: 'org1' },
+        { $set: { referenceNumber: 'UTR-9' } },
+        { new: true },
+      );
     });
   });
 });

@@ -87,7 +87,7 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
 
   if (loading || !outlet) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="flex items-center justify-center h-screen bg-background">
         <Loader2 className="w-6 h-6 animate-spin text-primary-600" />
       </div>
     );
@@ -95,7 +95,7 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
 
   if (isSubmitted) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 p-6 text-center">
+      <div className="flex flex-col items-center justify-center h-screen bg-background p-4 text-center">
         <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
         <h2 className="text-xl font-bold text-gray-900 mb-1">Payment Recorded</h2>
         <p className="text-sm text-gray-500">Queued for sync — will upload automatically once online.</p>
@@ -104,7 +104,7 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-background">
       <header className="bg-white px-4 py-3 flex items-center shadow-sm">
         <button onClick={onBack} className="p-2 -ml-2 mr-2">
           <ChevronLeft className="w-6 h-6 text-gray-700" />
@@ -115,7 +115,7 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 pb-8">
+      <main className="flex-1 overflow-y-auto p-4 pb-6">
         {formError && (
           <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -123,7 +123,7 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
           </div>
         )}
 
-        <div className="bg-white rounded-xl p-4 shadow-sm mb-4 border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm mb-4 border border-border">
           <div className="flex justify-between items-center mb-1">
             <span className="text-sm text-gray-500">Outstanding Balance</span>
           </div>
@@ -133,7 +133,7 @@ export default function CollectionScreen({ outletId, onBack }: { outletId: strin
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-4">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-border space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Payment Amount (₹)</label>
               <input

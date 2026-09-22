@@ -1,19 +1,34 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { NotFoundException, BadRequestException, ForbiddenException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { User } from '@bharatsales/shared-types';
 import { Tenant } from '../schemas/tenant.schema';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
+import { isTestRuntime } from '../core/runtime';
+import { emailLookup } from '../core/validation';
 import { BrevoEmailProvider, renderEmailHtml } from '../common/email.provider';
 
-@Injectable()
+// Fields a caller may ever set on a user through POST /users or PUT /users/:id.
+// Everything else (platformAdmin, organizationId, emailVerified,
+// failedLoginAttempts, lockedUntil, pushToken, _id, timestamps, and
+// distributorId except in the explicit case handled in createUser) is dropped.
+const WRITABLE_USER_FIELDS = ['email', 'name', 'password', 'role', 'mobile', 'status', 'territoryIds'] as const;
+
+function pickWritableUserFields(data: any): Record<string, any> {
+  const out: Record<string, any> = {};
+  if (!data || typeof data !== 'object') return out;
+  for (const key of WRITABLE_USER_FIELDS) {
+    if (data[key] !== undefined) out[key] = data[key];
+  }
+  return out;
+}
+
 export class UsersService {
   constructor(
-    @InjectModel('User') private readonly userModel: Model<any>,
-    @InjectModel('Token') private readonly tokenModel: Model<any>,
-    @InjectModel(Tenant.name) private readonly tenantModel: Model<Tenant>,
+    private readonly userModel: Model<any>,
+    private readonly tokenModel: Model<any>,
+    private readonly tenantModel: Model<Tenant>,
     private readonly hierarchyService: HierarchyService,
     private readonly emailProvider: BrevoEmailProvider
   ) {}
@@ -29,38 +44,62 @@ export class UsersService {
       query.distributorId = user.distributorId || '__none__';
     } else if (user && user.role === 'Sales Manager') {
       // A Sales Manager only sees the reps on their own team, not the whole org.
+      // An empty team (manager with no territory, or no reps under it) must
+      // yield an empty list — not a '__none__' sentinel, which Mongoose
+      // cannot cast to an ObjectId and would 400 with "Invalid _id".
       const teamUserIds = await this.hierarchyService.getTeamUserIds(organizationId, user.sub);
-      query._id = { $in: teamUserIds.length ? teamUserIds : ['__none__'] };
+      if (teamUserIds.length === 0) return [];
+      query._id = { $in: teamUserIds };
     }
     return this.userModel.find(query).select('-password').exec();
   }
 
-  async createUser(organizationId: string, actorRole: string, userData: Partial<User> & { password?: string }, actorDistributorId?: string) {
-    delete (userData as any).organizationId;
-    delete (userData as any)._id;
-    delete (userData as any).createdAt;
-    delete (userData as any).updatedAt;
-    if (userData.role === 'Super Admin' && actorRole !== 'Super Admin') {
+  // Role-hierarchy rules shared by createUser and inviteUser: who may create
+  // (or invite) a user with a given role.
+  private assertCanAssignRoleOnCreate(actorRole: string, role: string | undefined) {
+    if (role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can create other Super Admins.');
     }
-    if (userData.role === 'Organization Admin' && !['Organization Admin', 'Super Admin'].includes(actorRole)) {
+    if (role === 'Organization Admin' && !['Organization Admin', 'Super Admin'].includes(actorRole)) {
       throw new ForbiddenException('Only Organization Admins can create other Organization Admins.');
     }
+    if (actorRole === 'Distributor' && role && role !== 'Distributor') {
+      throw new ForbiddenException('Distributors can only create staff with the Distributor role.');
+    }
+  }
 
-    // A Distributor-created user is scoped to that same distributor's staff.
+  async createUser(organizationId: string, actorRole: string, rawUserData: Partial<User> & { password?: string; distributorId?: string }, actorDistributorId?: string) {
+    // Whitelist: never mass-assign privileged fields from the request body.
+    const userData: any = pickWritableUserFields(rawUserData);
+
+    this.assertCanAssignRoleOnCreate(actorRole, userData.role);
+
     if (actorRole === 'Distributor') {
-      (userData as any).distributorId = actorDistributorId;
-      if (userData.role && userData.role !== 'Distributor') {
-        throw new ForbiddenException('Distributors can only create staff with the Distributor role.');
-      }
+      // A Distributor-created user is scoped to that same distributor's staff.
+      userData.distributorId = actorDistributorId;
+    } else if (
+      actorRole === 'Organization Admin' &&
+      userData.role === 'Distributor' &&
+      typeof (rawUserData as any)?.distributorId === 'string' &&
+      (rawUserData as any).distributorId
+    ) {
+      // The one legitimate way to set distributorId from a body: an Org Admin
+      // explicitly provisioning a Distributor-role account for a distributor.
+      userData.distributorId = (rawUserData as any).distributorId;
     }
 
     if (!userData.email) {
       throw new BadRequestException('Email is required');
     }
+
+    // No more silent default password — a directly created user must be
+    // given one; otherwise use the invitation flow (POST /users/invites).
+    if (!userData.password) {
+      throw new BadRequestException('Password is required. Use the invitation flow to add a user without a password.');
+    }
     
     // Check if user exists
-    const existing = await this.userModel.findOne({ email: userData.email }).exec();
+    const existing = await this.userModel.findOne(emailLookup(String(userData.email))).exec();
     if (existing) {
       throw new BadRequestException('Email already exists');
     }
@@ -75,7 +114,7 @@ export class UsersService {
       }
     }
 
-    const hashedPassword = await bcrypt.hash(userData.password || 'password123', 10);
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
     
     const newUser = new this.userModel({
       ...userData,
@@ -90,16 +129,19 @@ export class UsersService {
     return result;
   }
 
-  async inviteUser(organizationId: string, actorRole: string, email: string, role: string, name?: string, territoryIds?: string[]) {
+  async inviteUser(organizationId: string, actorRole: string, email: string, role: string, name?: string, territoryIds?: string[], actorDistributorId?: string) {
     if (role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can invite other Super Admins.');
     }
+    // Same role-hierarchy rules as createUser (e.g. a Distributor or Sales
+    // Rep can never invite an Organization Admin).
+    this.assertCanAssignRoleOnCreate(actorRole, role);
 
     if (!email) {
       throw new BadRequestException('Email is required');
     }
 
-    const existing = await this.userModel.findOne({ email }).exec();
+    const existing = await this.userModel.findOne(emailLookup(email)).exec();
     if (existing) {
       throw new BadRequestException('Email already exists in the system');
     }
@@ -116,8 +158,8 @@ export class UsersService {
 
     // Creating a user in "Invited" status with a random, never-communicated
     // password — they set their real one via the invitation email link.
-    const randomPassword = await bcrypt.hash(Math.random().toString(36).slice(-8), 10);
-    const newUser = new this.userModel({
+    const randomPassword = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+    const newUserData: any = {
       email,
       role,
       name: name || 'Invited User',
@@ -125,7 +167,12 @@ export class UsersService {
       password: randomPassword,
       organizationId,
       status: 'Invited'
-    });
+    };
+    // A Distributor-invited user is scoped to that same distributor's staff.
+    if (actorRole === 'Distributor') {
+      newUserData.distributorId = actorDistributorId;
+    }
+    const newUser = new this.userModel(newUserData);
 
     const saved = await newUser.save();
     
@@ -157,11 +204,17 @@ export class UsersService {
     const result = saved.toObject();
     delete result.password;
 
-    return {
+    const response: { message: string; user: any; inviteToken?: string } = {
       message: 'Invitation sent successfully',
       user: result,
-      inviteToken // Return token for E2E testing purposes
     };
+    // The invite token is a credential (it lets whoever holds it set the
+    // account's password) — it is delivered only by email, and exposed in the
+    // response solely for the automated test suite.
+    if (isTestRuntime()) {
+      response.inviteToken = inviteToken;
+    }
+    return response;
   }
 
   // Enforces the same "who may touch this specific user" rule for both
@@ -184,17 +237,33 @@ export class UsersService {
     }
   }
 
-  async updateUser(organizationId: string, actor: any, id: string, updateData: Partial<User> & { password?: string }) {
-    delete (updateData as any).organizationId;
-    delete (updateData as any)._id;
-    delete (updateData as any).createdAt;
-    delete (updateData as any).updatedAt;
+  async updateUser(organizationId: string, actor: any, id: string, rawUpdateData: Partial<User> & { password?: string }) {
+    // Whitelist: never mass-assign privileged fields (platformAdmin,
+    // distributorId, emailVerified, lockout counters, organizationId...).
+    const updateData: any = pickWritableUserFields(rawUpdateData);
     const actorRole = actor.role;
     if (updateData.role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can assign the Super Admin role.');
     }
     if (updateData.role === 'Organization Admin' && !['Organization Admin', 'Super Admin'].includes(actorRole)) {
       throw new ForbiddenException('Only Organization Admins can assign the Organization Admin role.');
+    }
+    if (actorRole === 'Distributor' && updateData.role && updateData.role !== 'Distributor') {
+      throw new ForbiddenException('Distributors can only assign the Distributor role to their staff.');
+    }
+    // A Sales Manager may not promote team members (to Sales Manager,
+    // Distributor, ...) — role changes beyond Sales Representative are an
+    // Organization Admin decision.
+    if (actorRole === 'Sales Manager' && updateData.role && updateData.role !== 'Sales Representative') {
+      throw new ForbiddenException('Sales Managers cannot change a user to the ' + updateData.role + ' role.');
+    }
+    // Setting another user's password or email hands the actor that account.
+    // Only Organization/Super Admins may do that; everyone else must go
+    // through the invite / forgot-password flows.
+    const isAdminActor = ['Organization Admin', 'Super Admin'].includes(actorRole);
+    const isSelf = String(actor.sub ?? actor.id ?? '') === String(id);
+    if (!isAdminActor && !isSelf && (updateData.password !== undefined || updateData.email !== undefined)) {
+      throw new ForbiddenException("Only an Organization Admin can change another user's password or email.");
     }
 
     const target = await this.userModel.findOne({ _id: id, organizationId }).exec();

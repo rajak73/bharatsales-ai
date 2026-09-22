@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing, typography } from '../../src/theme/tokens';
+import { formatTime } from '../../src/lib/theme';
 import { useCurrentAttendanceSession, useAttendanceActions, useBackgroundLocationTracking } from '../../src/hooks/useAttendance';
 import { captureCameraPhoto, uploadCapturedPhoto } from '../../src/lib/photoCapture';
-import { ScreenHeader, Button, Card } from '../../src/components/ui';
+import { ScreenHeader, Button, Card, Banner, SkeletonBox } from '../../src/components/ui';
 
 export default function AttendanceScreen() {
   const { data: session, isLoading, refetch, isRefetching } = useCurrentAttendanceSession();
@@ -53,38 +54,49 @@ export default function AttendanceScreen() {
       <ScreenHeader title="Attendance" />
 
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.scroll}>
+          <SkeletonBox height={180} style={{ borderRadius: radius.lg }} />
+          <SkeletonBox height={52} style={{ borderRadius: radius.md, marginTop: spacing.lg }} />
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={styles.scroll}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.primary]} tintColor={colors.primary} />}
         >
           <Card padding={0} style={styles.card}>
-            <View style={[styles.statusBanner, { backgroundColor: session ? colors.success : '#1E293B' }]}>
-              <Ionicons name={session ? 'checkmark-circle' : 'time-outline'} size={48} color="#fff" />
+            <View style={[styles.statusBanner, { backgroundColor: session ? colors.success : colors.text }]} accessible accessibilityRole="summary">
+              <View style={styles.statusIcon}>
+                <Ionicons name={session ? 'checkmark-circle' : 'time-outline'} size={40} color="#fff" />
+              </View>
               <Text style={styles.statusTitle}>{session ? 'You are On Duty' : 'You are Off Duty'}</Text>
               <Text style={styles.statusSubtitle}>
-                {session ? `Started at ${new Date((session as any).startTime).toLocaleTimeString()}` : 'Start your day to unlock visits & orders'}
+                {session ? `Started at ${formatTime((session as any).startTime)}` : 'Start your day to unlock visits & orders'}
               </Text>
             </View>
 
             <View style={styles.body}>
-              {error ? <Text style={styles.error}>{error}</Text> : null}
+              {error ? <Banner tone="danger" message={error} /> : null}
 
-              <View style={styles.infoBox}>
-                <Ionicons name="location" size={20} color={colors.primary} style={{ marginRight: spacing.sm }} />
-                <Text style={styles.infoText}>Your location is recorded during attendance to verify your starting and ending territory.</Text>
-              </View>
+              <Banner tone="info" icon="location" message="Your location is recorded during attendance to verify your starting and ending territory." />
 
               {!session && (
-                <View style={{ marginBottom: spacing.lg }}>
-                  <TouchableOpacity style={styles.secondaryButton} onPress={handleTakeSelfie}>
-                    <Ionicons name="camera" size={18} color={colors.text} />
-                    <Text style={styles.secondaryButtonText}>{selfieUri ? 'Retake Selfie' : 'Take Selfie'}</Text>
-                  </TouchableOpacity>
-                  {selfieUri && <Image source={{ uri: selfieUri }} style={styles.preview} />}
+                <View style={styles.selfieBlock}>
+                  <Text style={styles.stepLabel}>Step 1 · Take a selfie</Text>
+                  {selfieUri ? (
+                    <Image source={{ uri: selfieUri }} style={styles.preview} accessibilityLabel="Selfie preview" />
+                  ) : (
+                    <View style={styles.previewPlaceholder}>
+                      <Ionicons name="person-circle-outline" size={48} color={colors.textMuted} />
+                      <Text style={styles.placeholderText}>No selfie yet</Text>
+                    </View>
+                  )}
+                  <Button
+                    label={selfieUri ? 'Retake Selfie' : 'Take Selfie'}
+                    variant={selfieUri ? 'ghost' : 'secondary'}
+                    onPress={handleTakeSelfie}
+                    icon={<Ionicons name="camera" size={20} color={selfieUri ? colors.text : colors.primary} />}
+                  />
+                  <Text style={styles.stepLabel}>Step 2 · Start your day</Text>
                 </View>
               )}
 
@@ -94,6 +106,7 @@ export default function AttendanceScreen() {
                 variant={session ? 'danger' : 'primary'}
                 loading={busy}
                 disabled={!session && !selfieUri}
+                icon={<Ionicons name={session ? 'log-out-outline' : 'play-circle'} size={20} color={session ? colors.danger : !selfieUri ? colors.textMuted : '#fff'} />}
               />
             </View>
           </Card>
@@ -105,17 +118,16 @@ export default function AttendanceScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
-  scroll: { padding: spacing.xl, paddingBottom: spacing.huge },
+  scroll: { padding: spacing.lg, paddingBottom: spacing.xxxl },
   card: { overflow: 'hidden' },
-  statusBanner: { padding: spacing.xxl, alignItems: 'center' },
-  statusTitle: { ...typography.h1, color: '#fff', marginTop: spacing.sm },
-  statusSubtitle: { ...typography.caption, color: 'rgba(255,255,255,0.85)', marginTop: spacing.xs, textAlign: 'center' },
-  body: { padding: spacing.xl },
-  error: { backgroundColor: colors.dangerLight, color: colors.danger, padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.lg, fontSize: 13 },
-  infoBox: { flexDirection: 'row', backgroundColor: colors.primaryLight, padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.xl },
-  infoText: { flex: 1, ...typography.caption, color: '#1E3A8A' },
-  secondaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: spacing.md },
-  secondaryButtonText: { ...typography.bodyMedium, color: colors.text },
-  preview: { width: '100%', height: 160, borderRadius: radius.md, marginTop: spacing.md },
+  statusBanner: { padding: spacing.xl, alignItems: 'center' },
+  statusIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  statusTitle: { ...typography.h1, color: '#fff', marginTop: spacing.md },
+  statusSubtitle: { ...typography.body, color: 'rgba(255,255,255,0.85)', marginTop: spacing.xs, textAlign: 'center' },
+  body: { padding: spacing.lg, gap: spacing.lg },
+  selfieBlock: { gap: spacing.md },
+  stepLabel: { ...typography.caption, fontFamily: typography.h3.fontFamily, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  preview: { width: '100%', height: 200, borderRadius: radius.md, backgroundColor: colors.neutralLight },
+  previewPlaceholder: { height: 140, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.bg },
+  placeholderText: { ...typography.caption, color: colors.textMuted },
 });

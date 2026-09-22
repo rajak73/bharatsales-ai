@@ -1,14 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from '../app.module';
 import mongoose from 'mongoose';
 import * as bcrypt from 'bcryptjs';
-import { getConnectionToken } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
+import { bootTestApp, TestApp } from '../test/test-app';
 
 describe('Tenant Isolation & Hierarchy Security (e2e)', () => {
-  let app: INestApplication;
+  let app: TestApp;
   jest.setTimeout(30000);
 
   let tokenA: string;
@@ -19,14 +16,9 @@ describe('Tenant Isolation & Hierarchy Security (e2e)', () => {
   let connection: Connection;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    app = await bootTestApp();
     
-    connection = app.get<Connection>(getConnectionToken());
+    connection = app.connection;
 
     // Clean up
     await connection.collection('users').deleteMany({ email: { $in: ['tenanta@test.com', 'tenantb@test.com'] } });

@@ -1,21 +1,8 @@
 import mongoose from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import {
-  Tenant, TenantSchema,
-  User, UserSchema,
-  Product, ProductSchema,
-  Outlet, OutletSchema,
-  Distributor, DistributorSchema,
-  Order, OrderSchema,
-  Target, TargetSchema,
-  PaymentCollection, CollectionSchema,
-  Inventory, InventorySchema,
-  Beat, BeatSchema, BeatSchedule, BeatScheduleSchema,
-  Visit, VisitSchema,
-  AttendanceSession, AttendanceSessionSchema,
-  HierarchyNode, HierarchyNodeSchema,
-} from './schemas';
+import { registerModels } from './models';
+import type { Order } from './schemas';
 
 // Additive-only demo data seeder for ONE existing organization.
 //
@@ -32,26 +19,32 @@ import {
 //     ts-node --transpile-only src/seed-demo-data.ts
 
 async function bootstrap() {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'true') {
+    console.error('CRITICAL: Seeding is blocked when NODE_ENV=production. Set ALLOW_PROD_SEED=true to override.');
+    process.exit(1);
+  }
+
   const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales';
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@bharatfoods.com';
 
   await mongoose.connect(uri);
   console.log('Connected to MongoDB:', uri);
 
-  const TenantModel = mongoose.model(Tenant.name, TenantSchema);
-  const UserModel = mongoose.model(User.name, UserSchema);
-  const ProductModel = mongoose.model(Product.name, ProductSchema);
-  const OutletModel = mongoose.model(Outlet.name, OutletSchema);
-  const DistributorModel = mongoose.model(Distributor.name, DistributorSchema);
-  const OrderModel = mongoose.model(Order.name, OrderSchema);
-  const TargetModel = mongoose.model(Target.name, TargetSchema);
-  const CollectionModel = mongoose.model('Collection', CollectionSchema);
-  const InventoryModel = mongoose.model(Inventory.name, InventorySchema);
-  const BeatModel = mongoose.model(Beat.name, BeatSchema);
-  const BeatScheduleModel = mongoose.model(BeatSchedule.name, BeatScheduleSchema);
-  const VisitModel = mongoose.model(Visit.name, VisitSchema);
-  const AttendanceModel = mongoose.model(AttendanceSession.name, AttendanceSessionSchema);
-  const HierarchyNodeModel = mongoose.model(HierarchyNode.name, HierarchyNodeSchema);
+  const models = registerModels(mongoose.connection);
+  const TenantModel = models.Tenant;
+  const UserModel = models.User;
+  const ProductModel = models.Product;
+  const OutletModel = models.Outlet;
+  const DistributorModel = models.Distributor;
+  const OrderModel = models.Order;
+  const TargetModel = models.Target;
+  const CollectionModel = models.Collection;
+  const InventoryModel = models.Inventory;
+  const BeatModel = models.Beat;
+  const BeatScheduleModel = models.BeatSchedule;
+  const VisitModel = models.Visit;
+  const AttendanceModel = models.AttendanceSession;
+  const HierarchyNodeModel = models.HierarchyNode;
 
   // 1. Resolve the existing organization — never create one.
   const adminUser = await UserModel.findOne({ email: adminEmail });

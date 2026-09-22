@@ -1,15 +1,13 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { AttendanceSession } from '../schemas/attendance.schema';
 import { Visit } from '../schemas/visit.schema';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 
-@Injectable()
 export class AttendanceService {
   constructor(
-    @InjectModel('AttendanceSession') private attendanceModel: Model<AttendanceSession>,
-    @InjectModel('Visit') private visitModel: Model<Visit>,
+    private attendanceModel: Model<AttendanceSession>,
+    private visitModel: Model<Visit>,
     private hierarchyService: HierarchyService
   ) {}
 

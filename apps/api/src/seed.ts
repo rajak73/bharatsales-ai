@@ -1,30 +1,31 @@
 import mongoose from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 
-async function bootstrap() {
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales';
-  
-  if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_PROD_SEED) {
-    console.error('CRITICAL: Seed script execution blocked in production environment.');
-    process.exit(1);
-  }
+type Db = mongoose.mongo.Db;
 
-  await mongoose.connect(uri);
-  console.log('Connected to MongoDB:', uri);
-
-  const db = mongoose.connection.db;
-  if (!db) {
-    throw new Error('Database connection not established');
+export function assertSeedAllowed() {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'true') {
+    throw new Error('Seeding is blocked when NODE_ENV=production. Set ALLOW_PROD_SEED=true to override.');
   }
+}
+
+/**
+ * Wipes the seeded collections and inserts the baseline dev/test data set
+ * (2 tenants, admins, a rep, catalog, outlets, ...). Used by `pnpm seed` and
+ * by the integration specs (in-process, no child process).
+ */
+export async function seedDatabase(db: Db, opts: { quiet?: boolean } = {}) {
+  assertSeedAllowed();
+  const log = (...args: any[]) => { if (!opts.quiet) console.log(...args); };
 
   // Clear existing data (but do not clear collections that we aren't seeding or that shouldn't exist)
-  console.log('Clearing existing data...');
-  const collections = ['tenants', 'hierarchy_nodes', 'users', 'products', 'price_lists', 'distributors', 'outlets', 'beats', 'inventory_batches', 'settings', 'onboarding_states', 'orders', 'attendance', 'visits', 'collections', 'claims', 'exports'];
+  log('Clearing existing data...');
+  const collections = ['inventory', 'schemes', 'targets', 'tenants', 'hierarchy_nodes', 'users', 'products', 'price_lists', 'distributors', 'outlets', 'beats', 'inventory_batches', 'settings', 'onboarding_states', 'orders', 'attendance', 'visits', 'collections', 'claims', 'exports'];
   for (const collectionName of collections) {
     try {
       await db.collection(collectionName).deleteMany({});
     } catch (e) {
-      console.log(`Collection ${collectionName} might not exist yet.`);
+      log(`Collection ${collectionName} might not exist yet.`);
     }
   }
 
@@ -329,11 +330,19 @@ async function bootstrap() {
     orderNumber: `ORD-${Date.now()}`,
     organizationId: org1Id,
     outletId: outletId,
-    repId: (await db.collection('users').findOne({ email: 'rep@bharatfoods.com' }))?._id?.toString(),
-    items: [{ productId: productId, quantity: 50, unitPrice: 48, discount: 0 }],
-    subtotal: 2400,
-    taxTotal: 432,
-    total: 2832,
+    // Shaped like OrderSchema (raw insert bypasses Mongoose validation): the
+    // line carries its name/SKU snapshot and the order its totals, so lists,
+    // analytics and dashboards show "Premium Product 1" and ₹2,832, not a
+    // raw product id and ₹0.
+    idempotencyKey: `seed-order-${Date.now()}`,
+    createdByUserId: (await db.collection('users').findOne({ email: 'rep@bharatfoods.com' }))?._id?.toString(),
+    items: [{
+      productId: productId, sku: 'SKU-PROD-01', name: 'Premium Product 1',
+      quantity: 50, unitPrice: 48, discount: 0,
+      gstPercentage: 18, cgstAmount: 216, sgstAmount: 216, igstAmount: 0,
+      subTotal: 2400, total: 2832, allocations: [],
+    }],
+    totals: { subTotal: 2400, discountTotal: 0, cgstTotal: 216, sgstTotal: 216, igstTotal: 0, grandTotal: 2832 },
     status: 'Approved',
     createdAt: new Date(Date.now() - 86400000),
     updatedAt: new Date(Date.now() - 86400000)
@@ -373,20 +382,36 @@ async function bootstrap() {
     updatedAt: new Date()
   });
 
-  console.log('Database seeded successfully.');
-  
-  console.log('\n--- SEED DATA CREDENTIALS ---');
-  console.log('Global Super Admin : superadmin@bharatsales.com');
-  console.log('Org 1 Admin        : admin@bharatfoods.com');
-  console.log('Sales Rep          : rep@bharatfoods.com');
-  console.log('Org 2 Admin        : admin@rajpharma.com');
-  console.log('All Passwords      : password123');
+  log('Database seeded successfully.');
 
-  await mongoose.disconnect();
-  process.exit(0);
+  log('\n--- SEED DATA CREDENTIALS ---');
+  log('Global Super Admin : superadmin@bharatsales.com');
+  log('Org 1 Admin        : admin@bharatfoods.com');
+  log('Sales Rep          : rep@bharatfoods.com');
+  log('Org 2 Admin        : admin@rajpharma.com');
+  log('All Passwords      : password123');
+
+  return { org1Id, org2Id };
 }
 
-bootstrap().catch(err => {
-  console.error('Failed to seed database:', err);
-  process.exit(1);
-});
+async function main() {
+  assertSeedAllowed();
+  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/bharatsales';
+  await mongoose.connect(uri);
+  console.log('Connected to MongoDB:', uri);
+  const db = mongoose.connection.db;
+  if (!db) {
+    throw new Error('Database connection not established');
+  }
+  await seedDatabase(db);
+  await mongoose.disconnect();
+}
+
+if (require.main === module) {
+  main()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error('Failed to seed database:', err);
+      process.exit(1);
+    });
+}

@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
-import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { NotFoundException, BadRequestException } from '../core/http-errors';
+import { emailLookup, normalizeEmail } from '../core/validation';
+import { Logger } from '../core/logger';
 import { Model, Connection } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { Tenant } from '../schemas/tenant.schema';
@@ -9,7 +10,6 @@ import { Session } from '../schemas/session.schema';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
-@Injectable()
 export class SuperadminService {
   private readonly logger = new Logger(SuperadminService.name);
 
@@ -20,11 +20,11 @@ export class SuperadminService {
   };
 
   constructor(
-    @InjectModel(Tenant.name) private tenantModel: Model<Tenant>,
-    @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(PlatformSettings.name) private platformSettingsModel: Model<PlatformSettings>,
-    @InjectModel(Session.name) private sessionModel: Model<Session>,
-    @InjectConnection() private connection: Connection,
+    private tenantModel: Model<Tenant>,
+    private userModel: Model<User>,
+    private platformSettingsModel: Model<PlatformSettings>,
+    private sessionModel: Model<Session>,
+    private connection: Connection,
     private auditService: AuditService,
     private notificationsService: NotificationsService
   ) {}
@@ -102,7 +102,7 @@ export class SuperadminService {
     const { adminName, adminEmail, adminPassword, ...tenantData } = data;
 
     if (adminEmail) {
-      const existing = await this.userModel.findOne({ email: adminEmail }).exec();
+      const existing = await this.userModel.findOne(emailLookup(adminEmail)).exec();
       if (existing) {
         throw new BadRequestException('A user with this admin email already exists');
       }
@@ -120,7 +120,7 @@ export class SuperadminService {
       const hashedPassword = await bcrypt.hash(adminPassword || Math.random().toString(36).slice(-10), 10);
       const adminUser = new this.userModel({
         organizationId: savedTenant._id.toString(),
-        email: adminEmail,
+        email: normalizeEmail(adminEmail),
         name: adminName,
         password: hashedPassword,
         role: 'Organization Admin',

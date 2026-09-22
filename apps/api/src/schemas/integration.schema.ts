@@ -1,25 +1,22 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 
-@Schema({ timestamps: true })
-export class Integration extends Document {
-  @Prop({ required: true, index: true })
+export interface Integration extends Document {
   organizationId: string;
-
-  @Prop({ required: true })
   name: string;
-
-  @Prop({ required: true })
   provider: string;
-
-  @Prop({ required: true })
   purpose: string;
-
-  @Prop({ required: true })
   status: 'Active' | 'Inactive' | 'Configuring';
-
-  @Prop({ type: Object, default: {} })
   config: Record<string, any>;
 }
 
-export const IntegrationSchema = SchemaFactory.createForClass(Integration);
+export const IntegrationSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    name: { type: String, required: true },
+    provider: { type: String, required: true },
+    purpose: { type: String, required: true },
+    status: { type: String, required: true },
+    config: { type: Object, default: {} },
+  },
+  { timestamps: true },
+);

@@ -27,7 +27,7 @@ export function OutletVisitScreen() {
   const [checkInIdempotencyKey] = useState(() => crypto.randomUUID());
 
   if (!outlet) {
-    return <div className="p-6">Outlet data not found</div>;
+    return <div className="p-4">Outlet data not found</div>;
   }
 
   if (showCollection) {
@@ -111,19 +111,19 @@ export function OutletVisitScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header */}
-      <div className="bg-primary-600 px-6 pt-12 pb-6 text-white shadow-md rounded-b-3xl">
-        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1 text-primary-100 hover:text-white">
+      <div className="bg-navy-900 px-4 pt-10 pb-4 text-white shadow-md rounded-b-2xl">
+        <button onClick={() => navigate(-1)} className="mb-2 flex items-center gap-1 text-navy-200 hover:text-white">
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
-        <h1 className="text-2xl font-bold">{outlet.name}</h1>
-        <p className="opacity-90 flex items-center gap-1 mt-1">
+        <h1 className="text-xl font-bold text-white">{outlet.name}</h1>
+        <p className="text-navy-200 text-sm flex items-center gap-1 mt-0.5">
           <MapPin className="w-4 h-4" /> {outlet.location?.address || 'Unknown Address'}
         </p>
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 space-y-4">
         {error && (
           <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 text-sm font-medium">
             {error}
@@ -138,7 +138,7 @@ export function OutletVisitScreen() {
         )}
 
         {/* Visit Control Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-4">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Visit Status</h2>
           
           {visitStatus === 'checked_in' ? (
@@ -185,7 +185,7 @@ export function OutletVisitScreen() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium"
               >
                 <Camera className="w-5 h-5" />
                 {shopfrontPhoto ? 'Retake Shopfront Photo' : 'Take Shopfront Photo'}
@@ -198,7 +198,7 @@ export function OutletVisitScreen() {
               <button
                 onClick={handleCheckIn}
                 disabled={visitStatus === 'checking_in' || !shopfrontPhoto}
-                className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-lg font-bold shadow-lg shadow-primary-600/20 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-4 px-4 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-lg font-bold shadow-lg shadow-primary-600/20 disabled:opacity-50"
               >
                 {visitStatus === 'checking_in' ? (
                   <><Loader2 className="w-6 h-6 animate-spin" /> Checking in...</>

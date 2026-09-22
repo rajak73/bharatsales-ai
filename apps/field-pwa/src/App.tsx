@@ -14,8 +14,9 @@ import { AttendanceScreen } from './screens/AttendanceScreen'
 import { OutletVisitScreen } from './screens/OutletVisitScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { NotificationsScreen } from './screens/NotificationsScreen'
-import { LogOut, User, RefreshCw, Wifi, WifiOff } from 'lucide-react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { SyncIssuesScreen } from './screens/SyncIssuesScreen'
+import { LogOut, User, RefreshCw, Wifi, WifiOff, AlertTriangle, ChevronRight } from 'lucide-react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { SyncEngine } from './sync/syncEngine'
 
@@ -31,8 +32,9 @@ function getCurrentUser(): { name?: string; email?: string; role?: string } {
 }
 
 function ProfileScreen() {
-  const { pendingCount, forceSync, isOnline } = useSyncEngine();
+  const { pendingCount, failedCount, forceSync, isOnline } = useSyncEngine();
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const [user] = useState(getCurrentUser);
   const initials = (user.name || user.email || '?').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
 
@@ -73,6 +75,18 @@ function ProfileScreen() {
           <RefreshCw className="w-4 h-4" />
           Force Sync Now
         </button>
+
+        {failedCount > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate('/sync-issues')}
+            className="mt-3 w-full flex items-center gap-2 bg-red-50 text-red-700 px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-red-100 transition-colors"
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span className="flex-1 text-left">{failedCount} sync issue{failedCount === 1 ? '' : 's'} need attention</span>
+            <ChevronRight className="w-4 h-4 shrink-0" />
+          </button>
+        )}
       </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
@@ -90,8 +104,10 @@ function ProfileScreen() {
 }
 
 function AppContent() {
-  const { isOnline, pendingCount } = useSyncEngine();
+  const { isOnline, pendingCount, failedCount } = useSyncEngine();
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (isAuthenticated && isOnline) {
@@ -127,6 +143,19 @@ function AppContent() {
           </div>
         )}
 
+        {/* Items that will not sync on their own (rejected by the server, or
+            queued by another user on this device) — tap to review. */}
+        {failedCount > 0 && location.pathname !== '/sync-issues' && (
+          <button
+            type="button"
+            onClick={() => navigate('/sync-issues')}
+            className="w-full flex items-center justify-center gap-2 bg-red-600 text-white text-xs font-semibold py-2 px-4 hover:bg-red-700 transition-colors"
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            {failedCount} item{failedCount === 1 ? '' : 's'} could not sync. Tap to review
+          </button>
+        )}
+
         <MobileLayout>
           <Routes>
             <Route path="/" element={<HomeScreen />} />
@@ -140,6 +169,7 @@ function AppContent() {
             <Route path="/attendance" element={<AttendanceScreen />} />
             <Route path="/notifications" element={<NotificationsScreen />} />
             <Route path="/visit" element={<OutletVisitScreen />} />
+            <Route path="/sync-issues" element={<SyncIssuesScreen />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </MobileLayout>

@@ -1,5 +1,5 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { BadRequestException, NotFoundException, ForbiddenException } from '../core/http-errors';
+import { Logger } from '../core/logger';
 import { Model } from 'mongoose';
 import { ReturnOrder } from '../schemas/return.schema';
 import { ReturnOrder as SharedReturnOrder, Outlet, Invoice } from '@bharatsales/shared-types';
@@ -7,16 +7,15 @@ import { InventoryService } from '../inventory/inventory.service';
 import { FinanceService } from '../finance/finance.service';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
 
-@Injectable()
 export class ReturnsService {
   private readonly logger = new Logger(ReturnsService.name);
 
   constructor(
-    @InjectModel(ReturnOrder.name) private returnModel: Model<ReturnOrder>,
-    @InjectModel('Outlet') private outletModel: Model<Outlet>,
-    @InjectModel('Invoice') private invoiceModel: Model<Invoice>,
-    @InjectModel('Order') private orderModel: Model<any>,
-    @InjectModel('Product') private productModel: Model<any>,
+    private returnModel: Model<ReturnOrder>,
+    private outletModel: Model<Outlet>,
+    private invoiceModel: Model<Invoice>,
+    private orderModel: Model<any>,
+    private productModel: Model<any>,
     private inventoryService: InventoryService,
     private financeService: FinanceService,
     private hierarchyService: HierarchyService
@@ -42,22 +41,14 @@ export class ReturnsService {
     return this.returnModel.find(query).exec();
   }
 
-  async create(
-    organizationId: string, 
-    data: Omit<SharedReturnOrder, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>,
-    userId: string
-  ): Promise<ReturnOrder> {
-    const outlet = await this.outletModel.findOne({ _id: data.outlet, organizationId });
-    if (!outlet) {
-      throw new NotFoundException('Outlet not found');
-    }
-
+  /** Server-side refund value: original order unit price, else product base price. */
+  private async calculateRefundValue(organizationId: string, orderId: string | undefined, items: any[] | undefined): Promise<number> {
     let calculatedRefundAmount = 0;
 
-    if (data.orderId) {
-      const order = await this.orderModel.findOne({ _id: data.orderId, organizationId });
-      if (order && data.items) {
-        for (const returnItem of data.items) {
+    if (orderId) {
+      const order = await this.orderModel.findOne({ _id: orderId, organizationId });
+      if (order && items) {
+        for (const returnItem of items) {
           const originalItem = order.items.find((i: any) => i.productId === returnItem.product || i.productId?.toString() === returnItem.product);
           if (originalItem) {
             calculatedRefundAmount += (originalItem.unitPrice * returnItem.qty);
@@ -70,14 +61,50 @@ export class ReturnsService {
           }
         }
       }
-    } else if (data.items) {
-        for (const returnItem of data.items) {
+    } else if (items) {
+        for (const returnItem of items) {
             const product = await this.productModel.findOne({ _id: returnItem.product, organizationId });
             if (product) {
               calculatedRefundAmount += (product.pricing.basePrice * returnItem.qty);
             }
         }
     }
+
+    return calculatedRefundAmount;
+  }
+
+  /**
+   * A Distributor may only act on returns tied to them: through the order's
+   * assignedDistributorId, or (no order) the outlet's assigned distributor.
+   */
+  async assertCanActOnReturn(organizationId: string, id: string, user?: any): Promise<void> {
+    if (!user || user.role !== 'Distributor') return;
+    const returnOrder: any = await this.returnModel.findOne({ _id: id, organizationId }).exec();
+    if (!returnOrder) throw new NotFoundException('Return order not found');
+    let owner: string | undefined;
+    if (returnOrder.orderId) {
+      const order: any = await this.orderModel.findOne({ _id: returnOrder.orderId, organizationId }).exec();
+      owner = order?.assignedDistributorId?.toString();
+    } else {
+      const outlet: any = await this.outletModel.findOne({ _id: returnOrder.outlet, organizationId }).exec();
+      owner = outlet?.commercial?.assignedDistributorId?.toString();
+    }
+    if (!user.distributorId || owner !== user.distributorId) {
+      throw new ForbiddenException('This return is not assigned to you');
+    }
+  }
+
+  async create(
+    organizationId: string, 
+    data: Omit<SharedReturnOrder, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>,
+    userId: string
+  ): Promise<ReturnOrder> {
+    const outlet = await this.outletModel.findOne({ _id: data.outlet, organizationId });
+    if (!outlet) {
+      throw new NotFoundException('Outlet not found');
+    }
+
+    const calculatedRefundAmount = await this.calculateRefundValue(organizationId, data.orderId, data.items);
 
     // Override insecure client-provided value with secure backend calculation
     data.value = calculatedRefundAmount.toString();
@@ -181,6 +208,19 @@ export class ReturnsService {
   async update(organizationId: string, id: string, data: Partial<SharedReturnOrder>): Promise<ReturnOrder> {
     delete (data as any).organizationId;
     delete (data as any)._id;
+    const existing: any = await this.returnModel.findOne({ _id: id, organizationId }).exec();
+    if (!existing) throw new NotFoundException('Return order not found');
+    // Once a return is past Submitted, its items/order drive credit notes and
+    // restocking, so it can no longer be edited.
+    if (!['Draft', 'Submitted'].includes(existing.status)) {
+      throw new BadRequestException(`A return in status ${existing.status} can no longer be edited`);
+    }
+    // Keep value consistent with whatever items/order the return now has.
+    if (data.items !== undefined || data.orderId !== undefined) {
+      const orderId = data.orderId !== undefined ? data.orderId : existing.orderId;
+      const items = data.items !== undefined ? data.items : existing.items;
+      (data as any).value = (await this.calculateRefundValue(organizationId, orderId, items)).toString();
+    }
     const returnOrder = await this.returnModel.findOneAndUpdate(
       { _id: id, organizationId },
       { $set: data },

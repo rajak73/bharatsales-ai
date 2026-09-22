@@ -32,7 +32,7 @@ export function ErrorState({ message, onRetry, offline }: ErrorStateProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.xxxl },
+  container: { alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.xxl },
   iconWrap: { width: 64, height: 64, borderRadius: radius.pill, backgroundColor: colors.dangerLight, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
   title: { ...typography.h3, color: colors.text, textAlign: 'center' },
   message: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs },

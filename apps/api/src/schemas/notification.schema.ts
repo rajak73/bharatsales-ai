@@ -1,18 +1,26 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { NotificationLog as INotificationLog } from '@bharatsales/shared-types';
+import { Schema, Document } from 'mongoose';
 
 export type NotificationLogDocument = NotificationLog & Document;
 
-@Schema({ timestamps: true, collection: 'notification_logs' })
-export class NotificationLog implements Omit<INotificationLog, 'id' | 'createdAt' | 'updatedAt'> {
-  @Prop({ required: true, index: true }) organizationId: string;
-  @Prop({ required: true, enum: ['SMS', 'WhatsApp', 'Email'] }) method: 'SMS' | 'WhatsApp' | 'Email';
-  @Prop({ required: true }) to: string;
-  @Prop() message?: string;
-  @Prop() templateId?: string;
-  @Prop({ type: Object }) payload?: any;
-  @Prop({ required: true, enum: ['Pending', 'Sent', 'Failed'], default: 'Sent' }) status: 'Pending' | 'Sent' | 'Failed';
+export interface NotificationLog {
+  organizationId: string;
+  method: 'SMS' | 'WhatsApp' | 'Email';
+  to: string;
+  message?: string;
+  templateId?: string;
+  payload?: any;
+  status: 'Pending' | 'Sent' | 'Failed';
 }
 
-export const NotificationLogSchema = SchemaFactory.createForClass(NotificationLog);
+export const NotificationLogSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    method: { type: String, required: true, enum: ['SMS', 'WhatsApp', 'Email'] },
+    to: { type: String, required: true },
+    message: { type: String },
+    templateId: { type: String },
+    payload: { type: Object },
+    status: { type: String, required: true, enum: ['Pending', 'Sent', 'Failed'], default: 'Sent' },
+  },
+  { timestamps: true, collection: 'notification_logs' },
+);

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Logger } from '../core/logger';
 
 export interface IEmailProvider {
   sendEmail(to: string, subject: string, body: string): Promise<boolean>;
@@ -30,7 +30,6 @@ export function renderEmailHtml(heading: string, message: string, cta?: { label:
 // Real integration: Brevo's transactional email API
 // (https://api.brevo.com/v3/smtp/email). Falls back to logging when
 // BREVO_API_KEY isn't set — same dev-mode behavior this provider always had.
-@Injectable()
 export class BrevoEmailProvider implements IEmailProvider {
   private readonly logger = new Logger(BrevoEmailProvider.name);
   private apiKey = process.env.BREVO_API_KEY;

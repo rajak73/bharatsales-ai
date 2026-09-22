@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, Stack } from 'expo-router';
-import { colors } from '../../src/lib/theme';
+import { colors, formatCurrency } from '../../src/lib/theme';
+import { spacing } from '../../src/theme/tokens';
 import { useLocalOutlets } from '../../src/hooks/useLocalData';
 import { useIsOnline } from '../../src/hooks/useIsOnline';
-import { EmptyState, ErrorState, SkeletonList } from '../../src/components/ui';
+import { EmptyState, ErrorState, SkeletonList, ScreenHeader, TextField, IconButton, ListItem, StatusPill } from '../../src/components/ui';
 
 export default function OutletsListScreen() {
   const { data: outlets = [], refetch, isRefetching, isLoading, isError } = useLocalOutlets();
@@ -20,16 +20,22 @@ export default function OutletsListScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Stack.Screen options={{ headerShown: true, title: 'All Outlets' }} />
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color={colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search outlets..."
+      <Stack.Screen options={{ headerShown: false }} />
+      <ScreenHeader title="All Outlets" subtitle={outlets.length > 0 ? `${outlets.length} outlets` : undefined} />
+
+      <View style={styles.searchWrap}>
+        <TextField
+          icon="search"
+          placeholder="Search by name or address"
+          accessibilityLabel="Search outlets"
           value={search}
           onChangeText={setSearch}
+          autoCorrect={false}
+          returnKeyType="search"
+          right={search ? <IconButton icon="close-circle" size={18} onPress={() => setSearch('')} accessibilityLabel="Clear search" /> : null}
         />
       </View>
+
       {isLoading ? (
         <View style={styles.list}><SkeletonList count={6} /></View>
       ) : isError ? (
@@ -39,23 +45,31 @@ export default function OutletsListScreen() {
           contentContainerStyle={styles.list}
           data={filtered}
           keyExtractor={(item: any) => item.id}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-          ListEmptyComponent={<EmptyState icon="storefront-outline" title="No outlets found" />}
-          renderItem={({ item }: any) => (
-            <TouchableOpacity
-              style={styles.outletCard}
-              onPress={() => router.push({ pathname: '/(rep)/outlet/[id]', params: { id: item.id } })}
-            >
-              <View style={styles.outletIcon}>
-                <Ionicons name="storefront" size={20} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.outletName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.outletAddress} numberOfLines={1}>{item.location?.address || 'Unknown'}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.primary]} tintColor={colors.primary} />}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          ListEmptyComponent={
+            search ? (
+              <EmptyState icon="search-outline" title="No matching outlets" message={`Nothing matches "${search}".`} actionLabel="Clear Search" onAction={() => setSearch('')} />
+            ) : (
+              <EmptyState icon="storefront-outline" title="No outlets found" message="Pull down to refresh once you're online." />
+            )
+          }
+          renderItem={({ item }: any) => {
+            const due = Number(item.commercial?.outstandingBalance) || 0;
+            return (
+              <ListItem
+                icon="storefront"
+                title={item.name}
+                subtitle={item.location?.address || 'Address not available'}
+                showChevron
+                onPress={() => router.push({ pathname: '/(rep)/outlet/[id]', params: { id: item.id } })}
+                accessibilityLabel={`${item.name}${due > 0 ? `, ${formatCurrency(due)} due` : ''}. Opens visit`}
+                trailing={due > 0 ? <StatusPill label={`${formatCurrency(due)} due`} tone="warning" /> : null}
+              />
+            );
+          }}
         />
       )}
     </SafeAreaView>
@@ -64,12 +78,6 @@ export default function OutletsListScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, margin: 16, marginBottom: 8, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, gap: 8 },
-  searchInput: { flex: 1, paddingVertical: 12, fontSize: 14 },
-  list: { paddingHorizontal: 16, paddingBottom: 40 },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: 40 },
-  outletCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border },
-  outletIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  outletName: { fontWeight: '700', color: colors.text, fontSize: 14 },
-  outletAddress: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  searchWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm },
+  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxxl },
 });

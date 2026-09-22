@@ -1,5 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
 import { DistributorsService } from './distributors.service';
 
 describe('DistributorsService', () => {
@@ -16,17 +14,12 @@ describe('DistributorsService', () => {
     find: jest.fn(),
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        DistributorsService,
-        { provide: getModelToken('Distributor'), useValue: mockDistributorModel },
-        { provide: getModelToken('Order'), useValue: mockOrderModel },
-        { provide: getModelToken('Inventory'), useValue: mockInventoryModel },
-      ],
-    }).compile();
-
-    service = module.get<DistributorsService>(DistributorsService);
+  beforeEach(() => {
+    service = new DistributorsService(
+      mockDistributorModel as any,
+      mockOrderModel as any,
+      mockInventoryModel as any,
+    );
   });
 
   afterEach(() => {

@@ -4,7 +4,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": ["dist/**"],
+      "env": ["VITE_*"]
     },
     "dev": {
       "cache": false,
@@ -15,7 +16,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "env": ["JWT_SECRET", "JWT_REFRESH_SECRET"]
+      "env": ["JWT_SECRET", "JWT_REFRESH_SECRET", "MONGODB_URI"]
     },
     "type-check": {
       "dependsOn": ["^build"]

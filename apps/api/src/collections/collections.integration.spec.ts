@@ -1,13 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import { getConnectionToken } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
-import { AppModule } from '../app.module';
-import { execSync } from 'child_process';
 import request from 'supertest';
+import { bootTestApp, TestApp, seedTestDatabase } from '../test/test-app';
 
 describe('Finance Collections Verification (e2e)', () => {
-  let app: INestApplication;
+  let app: TestApp;
   let connection: Connection;
   jest.setTimeout(30000);
 
@@ -17,15 +13,10 @@ describe('Finance Collections Verification (e2e)', () => {
   let userId: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-    connection = app.get<Connection>(getConnectionToken());
+    app = await bootTestApp();
+    connection = app.connection;
     
-    execSync('npx ts-node src/seed.ts', { stdio: 'ignore' });
+    await seedTestDatabase(connection);
 
     const loginRes = await request(app.getHttpServer())
       .post('/auth/login')

@@ -22,8 +22,8 @@ export class UsersService {
     return response.data;
   }
 
-  static async inviteUser(data: { email: string; role: string; name?: string; territoryIds?: string[] }): Promise<{ message: string; user: User; inviteToken: string }> {
-    const response = await apiClient.post<{ message: string; user: User; inviteToken: string }>('/users/invites', data);
+  static async inviteUser(data: { email: string; role: string; name?: string; territoryIds?: string[] }): Promise<{ message: string; user: User; inviteToken?: string }> {
+    const response = await apiClient.post<{ message: string; user: User; inviteToken?: string }>('/users/invites', data);
     return response.data;
   }
 }

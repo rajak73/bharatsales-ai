@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { SupportService } from '@bharatsales/api-client';
-import { colors, radius, spacing, typography } from '../../src/theme/tokens';
-import { ScreenHeader, Button } from '../../src/components/ui';
+import { colors, spacing, typography } from '../../src/theme/tokens';
+import { ScreenHeader, Button, Banner, Card, TextField, Chip, BottomBar, KeyboardAware, SuccessState } from '../../src/components/ui';
 
 const PRIORITIES = ['Low', 'Medium', 'High'] as const;
 
@@ -36,63 +36,66 @@ export default function ReportIssueScreen() {
   };
 
   if (submitted) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <Ionicons name="checkmark-circle" size={72} color={colors.success} />
-        <Text style={styles.submittedTitle}>Issue Reported</Text>
-        <Text style={styles.submittedText}>Your support ticket has been created. Our team will follow up soon.</Text>
-      </SafeAreaView>
-    );
+    return <SuccessState title="Issue Reported" message="Your support ticket has been created. Our team will follow up soon." />;
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader title="Report an Issue" />
-      <View style={styles.body}>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+      <KeyboardAware>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+          {error ? <Banner tone="danger" message={error} /> : null}
 
-        <Text style={styles.label}>Subject</Text>
-        <TextInput style={styles.input} placeholder="Brief summary" value={subject} onChangeText={setSubject} />
+          <Card style={styles.form}>
+            <TextField label="Subject" required placeholder="Brief summary" value={subject} onChangeText={setSubject} returnKeyType="next" />
 
-        <Text style={styles.label}>Priority</Text>
-        <View style={styles.priorityRow}>
-          {PRIORITIES.map((p) => (
-            <Button
-              key={p}
-              label={p}
-              onPress={() => setPriority(p)}
-              variant={priority === p ? 'primary' : 'ghost'}
-              fullWidth={false}
-              style={styles.priorityButton}
+            <View>
+              <Text style={styles.label}>Priority</Text>
+              <View style={styles.priorityRow}>
+                {PRIORITIES.map((p) => (
+                  <Chip
+                    key={p}
+                    label={p}
+                    selected={priority === p}
+                    tone={p === 'High' ? 'danger' : 'primary'}
+                    onPress={() => setPriority(p)}
+                    style={styles.priorityChip}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <TextField
+              label="Details"
+              required
+              placeholder="Describe what happened, which screen, and any error message you saw…"
+              value={message}
+              onChangeText={setMessage}
+              multiline
+              style={{ minHeight: 140 }}
             />
-          ))}
-        </View>
+          </Card>
+        </ScrollView>
 
-        <Text style={styles.label}>Details</Text>
-        <TextInput
-          style={[styles.input, styles.textarea]}
-          placeholder="Describe what happened..."
-          value={message}
-          onChangeText={setMessage}
-          multiline
-        />
-
-        <Button label="Submit Ticket" onPress={handleSubmit} loading={submitting} disabled={!subject || !message} style={{ marginTop: spacing.lg }} />
-      </View>
+        <BottomBar>
+          <Button
+            label="Submit Ticket"
+            onPress={handleSubmit}
+            loading={submitting}
+            disabled={!subject || !message}
+            icon={<Ionicons name="send" size={18} color={!subject || !message ? colors.textMuted : '#fff'} />}
+          />
+        </BottomBar>
+      </KeyboardAware>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxxl },
-  submittedTitle: { ...typography.h1, color: colors.text, marginTop: spacing.lg },
-  submittedText: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm },
-  body: { padding: spacing.xl, gap: spacing.xs },
-  error: { backgroundColor: colors.dangerLight, color: colors.danger, padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.md, fontSize: 13 },
-  label: { ...typography.caption, color: colors.text, marginTop: spacing.md, marginBottom: spacing.xs },
-  input: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, fontSize: 14 },
-  textarea: { minHeight: 120, textAlignVertical: 'top' },
+  scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
+  form: { gap: spacing.lg },
+  label: { ...typography.caption, fontFamily: typography.h3.fontFamily, color: colors.text, marginBottom: spacing.sm },
   priorityRow: { flexDirection: 'row', gap: spacing.sm },
-  priorityButton: { flex: 1, paddingVertical: spacing.sm },
+  priorityChip: { flex: 1, justifyContent: 'center' },
 });

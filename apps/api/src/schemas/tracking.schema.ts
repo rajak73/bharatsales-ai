@@ -1,28 +1,34 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Schema, Document, Types } from 'mongoose';
 
-@Schema({ timestamps: true })
-export class LocationPing extends Document {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+export interface LocationPing extends Document {
   user: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'Organization', required: true, index: true })
   organizationId: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'AttendanceSession', required: true })
   attendanceSession: Types.ObjectId;
-
-  @Prop({ required: true })
   lat: number;
-
-  @Prop({ required: true })
   lng: number;
-
-  @Prop({ required: true })
   accuracy: number;
-
-  @Prop({ required: true })
   deviceTimestamp: Date;
 }
 
-export const LocationPingSchema = SchemaFactory.createForClass(LocationPing);
+// NOTE: under @nestjs/mongoose, `@Prop({ type: Types.ObjectId })` compiled to Mixed (the bson class was
+// treated as an empty nested class -> `{}`), so these refs never cast to ObjectId. They are kept Mixed
+// on purpose so existing documents and string-id queries behave exactly as before the migration.
+export const LocationPingSchema = new Schema(
+  {
+    user: { type: Schema.Types.Mixed, ref: 'User', required: true },
+    organizationId: { type: Schema.Types.Mixed, ref: 'Organization', required: true, index: true },
+    attendanceSession: { type: Schema.Types.Mixed, ref: 'AttendanceSession', required: true },
+    lat: { type: Number, required: true },
+    lng: { type: Number, required: true },
+    accuracy: { type: Number, required: true },
+    deviceTimestamp: { type: Date, required: true },
+  },
+  { timestamps: true },
+);
+
+// Perf: org-wide live-tracking / breadcrumb queries sorted by device time.
+LocationPingSchema.index({ organizationId: 1, deviceTimestamp: -1 });
+// Retention: drop pings 90 days after they reached the server. Keyed on the
+// server-set `createdAt` rather than `deviceTimestamp` so a device with a
+// wrong clock can't get its pings deleted early (or kept forever).
+LocationPingSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });

@@ -1,24 +1,38 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { SalesTarget as ISalesTarget } from '@bharatsales/shared-types';
+import { Schema, Document } from 'mongoose';
 
 export type TargetDocument = Target & Document;
 
-@Schema({ timestamps: true, collection: 'targets' })
-export class Target implements Omit<ISalesTarget, 'id' | 'createdAt' | 'updatedAt'> {
-  @Prop({ required: true, index: true }) organizationId: string;
-  @Prop({ required: true, enum: ['User', 'Territory', 'Outlet'] }) entityType: 'User' | 'Territory' | 'Outlet';
-  @Prop({ required: true, index: true }) entityId: string;
-  
-  @Prop({ required: true, enum: ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual'] }) period: 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Annual';
-  @Prop({ required: true }) startDate: string;
-  @Prop({ required: true }) endDate: string;
-  
-  @Prop({ required: true, min: 0 }) targetValue: number;
-  @Prop({ required: true, default: 0, min: 0 }) actualValue: number;
-  
-  @Prop({ required: true, enum: ['On Track', 'At Risk', 'Achieved', 'Missed'], default: 'On Track' }) status: 'On Track' | 'At Risk' | 'Achieved' | 'Missed';
+export interface Target {
+  organizationId: string;
+  entityType: 'User' | 'Territory' | 'Outlet';
+  entityId: string;
+  period: 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Annual';
+  startDate: string;
+  endDate: string;
+  targetMetric?: 'SalesValue' | 'VisitCount' | 'ProductiveCalls' | 'CollectionValue';
+  targetValue: number;
+  actualValue: number;
+  status: 'On Track' | 'At Risk' | 'Achieved' | 'Missed';
 }
 
-export const TargetSchema = SchemaFactory.createForClass(Target);
+export const TargetSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    entityType: { type: String, required: true, enum: ['User', 'Territory', 'Outlet'] },
+    entityId: { type: String, required: true, index: true },
+
+    period: { type: String, required: true, enum: ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual'] },
+    startDate: { type: String, required: true },
+    endDate: { type: String, required: true },
+
+    // The web targets page sends targetMetric and TargetsService reads it; without this path
+    // Mongoose strict mode dropped it and every target was computed as SalesValue.
+    targetMetric: { type: String, enum: ['SalesValue', 'VisitCount', 'ProductiveCalls', 'CollectionValue'], default: 'SalesValue' },
+    targetValue: { type: Number, required: true, min: 0 },
+    actualValue: { type: Number, required: true, default: 0, min: 0 },
+
+    status: { type: String, required: true, enum: ['On Track', 'At Risk', 'Achieved', 'Missed'], default: 'On Track' },
+  },
+  { timestamps: true, collection: 'targets' },
+);
 TargetSchema.index({ organizationId: 1, entityId: 1 });

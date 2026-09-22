@@ -1,18 +1,18 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, isValidObjectId } from 'mongoose';
 import { Order, PaymentCollection, Visit, User, Outlet, Inventory } from '@bharatsales/shared-types';
 
-@Injectable()
 export class AnalyticsService {
   constructor(
-    @InjectModel('Order') private orderModel: Model<Order>,
-    @InjectModel('Collection') private collectionModel: Model<PaymentCollection>,
-    @InjectModel('Visit') private visitModel: Model<Visit>,
-    @InjectModel('User') private userModel: Model<User>,
-    @InjectModel('Outlet') private outletModel: Model<Outlet>,
-    @InjectModel('Target') private targetModel: Model<any>,
-    @InjectModel('Inventory') private inventoryModel: Model<Inventory>,
+    private orderModel: Model<Order>,
+    private collectionModel: Model<PaymentCollection>,
+    private visitModel: Model<Visit>,
+    private userModel: Model<User>,
+    private outletModel: Model<Outlet>,
+    private targetModel: Model<any>,
+    private inventoryModel: Model<Inventory>,
+    // Optional so older call sites/tests keep working; without it top
+    // products fall back to the name snapshotted on the order line.
+    private productModel?: Model<any>,
   ) {}
 
   async getDashboardData(organizationId: string, user?: any) {
@@ -48,7 +48,8 @@ export class AnalyticsService {
 
     // Active Outlets and Reps
     const activeOutlets = await this.outletModel.countDocuments({ organizationId, status: 'Active' });
-    const activeReps = await this.userModel.countDocuments({ organizationId, status: 'Active', role: { $ne: 'Super Admin' } });
+    // "Active reps" means field sales reps — not admins, managers or distributor staff.
+    const activeReps = await this.userModel.countDocuments({ organizationId, status: 'Active', role: 'Sales Representative' });
 
     // Build KPIs Object
     const kpis = {
@@ -82,21 +83,7 @@ export class AnalyticsService {
       });
     }
 
-    // Top Products
-    const productSales = new Map<string, { sales: number, revenue: number }>();
-    for (const order of monthlyOrders) {
-      for (const item of order.items) {
-        const pName = item.name || item.productId;
-        const current = productSales.get(pName) || { sales: 0, revenue: 0 };
-        current.sales += item.quantity;
-        current.revenue += item.total || 0;
-        productSales.set(pName, current);
-      }
-    }
-    const topProducts = Array.from(productSales.entries())
-      .map(([name, data]) => ({ name, sales: data.sales, revenue: data.revenue }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
+    const topProducts = await this.getTopProducts(organizationId, monthlyOrders);
 
     const activeUsers = await this.userModel.find({ organizationId, status: 'Active', role: { $ne: 'Super Admin' } });
 
@@ -136,7 +123,10 @@ export class AnalyticsService {
       userStats.set(uid, current);
     }
 
+    // Leaderboard of field reps; any other user who actually booked orders or
+    // logged visits this month is kept too, but idle admins/managers are not.
     const topSalesReps = activeUsers
+      .filter(u => u.role === 'Sales Representative' || userStats.has(u._id.toString()))
       .map(u => {
         const stats = userStats.get(u._id.toString()) || { orders: 0, revenue: 0, visits: 0 };
         return {
@@ -161,6 +151,47 @@ export class AnalyticsService {
       topSalesReps,
       recentOrders
     };
+  }
+
+  // Groups this month's order lines by product and resolves each product's
+  // current catalogue name/SKU. Order lines inserted without a name snapshot
+  // (legacy/seeded orders) would otherwise surface the raw product id.
+  private async getTopProducts(organizationId: string, orders: any[]) {
+    const productSales = new Map<string, { productId: string; name?: string; sku?: string; sales: number; revenue: number }>();
+    for (const order of orders) {
+      for (const item of order.items || []) {
+        const key = item.productId ? String(item.productId) : item.sku || item.name;
+        if (!key) continue;
+        const current = productSales.get(key) || { productId: item.productId ? String(item.productId) : '', sales: 0, revenue: 0 };
+        current.name = current.name || item.name;
+        current.sku = current.sku || item.sku;
+        current.sales += item.quantity || 0;
+        current.revenue += item.total ?? (item.quantity || 0) * (item.unitPrice || 0);
+        productSales.set(key, current);
+      }
+    }
+
+    const top = Array.from(productSales.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    const ids = top.map(p => p.productId).filter(id => id && isValidObjectId(id));
+    const catalogue = new Map<string, { name?: string; sku?: string }>();
+    if (this.productModel && ids.length > 0) {
+      const products = await this.productModel.find({ organizationId, _id: { $in: ids } }).select('name sku').lean().exec();
+      for (const p of products as any[]) catalogue.set(String(p._id), { name: p.name, sku: p.sku });
+    }
+
+    return top.map(p => {
+      const product = catalogue.get(p.productId);
+      return {
+        name: product?.name || p.name || p.sku || p.productId,
+        productId: p.productId || undefined,
+        sku: product?.sku || p.sku,
+        sales: p.sales,
+        revenue: p.revenue,
+      };
+    });
   }
 
   // Fulfilment-scoped dashboard for the Distributor role — replaces the

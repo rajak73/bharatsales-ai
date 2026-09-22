@@ -1,18 +1,16 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { BadRequestException, ForbiddenException, NotFoundException } from '../core/http-errors';
 import { Model, Connection } from 'mongoose';
 import { Dispatch, Order } from '@bharatsales/shared-types';
 import { OrdersService } from '../orders/orders.service';
 import { ReturnsService } from '../returns/returns.service';
 
-@Injectable()
 export class DispatchService {
   constructor(
-    @InjectModel('Dispatch') private dispatchModel: Model<Dispatch>,
-    @InjectModel('Order') private orderModel: Model<Order>,
+    private dispatchModel: Model<Dispatch>,
+    private orderModel: Model<Order>,
     private ordersService: OrdersService,
     private returnsService: ReturnsService,
-    @InjectConnection() private connection: Connection,
+    private connection: Connection,
   ) {}
 
   async findAll(organizationId: string, user?: any): Promise<Dispatch[]> {

@@ -3,11 +3,10 @@
     "name": "BharatSales AI",
     "slug": "bharatsales",
     "scheme": "bharatsales",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bharatsales.mobile",
@@ -19,7 +18,7 @@
     },
     "android": {
       "package": "com.bharatsales.mobile",
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -30,9 +29,11 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "CAMERA",
-        "READ_MEDIA_IMAGES"
+        "CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.READ_MEDIA_IMAGES"
       ]
     },
     "web": {
@@ -44,12 +45,6 @@
       "expo-secure-store",
       "expo-location",
       "expo-sqlite",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "BharatSales AI needs camera access to capture attendance selfies and visit photos."
-        }
-      ],
       [
         "expo-image-picker",
         {

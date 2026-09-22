@@ -6,6 +6,11 @@ import * as bcrypt from 'bcryptjs';
 // any API route. Safe to re-run: it upserts by email rather than inserting
 // duplicates, and never touches any other collection.
 async function bootstrap() {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'true') {
+    console.error('CRITICAL: Seeding is blocked when NODE_ENV=production. Set ALLOW_PROD_SEED=true to override.');
+    process.exit(1);
+  }
+
   const email = process.env.PLATFORM_ADMIN_EMAIL;
   const password = process.env.PLATFORM_ADMIN_PASSWORD;
 

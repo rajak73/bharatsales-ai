@@ -1,57 +1,49 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 
-@Schema({ timestamps: true })
-export class IncentivePlan extends Document {
-  @Prop({ required: true, index: true })
+export interface IncentivePlan extends Document {
   organizationId: string;
-
-  @Prop({ required: true })
   name: string;
-
-  @Prop({ required: true })
   type: string; // e.g., 'Volume', 'Revenue', 'ProductSpecific'
-
-  @Prop({ required: true })
   slab: string; // e.g., 'Level 1', 'Tier A'
-
-  @Prop({ required: true })
   target: string;
-
-  @Prop({ required: true })
   eligible: string;
-
-  @Prop({ required: true })
   payout: string;
-
-  @Prop({ required: true, default: 'Active' })
   status: string; // 'Active', 'Draft', 'Inactive'
 }
 
-export const IncentivePlanSchema = SchemaFactory.createForClass(IncentivePlan);
+export const IncentivePlanSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    name: { type: String, required: true },
+    type: { type: String, required: true },
+    slab: { type: String, required: true },
+    target: { type: String, required: true },
+    eligible: { type: String, required: true },
+    payout: { type: String, required: true },
+    status: { type: String, required: true, default: 'Active' },
+  },
+  { timestamps: true },
+);
 
-@Schema({ timestamps: true })
-export class IncentivePayout extends Document {
-  @Prop({ required: true, index: true })
+export interface IncentivePayout extends Document {
   organizationId: string;
-
-  @Prop({ required: true })
   rep: string; // Representative Name or ID
-
-  @Prop({ required: true })
   period: string; // e.g., 'Jul-2026'
-
-  @Prop({ required: true, type: Number })
   target: number;
-
-  @Prop({ required: true, type: Number })
   achieved: number;
-
-  @Prop({ required: true, type: Number })
   incentive: number;
-
-  @Prop({ required: true, default: 'Pending' })
   status: string; // 'Pending', 'Approved', 'Paid'
 }
 
-export const IncentivePayoutSchema = SchemaFactory.createForClass(IncentivePayout);
+export const IncentivePayoutSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    rep: { type: String, required: true },
+    period: { type: String, required: true },
+    target: { type: Number, required: true },
+    achieved: { type: Number, required: true },
+    incentive: { type: Number, required: true },
+    status: { type: String, required: true, default: 'Pending' },
+  },
+  { timestamps: true },
+);

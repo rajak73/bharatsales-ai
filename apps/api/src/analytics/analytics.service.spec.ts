@@ -1,6 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AnalyticsService } from './analytics.service';
-import { getModelToken } from '@nestjs/mongoose';
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
@@ -14,20 +12,15 @@ describe('AnalyticsService', () => {
   const mockInventoryModel = {};
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AnalyticsService,
-        { provide: getModelToken('Order'), useValue: mockOrderModel },
-        { provide: getModelToken('Collection'), useValue: mockCollectionModel },
-        { provide: getModelToken('Visit'), useValue: mockVisitModel },
-        { provide: getModelToken('User'), useValue: mockUserModel },
-        { provide: getModelToken('Outlet'), useValue: mockOutletModel },
-        { provide: getModelToken('Target'), useValue: mockTargetModel },
-        { provide: getModelToken('Inventory'), useValue: mockInventoryModel },
-      ],
-    }).compile();
-
-    service = module.get<AnalyticsService>(AnalyticsService);
+    service = new AnalyticsService(
+      mockOrderModel as any,
+      mockCollectionModel as any,
+      mockVisitModel as any,
+      mockUserModel as any,
+      mockOutletModel as any,
+      mockTargetModel as any,
+      mockInventoryModel as any,
+    );
   });
 
   afterEach(() => {
@@ -70,5 +63,45 @@ describe('AnalyticsService', () => {
 
     expect(result.zonePerformance.some((z: any) => z.zone === 'North Zone')).toBe(false);
     expect(result.zonePerformance.some((z: any) => z.zone === 'Unassigned')).toBe(true);
+  });
+
+  it('returns top products with catalogue names/SKUs instead of raw product ids', async () => {
+    const pid = '6ab25742714d4cd1e93ba790';
+    const sortLimit3 = { sort: jest.fn().mockReturnValue({ limit: jest.fn().mockResolvedValue([]) }) };
+    mockOrderModel.find.mockImplementation((query: any) => {
+      if (!query.createdAt) return sortLimit3;
+      if (query.createdAt.$lte || query.createdAt.$lt) return Promise.resolve([]);
+      // A seeded/legacy line with no name snapshot and no line total.
+      return Promise.resolve([{ totals: { grandTotal: 2400 }, items: [{ productId: pid, quantity: 50, unitPrice: 48 }] }]);
+    });
+    const exec = jest.fn().mockResolvedValue([{ _id: pid, name: 'Bharat Atta 5kg', sku: 'ATTA-5' }]);
+    const mockProductModel = { find: jest.fn().mockReturnValue({ select: () => ({ lean: () => ({ exec }) }) }) };
+    const withProducts = new AnalyticsService(
+      mockOrderModel as any, mockCollectionModel as any, mockVisitModel as any, mockUserModel as any,
+      mockOutletModel as any, mockTargetModel as any, mockInventoryModel as any, mockProductModel as any,
+    );
+
+    const result: any = await withProducts.getDashboardData('org1', { role: 'Organization Admin' });
+
+    expect(mockProductModel.find).toHaveBeenCalledWith({ organizationId: 'org1', _id: { $in: [pid] } });
+    expect(result.topProducts).toEqual([
+      { name: 'Bharat Atta 5kg', sku: 'ATTA-5', productId: pid, sales: 50, revenue: 2400 },
+    ]);
+  });
+
+  it('falls back to the order-line name, then the product id, when the catalogue has no match', async () => {
+    const sortLimit4 = { sort: jest.fn().mockReturnValue({ limit: jest.fn().mockResolvedValue([]) }) };
+    mockOrderModel.find.mockImplementation((query: any) => {
+      if (!query.createdAt) return sortLimit4;
+      if (query.createdAt.$lte || query.createdAt.$lt) return Promise.resolve([]);
+      return Promise.resolve([{ totals: { grandTotal: 300 }, items: [
+        { productId: 'legacy-1', name: 'Snapshot Name', quantity: 2, total: 200 },
+        { productId: 'legacy-2', quantity: 1, total: 100 },
+      ] }]);
+    });
+
+    const result: any = await service.getDashboardData('org1', { role: 'Organization Admin' });
+
+    expect(result.topProducts.map((p: any) => p.name)).toEqual(['Snapshot Name', 'legacy-2']);
   });
 });

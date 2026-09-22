@@ -101,20 +101,14 @@ export function HomeScreen() {
   const beatPreview = smartBeatOutlets.slice(0, 3);
 
   return (
-    <div className="bg-slate-50 min-h-screen font-sans pb-24">
+    <div className="bg-background min-h-screen font-sans pb-24">
       {/* Top App Bar */}
-      <div className="bg-primary-600 px-5 pt-12 pb-4 flex items-center justify-between shadow-md sticky top-0 z-50">
+      <div className="bg-navy-900 px-4 pt-10 pb-3 flex items-center justify-between shadow-md sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-            {/* Approximating the B with chart arrow logo */}
-            <div className="text-primary-600 font-bold text-lg italic tracking-tighter flex">
-              <span className="relative">
-                B
-                <div className="absolute -top-[2px] -right-[6px] w-2 h-2 border-t border-r border-cyan-400 transform -rotate-45"></div>
-              </span>
-            </div>
+          <div className="w-8 h-8 bg-saffron-500 rounded-lg flex items-center justify-center">
+            <span className="font-display text-navy-900 font-extrabold text-sm tracking-tight">BS</span>
           </div>
-          <h1 className="text-white text-xl font-bold tracking-tight">BharatSales AI</h1>
+          <h1 className="text-white text-lg font-bold tracking-tight">BharatSales AI</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -126,7 +120,7 @@ export function HomeScreen() {
           </button>
           <button className="text-white relative" onClick={() => navigate('/notifications')}>
             <Bell size={22} />
-            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-primary-600 rounded-full"></span>
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-navy-900 rounded-full"></span>
           </button>
         </div>
       </div>
@@ -138,7 +132,7 @@ export function HomeScreen() {
         </div>
       )}
 
-      <div className="px-5 py-6 space-y-6">
+      <div className="px-4 py-4 space-y-4">
 
         {!activeSession && (
           <div className="bg-yellow-50 text-yellow-700 p-4 rounded-xl text-sm font-medium border border-yellow-200 shadow-sm flex items-start gap-3">
@@ -157,7 +151,7 @@ export function HomeScreen() {
         )}
 
         {/* Target Progress Card */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-border">
           <h2 className="text-slate-800 text-lg font-bold mb-4">Today's Target Progress</h2>
 
           {!targetData.hasTarget ? (
@@ -187,8 +181,8 @@ export function HomeScreen() {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
-                <p className="text-xs font-medium text-slate-500">Status: <span className="text-green-600 font-bold">On Track! Keep going!</span></p>
+              <div className="flex justify-between items-center mt-4 pt-4 border-t border-border">
+                <p className="text-xs font-medium text-foreground-muted">Status: <span className="text-green-600 font-bold">On Track! Keep going!</span></p>
                 <p className="text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg">
                   {targetData.shopsVisited}/{targetData.totalShops} Shops Visited
                 </p>
@@ -205,22 +199,22 @@ export function HomeScreen() {
               View All <ChevronRight size={14} />
             </button>
           </div>
-          <p className="text-slate-500 text-sm mt-1 mb-4">Retail shops on today's route</p>
+          <p className="text-foreground-muted text-sm mt-1 mb-4">Retail shops on today's route</p>
 
           {!activeSession ? null : beatPreview.length === 0 ? (
-            <div className="bg-white rounded-2xl p-4 text-center border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-4 text-center border border-border shadow-sm">
               <p className="text-sm font-medium text-gray-500">No beat assigned for today.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {beatPreview.map((outlet) => (
-                <div key={outlet.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
+                <div key={outlet.id} className="bg-white rounded-2xl p-4 shadow-sm border border-border flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary-100 text-primary-600">
                     <Store size={20} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-slate-800 truncate">{outlet.name}</h3>
-                    <p className="text-xs text-slate-500 mt-0.5 truncate">{outlet.locationText}</p>
+                    <p className="text-xs text-foreground-muted mt-0.5 truncate">{outlet.locationText}</p>
                   </div>
                   <button
                     onClick={() => navigate('/visit', { state: { outlet } })}

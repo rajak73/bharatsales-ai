@@ -1,7 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { TargetsService } from './targets.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { NotificationsService } from '../notifications/notifications.service';
 
 describe('TargetsService', () => {
   let service: TargetsService;
@@ -21,16 +18,7 @@ describe('TargetsService', () => {
   const mockNotificationsService = { create: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TargetsService,
-        { provide: getModelToken('Target'), useValue: mockTargetModel },
-        { provide: getModelToken('Order'), useValue: mockOrderModel },
-        { provide: NotificationsService, useValue: mockNotificationsService },
-      ],
-    }).compile();
-
-    service = module.get<TargetsService>(TargetsService);
+    service = new TargetsService(mockTargetModel as any, mockOrderModel as any, mockNotificationsService as any);
   });
 
   afterEach(() => {
@@ -94,6 +82,49 @@ describe('TargetsService', () => {
       await service.rollupExpiredTargets();
 
       expect(mockNotificationsService.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('CollectionValue actuals', () => {
+    it('sums Cleared collections by collectedByUserId (User) and outletId (Outlet)', async () => {
+      const collectionFind = jest.fn().mockResolvedValue([{ amount: 300 }, { amount: 200 }]);
+      mockOrderModel.db.model.mockReturnValue({ find: collectionFind });
+      const base = { organizationId: 'org1', targetMetric: 'CollectionValue', startDate: '2026-01-01', endDate: '2026-01-31' };
+
+      const userActual = await (service as any).calculateActualValue({ ...base, entityType: 'User', entityId: 'rep1' });
+      expect(userActual).toBe(500);
+      expect(mockOrderModel.db.model).toHaveBeenCalledWith('Collection');
+      expect(collectionFind).toHaveBeenLastCalledWith({
+        organizationId: 'org1',
+        createdAt: { $gte: '2026-01-01', $lte: '2026-01-31' },
+        status: 'Cleared',
+        collectedByUserId: 'rep1',
+      });
+
+      await (service as any).calculateActualValue({ ...base, entityType: 'Outlet', entityId: 'outlet1' });
+      expect(collectionFind).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'Cleared', outletId: 'outlet1' }));
+    });
+  });
+
+  describe('entity names', () => {
+    it('adds entityName for User/Outlet targets so clients never render a raw id', async () => {
+      const repId = '6ab25742714d4cd1e93ba781';
+      const outletId = '6ab25742714d4cd1e93ba799';
+      const exec = jest.fn()
+        .mockResolvedValueOnce([{ _id: repId, name: 'Sales Rep Saket' }])
+        .mockResolvedValueOnce([{ _id: outletId, name: 'Aggarwal Stores' }]);
+      const nameFind = jest.fn().mockReturnValue({ select: () => ({ lean: () => ({ exec }) }) });
+      mockOrderModel.db.model.mockReturnValue({ find: nameFind });
+      const base = { organizationId: 'org1', targetValue: 100, status: 'Achieved', actualValue: 100, startDate: '2026-01-01', endDate: '2026-01-31' };
+
+      const result = await (service as any).calculateForTargets([
+        { ...base, _id: 't1', entityType: 'User', entityId: repId },
+        { ...base, _id: 't2', entityType: 'Outlet', entityId: outletId },
+        { ...base, _id: 't3', entityType: 'User', entityId: 'legacy-id' },
+      ]);
+
+      expect(result.map((t: any) => t.entityName)).toEqual(['Sales Rep Saket', 'Aggarwal Stores', undefined]);
+      expect(nameFind).toHaveBeenCalledWith({ organizationId: 'org1', _id: { $in: [repId] } });
     });
   });
 });

@@ -1,17 +1,15 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { NotFoundException, ForbiddenException } from '../core/http-errors';
+import { Logger } from '../core/logger';
+import { Model, isValidObjectId } from 'mongoose';
 import { SalesTarget as Target, Order } from '@bharatsales/shared-types';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationsService } from '../notifications/notifications.service';
 
-@Injectable()
 export class TargetsService {
   private readonly logger = new Logger(TargetsService.name);
 
   constructor(
-    @InjectModel('Target') private targetModel: Model<Target>,
-    @InjectModel('Order') private orderModel: Model<Order>,
+    private targetModel: Model<Target>,
+    private orderModel: Model<Order>,
     private notificationsService: NotificationsService,
   ) {}
 
@@ -32,7 +30,29 @@ export class TargetsService {
     return this.calculateForTargets(targets);
   }
 
+  // Best-effort display names for target entities (rep / outlet / territory),
+  // so clients never have to fall back to showing a raw ObjectId.
+  private async resolveEntityNames(targets: any[]): Promise<Map<string, string>> {
+    const names = new Map<string, string>();
+    const modelFor: Record<string, string> = { User: 'User', Outlet: 'Outlet', Territory: 'HierarchyNode' };
+    for (const [entityType, modelName] of Object.entries(modelFor)) {
+      const ofType = targets.filter((t) => t.entityType === entityType);
+      const ids = [...new Set(ofType.map((t) => String(t.entityId)).filter((id) => isValidObjectId(id)))];
+      if (ids.length === 0) continue;
+      try {
+        const model: any = (this.orderModel as any).db?.model(modelName);
+        if (!model?.find) continue;
+        const docs = await model.find({ organizationId: ofType[0].organizationId, _id: { $in: ids } }).select('name').lean().exec();
+        for (const d of docs || []) if (d?.name) names.set(`${entityType}:${String(d._id)}`, d.name);
+      } catch (error) {
+        this.logger.warn(`Could not resolve ${entityType} names for targets: ${(error as Error)?.message}`);
+      }
+    }
+    return names;
+  }
+
   private async calculateForTargets(targets: any[]) {
+    const entityNames = await this.resolveEntityNames(targets);
     const calculatedTargets = await Promise.all(
       targets.map(async (target) => {
         let actualValue = target.actualValue || 0;
@@ -81,6 +101,7 @@ export class TargetsService {
         return {
           ...target,
           id: target._id.toString(),
+          entityName: entityNames.get(`${target.entityType}:${String(target.entityId)}`),
           actualValue,
           status,
           meta: {
@@ -136,9 +157,12 @@ export class TargetsService {
     } 
     
     if (metric === 'CollectionValue') {
-      const query: any = { organizationId: target.organizationId, createdAt: dateQuery, status: 'Success' };
-      if (target.entityType === 'User') query.collectedBy = target.entityId;
-      else if (target.entityType === 'Outlet') query.outlet = target.entityId;
+      // Only money actually received counts: Cleared collections, keyed by the
+      // Collection schema's collectedByUserId / outletId. Reversal entries are
+      // Cleared negative amounts, so a reversed payment nets to zero.
+      const query: any = { organizationId: target.organizationId, createdAt: dateQuery, status: 'Cleared' };
+      if (target.entityType === 'User') query.collectedByUserId = target.entityId;
+      else if (target.entityType === 'Outlet') query.outletId = target.entityId;
       
       const collections = await db.model('Collection').find(query);
       return collections.reduce((sum: number, col: any) => sum + (col.amount || 0), 0);
@@ -147,7 +171,7 @@ export class TargetsService {
     return 0;
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  // Scheduled daily at midnight (was @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT), '0 0 * * *').
   async rollupExpiredTargets() {
     this.logger.log('Running Midnight Target Rollup Cron Job...');
     const now = new Date();
@@ -216,9 +240,14 @@ export class TargetsService {
     return { ...saved.toObject(), id: saved._id.toString() };
   }
 
-  async updateTarget(organizationId: string, id: string, data: Partial<Target>) {
+  async updateTarget(organizationId: string, id: string, data: Partial<Target>, actorRole?: string) {
     delete (data as any).organizationId;
     delete (data as any)._id;
+    // Same rule as createTarget: otherwise a non-admin could create a
+    // Monthly target and then PUT it to Annual.
+    if (data.period === 'Annual' && actorRole !== undefined && actorRole !== 'Organization Admin') {
+      throw new ForbiddenException('Only Organization Admins can create Annual targets.');
+    }
     const target = await this.targetModel.findOneAndUpdate(
       { _id: id, organizationId },
       { $set: data },

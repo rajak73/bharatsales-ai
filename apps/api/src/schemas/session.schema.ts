@@ -1,30 +1,32 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 
 export type SessionDocument = Session & Document;
 
-@Schema({ timestamps: true, collection: 'sessions' })
-export class Session {
-  @Prop({ required: true, index: true })
+export interface Session {
   userId: string;
-
-  @Prop({ required: true, index: true })
   organizationId: string;
-
-  @Prop({ required: true, unique: true })
+  // SHA-256 hex of the current refresh token (sessions created before
+  // hashing was introduced hold the plaintext; see AuthService.refresh).
   refreshToken: string;
-
-  @Prop()
+  // Hashes of refresh tokens already rotated out of this session. Presenting
+  // one again means the token was stolen/replayed: the session is revoked.
+  rotatedRefreshTokens?: string[];
   deviceInfo?: string;
-
-  @Prop()
   ipAddress?: string;
-
-  @Prop({ required: true })
   expiresAt: Date;
-
-  @Prop({ required: true, default: false })
   revoked: boolean;
 }
 
-export const SessionSchema = SchemaFactory.createForClass(Session);
+export const SessionSchema = new Schema(
+  {
+    userId: { type: String, required: true, index: true },
+    organizationId: { type: String, required: true, index: true },
+    refreshToken: { type: String, required: true, unique: true },
+    rotatedRefreshTokens: { type: [String], default: [], index: true },
+    deviceInfo: { type: String },
+    ipAddress: { type: String },
+    expiresAt: { type: Date, required: true },
+    revoked: { type: Boolean, required: true, default: false },
+  },
+  { timestamps: true, collection: 'sessions' },
+);

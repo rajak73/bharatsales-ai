@@ -1,19 +1,21 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { TargetsService } from '@bharatsales/api-client';
 import { colors, formatCurrency } from '../../src/lib/theme';
+import { statusTone } from '../../src/lib/orderStatus';
+import { spacing, typography } from '../../src/theme/tokens';
 import { useSessionStore } from '../../src/store/sessionStore';
 import { useIsOnline } from '../../src/hooks/useIsOnline';
-import { ScreenHeader, EmptyState, ErrorState, SkeletonList } from '../../src/components/ui';
+import { ScreenHeader, EmptyState, ErrorState, SkeletonList, Card, StatusPill, ProgressBar } from '../../src/components/ui';
 
 const PERIOD_ORDER = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual'];
 
 export default function TargetScreen() {
   const user = useSessionStore((s) => s.user);
   const isOnline = useIsOnline();
-  const { data: targets = [], isLoading, isError, refetch } = useQuery({
+  const { data: targets = [], isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['targets', 'mine'],
     queryFn: () => TargetsService.getTargets(),
   });
@@ -31,61 +33,62 @@ export default function TargetScreen() {
         <View style={styles.scroll}><SkeletonList count={3} /></View>
       ) : isError ? (
         <View style={styles.scroll}><ErrorState offline={!isOnline} onRetry={() => refetch()} /></View>
-      ) : myTargets.length === 0 ? (
-        <View style={styles.scroll}><EmptyState icon="flag-outline" title="No targets assigned yet" /></View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}>
-          {myTargets.map((t) => {
-            const percentage = t.targetValue ? Math.round(((t.actualValue || 0) / t.targetValue) * 100) : 0;
-            const remaining = Math.max(0, t.targetValue - (t.actualValue || 0));
-            return (
-              <View key={t.id} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.periodLabel}>{t.period}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: percentage >= 100 ? colors.successLight : percentage >= 60 ? colors.warningLight : colors.dangerLight }]}>
-                    <Text style={[styles.statusText, { color: percentage >= 100 ? colors.success : percentage >= 60 ? colors.warning : colors.danger }]}>{t.status}</Text>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.primary]} tintColor={colors.primary} />}
+        >
+          {myTargets.length === 0 ? (
+            <EmptyState icon="flag-outline" title="No targets assigned yet" message="Your manager hasn't set targets for you. Pull down to refresh." />
+          ) : (
+            myTargets.map((t) => {
+              const percentage = t.targetValue ? Math.round(((t.actualValue || 0) / t.targetValue) * 100) : 0;
+              const remaining = Math.max(0, t.targetValue - (t.actualValue || 0));
+              return (
+                <Card key={t.id}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.periodLabel}>{t.period}</Text>
+                    <StatusPill label={t.status} tone={statusTone(t.status)} />
                   </View>
-                </View>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${Math.min(100, percentage)}%` }]} />
-                </View>
-                <View style={styles.statsRow}>
-                  <View>
-                    <Text style={styles.statLabel}>Target</Text>
-                    <Text style={styles.statValue}>{formatCurrency(t.targetValue)}</Text>
+                  <View style={styles.percentRow}>
+                    <Text style={styles.percentValue}>{percentage}%</Text>
+                    <Text style={styles.percentLabel}>achieved</Text>
                   </View>
-                  <View>
-                    <Text style={styles.statLabel}>Achieved</Text>
-                    <Text style={[styles.statValue, { color: colors.success }]}>{formatCurrency(t.actualValue)}</Text>
+                  <ProgressBar percent={percentage} height={10} accessibilityLabel={`${t.period} target progress`} />
+                  <View style={styles.statsRow}>
+                    <Stat label="Target" value={formatCurrency(t.targetValue)} />
+                    <Stat label="Achieved" value={formatCurrency(t.actualValue)} color={colors.success} align="center" />
+                    <Stat label="Remaining" value={formatCurrency(remaining)} align="right" />
                   </View>
-                  <View>
-                    <Text style={styles.statLabel}>Remaining</Text>
-                    <Text style={styles.statValue}>{formatCurrency(remaining)}</Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })}
+                </Card>
+              );
+            })
+          )}
         </ScrollView>
       )}
     </SafeAreaView>
   );
 }
 
+function Stat({ label, value, color, align = 'left' }: { label: string; value: string; color?: string; align?: 'left' | 'center' | 'right' }) {
+  const alignItems = align === 'left' ? 'flex-start' : align === 'center' ? 'center' : 'flex-end';
+  return (
+    <View style={{ flex: 1, alignItems }}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, color ? { color } : undefined]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  header: { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
-  headerTitle: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { padding: 16, gap: 12 },
-  card: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  periodLabel: { fontWeight: '800', color: colors.text, fontSize: 15 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  statusText: { fontSize: 10, fontWeight: '800' },
-  progressBar: { height: 8, backgroundColor: colors.bg, borderRadius: 4, overflow: 'hidden', marginBottom: 14 },
-  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 4 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  statLabel: { fontSize: 10, color: colors.textMuted, fontWeight: '700', textTransform: 'uppercase' },
-  statValue: { fontSize: 13, fontWeight: '800', color: colors.text, marginTop: 2 },
+  scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxxl },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  periodLabel: { ...typography.h2, color: colors.text },
+  percentRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs, marginTop: spacing.md, marginBottom: spacing.sm },
+  percentValue: { ...typography.display, color: colors.text },
+  percentLabel: { ...typography.body, color: colors.textMuted },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.lg, gap: spacing.sm },
+  statLabel: { ...typography.caption, color: colors.textMuted },
+  statValue: { ...typography.h3, color: colors.text, marginTop: 2 },
 });

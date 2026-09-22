@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../../src/lib/theme';
+import { colors, formatDate, formatNumber } from '../../../src/lib/theme';
+import { spacing, typography } from '../../../src/theme/tokens';
 import { useLocalInventory } from '../../../src/hooks/useLocalData';
 import { useIsOnline } from '../../../src/hooks/useIsOnline';
-import { ScreenHeader, EmptyState, ErrorState, SkeletonList } from '../../../src/components/ui';
+import { ScreenHeader, EmptyState, ErrorState, SkeletonList, TextField, IconButton, ListItem, StatusPill, Chip, ChipRow } from '../../../src/components/ui';
 
 const LOW_STOCK_THRESHOLD = 10;
 
@@ -19,20 +19,29 @@ export default function InventoryScreen() {
     .filter((i) => i.productName?.toLowerCase().includes(search.toLowerCase()) || i.sku?.toLowerCase().includes(search.toLowerCase()))
     .filter((i) => !lowStockOnly || i.stock <= LOW_STOCK_THRESHOLD)
     .sort((a, b) => a.stock - b.stock);
+  const lowCount = (inventory as any[]).filter((i) => i.stock <= LOW_STOCK_THRESHOLD).length;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScreenHeader title="Inventory" showBack={false} />
+      <ScreenHeader title="Inventory" subtitle={inventory.length > 0 ? `${inventory.length} SKUs · lowest stock first` : undefined} showBack={false} />
 
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color={colors.textMuted} />
-        <TextInput style={styles.searchInput} placeholder="Search products or SKU..." value={search} onChangeText={setSearch} />
+      <View style={styles.searchWrap}>
+        <TextField
+          icon="search"
+          placeholder="Search products or SKU"
+          accessibilityLabel="Search inventory"
+          value={search}
+          onChangeText={setSearch}
+          autoCorrect={false}
+          returnKeyType="search"
+          right={search ? <IconButton icon="close-circle" size={18} onPress={() => setSearch('')} accessibilityLabel="Clear search" /> : null}
+        />
       </View>
 
-      <TouchableOpacity style={[styles.toggleChip, lowStockOnly && styles.toggleChipActive]} onPress={() => setLowStockOnly(!lowStockOnly)}>
-        <Ionicons name="alert-circle" size={14} color={lowStockOnly ? colors.danger : colors.textMuted} />
-        <Text style={[styles.toggleChipText, lowStockOnly && { color: colors.danger }]}>Low Stock Only</Text>
-      </TouchableOpacity>
+      <ChipRow>
+        <Chip label="All items" selected={!lowStockOnly} onPress={() => setLowStockOnly(false)} count={inventory.length} />
+        <Chip label="Low stock" icon="alert-circle" tone="danger" selected={lowStockOnly} onPress={() => setLowStockOnly(!lowStockOnly)} count={lowCount} />
+      </ChipRow>
 
       {isLoading ? (
         <View style={styles.list}><SkeletonList count={6} /></View>
@@ -43,27 +52,35 @@ export default function InventoryScreen() {
           contentContainerStyle={styles.list}
           data={filtered}
           keyExtractor={(item: any) => item.id}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-          ListEmptyComponent={<EmptyState icon="cube-outline" title="No inventory items found" />}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.primary]} tintColor={colors.primary} />}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          ListEmptyComponent={
+            <EmptyState
+              icon="cube-outline"
+              title={search || lowStockOnly ? 'No matching items' : 'No inventory items found'}
+              message={search || lowStockOnly ? 'Try a different search or filter.' : 'Pull down to refresh once you’re online.'}
+            />
+          }
           renderItem={({ item }: any) => {
             const isLow = item.stock <= LOW_STOCK_THRESHOLD;
             return (
-              <View style={styles.itemCard}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.itemName} numberOfLines={1}>{item.productName}</Text>
-                  <Text style={styles.itemMeta}>{item.sku} • Batch {item.batch}</Text>
-                  {item.expiry && <Text style={styles.itemMeta}>Expires {new Date(item.expiry).toLocaleDateString()}</Text>}
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={[styles.stockValue, isLow && { color: colors.danger }]}>{item.stock}</Text>
-                  <Text style={styles.stockLabel}>in stock</Text>
-                  {isLow && (
-                    <View style={styles.lowStockBadge}>
-                      <Text style={styles.lowStockText}>Low Stock</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
+              <ListItem
+                icon="cube-outline"
+                iconColor={isLow ? colors.danger : colors.primary}
+                iconBackground={isLow ? colors.dangerLight : colors.primaryLight}
+                title={item.productName}
+                subtitle={`${item.sku} · Batch ${item.batch}`}
+                meta={item.expiry ? `Expires ${formatDate(item.expiry)}` : undefined}
+                accessibilityLabel={`${item.productName}, ${item.stock} in stock${isLow ? ', low stock' : ''}`}
+                trailing={
+                  <View style={styles.trailing}>
+                    <Text style={[styles.stockValue, isLow && { color: colors.danger }]}>{formatNumber(item.stock)}</Text>
+                    {isLow ? <StatusPill label="Low" tone="danger" /> : <Text style={styles.stockLabel}>in stock</Text>}
+                  </View>
+                }
+              />
             );
           }}
         />
@@ -74,21 +91,9 @@ export default function InventoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  header: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
-  headerTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, margin: 16, marginBottom: 8, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, gap: 8 },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 14 },
-  toggleChip: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  toggleChipActive: { backgroundColor: colors.dangerLight, borderColor: colors.danger },
-  toggleChipText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  list: { paddingHorizontal: 16, paddingBottom: 40 },
-  emptyCard: { backgroundColor: colors.card, borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  emptyText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
-  itemCard: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border },
-  itemName: { fontWeight: '700', color: colors.text, fontSize: 14 },
-  itemMeta: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
-  stockValue: { fontSize: 18, fontWeight: '800', color: colors.text },
-  stockLabel: { fontSize: 10, color: colors.textMuted },
-  lowStockBadge: { backgroundColor: colors.dangerLight, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 },
-  lowStockText: { color: colors.danger, fontSize: 9, fontWeight: '800' },
+  searchWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xxxl },
+  trailing: { alignItems: 'flex-end', gap: 2 },
+  stockValue: { ...typography.h2, color: colors.text },
+  stockLabel: { ...typography.caption, color: colors.textMuted },
 });

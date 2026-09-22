@@ -1,12 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { NotFoundException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { Scheme } from '../schemas/scheme.schema';
 import { Scheme as SharedScheme } from '@bharatsales/shared-types';
 
-@Injectable()
 export class SchemesService {
-  constructor(@InjectModel('Scheme') private schemeModel: Model<Scheme>) {}
+  constructor(private schemeModel: Model<Scheme>) {}
 
   async findAllByOrgId(organizationId: string): Promise<Scheme[]> {
     return this.schemeModel.find({ organizationId }).exec();

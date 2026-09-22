@@ -1,17 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { NotFoundException, BadRequestException } from '../core/http-errors';
 import { Model, Types } from 'mongoose';
 import { Visit } from '../schemas/visit.schema';
 import { Outlet } from '../schemas/outlet.schema';
 import { Order } from '@bharatsales/shared-types';
 import { calculateDistanceMeters } from '../common/geo.util';
 
-@Injectable()
 export class VisitsService {
   constructor(
-    @InjectModel('Visit') private visitModel: Model<Visit>,
-    @InjectModel('Outlet') private outletModel: Model<Outlet>,
-    @InjectModel('Order') private orderModel: Model<Order>
+    private visitModel: Model<Visit>,
+    private outletModel: Model<Outlet>,
+    private orderModel: Model<Order>
   ) {}
 
   async checkIn(userId: string, organizationId: string, data: { outletId: string; lat: number; lng: number; accuracy: number; isMock?: boolean; deviceTimestamp?: string; photoUrl?: string; idempotencyKey?: string }) {

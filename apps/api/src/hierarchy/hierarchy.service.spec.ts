@@ -1,6 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { HierarchyService } from './hierarchy.service';
-import { getModelToken } from '@nestjs/mongoose';
 
 describe('HierarchyService', () => {
   let service: HierarchyService;
@@ -22,21 +20,7 @@ describe('HierarchyService', () => {
   }
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        HierarchyService,
-        {
-          provide: getModelToken('HierarchyNode'),
-          useValue: mockHierarchyModel,
-        },
-        {
-          provide: getModelToken('User'),
-          useValue: { findById: jest.fn() },
-        },
-      ],
-    }).compile();
-
-    service = module.get<HierarchyService>(HierarchyService);
+    service = new HierarchyService(mockHierarchyModel as any, { findById: jest.fn() } as any);
     // overriding the model constructor for 'new this.hierarchyModel'
     (service as any).hierarchyModel = function(data: any) {
       this.save = jest.fn().mockResolvedValue(data);
@@ -172,6 +156,25 @@ describe('HierarchyService', () => {
         organizationId: 'org1',
         role: 'Sales Representative',
       }));
+    });
+
+    it('matches parents stored as strings or ObjectIds, and never casts territory ids', async () => {
+      const zone = '6ab25742714d4cd1e93ba77b';
+      const mockUserModel = {
+        findById: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({ territoryIds: ['LEGACY-CODE', zone] }) }),
+        find: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([{ _id: 'rep1' }]) }) }),
+      };
+      (service as any).userModel = mockUserModel;
+      mockHierarchyModel.find.mockReset();
+      mockHierarchyModel.find.mockReturnValue({ exec: jest.fn().mockResolvedValue([]) });
+
+      const result = await service.getTeamUserIds('org1', 'manager1');
+
+      expect(result).toEqual(['rep1']);
+      expect(mockHierarchyModel.find).toHaveBeenCalledWith({
+        organizationId: 'org1',
+        $expr: { $in: [{ $toString: '$parentId' }, ['LEGACY-CODE', zone]] },
+      });
     });
 
     it('should return an empty array if the manager has no territories', async () => {

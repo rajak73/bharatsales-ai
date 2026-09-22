@@ -1,18 +1,37 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, isValidObjectId } from 'mongoose';
 import { Report, ReportStats, Order, Outlet, ReportJob, ScheduledReport } from '@bharatsales/shared-types';
 import { randomUUID } from 'crypto';
+import { Logger } from '../core/logger';
+import { ForbiddenException, NotFoundException, ConflictException } from '../core/http-errors';
+import type { HierarchyService } from '../hierarchy/hierarchy.service';
 
-@Injectable()
+// The caller's identity as put on req.user by `authenticate`.
+export interface ReportUser {
+  sub: string;
+  role: string;
+  distributorId?: string;
+}
+
+// Resolved data scope for one report run.
+// Stored job document: the shared type plus who requested it.
+type ReportJobRecord = ReportJob & { requestedBy?: string };
+
+type ReportScope =
+  | { kind: 'org' }
+  | { kind: 'distributor'; distributorId: string }
+  | { kind: 'users'; userIds: string[] };
+
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
 
   constructor(
-    @InjectModel('Order') private orderModel: Model<Order>,
-    @InjectModel('Outlet') private outletModel: Model<Outlet>,
-    @InjectModel('ReportJob') private reportJobModel: Model<ReportJob>,
-    @InjectModel('ScheduledReport') private scheduledReportModel: Model<ScheduledReport>
+    private orderModel: Model<Order>,
+    private outletModel: Model<Outlet>,
+    private reportJobModel: Model<ReportJobRecord>,
+    private scheduledReportModel: Model<ScheduledReport>,
+    // Optional: used to resolve a Sales Manager's team. Without it a Sales
+    // Manager is scoped to their own records only (never widened to the org).
+    private hierarchyService?: HierarchyService,
   ) {}
 
   private predefinedReports: Report[] = [
@@ -32,12 +51,25 @@ export class ReportsService {
 
   private static readonly DISTRIBUTOR_CATEGORIES = ['Supply Chain', 'Returns', 'Finance'];
 
-  async getReports(organizationId: string, role?: string): Promise<Report[]> {
-    const reports = this.predefinedReports.map(r => ({ ...r, organizationId }));
+  // Reports whose rows are per-user (attributable to a rep) and can therefore
+  // be scoped to "own data" (Sales Representative) or "team data" (Sales Manager).
+  private static readonly USER_SCOPED_REPORT_IDS = ['rep-01', 'rep-02', 'rep-03', 'rep-08', 'rep-09', 'rep-11'];
+
+  // Which predefined reports a role may list/run. Organization Admin (and
+  // internal callers with no role) get everything; unknown roles get nothing.
+  private allowedReportsFor(role?: string): Report[] {
+    if (!role || role === 'Organization Admin') return this.predefinedReports;
     if (role === 'Distributor') {
-      return reports.filter(r => ReportsService.DISTRIBUTOR_CATEGORIES.includes(r.category));
+      return this.predefinedReports.filter(r => ReportsService.DISTRIBUTOR_CATEGORIES.includes(r.category));
     }
-    return reports;
+    if (role === 'Sales Manager' || role === 'Sales Representative') {
+      return this.predefinedReports.filter(r => ReportsService.USER_SCOPED_REPORT_IDS.includes(r.id));
+    }
+    return [];
+  }
+
+  async getReports(organizationId: string, role?: string): Promise<Report[]> {
+    return this.allowedReportsFor(role).map(r => ({ ...r, organizationId }));
   }
 
   async getReportStats(organizationId: string): Promise<ReportStats> {
@@ -70,16 +102,26 @@ export class ReportsService {
     return this.scheduledReportModel.find({ organizationId }).exec();
   }
 
-  async runReport(organizationId: string, payload: any): Promise<{ jobId: string }> {
+  async runReport(organizationId: string, payload: any, user?: ReportUser): Promise<{ jobId: string }> {
+    const key = payload?.reportId || payload?.reportName;
+    if (user) {
+      const allowed = this.allowedReportsFor(user.role);
+      if (!allowed.some(r => r.id === key || r.name === key)) {
+        throw new ForbiddenException(`Role ${user.role} may not run report "${key}"`);
+      }
+    }
+    const scope = await this.resolveScope(organizationId, user);
+
     const jobId = `job-${randomUUID()}`;
     await this.reportJobModel.create({
       organizationId,
       jobId,
       status: 'Processing',
-      progress: 0
+      progress: 0,
+      requestedBy: user?.sub,
     });
 
-    this.generateReportAsync(organizationId, payload, jobId).catch(async err => {
+    this.generateReportAsync(organizationId, payload, jobId, scope).catch(async err => {
       this.logger.error(`Report generation failed for ${jobId}`, err);
       await this.reportJobModel.updateOne({ jobId }, { status: 'Failed', error: err.message });
     });
@@ -87,22 +129,69 @@ export class ReportsService {
     return { jobId };
   }
 
-  private async generateReportAsync(organizationId: string, payload: any, jobId: string) {
+  // Same per-role scoping as the list endpoints: Distributor → own
+  // distributorId; Sales Representative → own records; Sales Manager → self +
+  // team reps resolved through the hierarchy; Organization Admin → whole org.
+  private async resolveScope(organizationId: string, user?: ReportUser): Promise<ReportScope> {
+    if (!user || user.role === 'Organization Admin') return { kind: 'org' };
+    if (user.role === 'Distributor') {
+      return { kind: 'distributor', distributorId: user.distributorId || '__none__' };
+    }
+    if (user.role === 'Sales Manager') {
+      const team = this.hierarchyService
+        ? await this.hierarchyService.getTeamUserIds(organizationId, user.sub)
+        : [];
+      return { kind: 'users', userIds: [...new Set([user.sub, ...team])] };
+    }
+    return { kind: 'users', userIds: [user.sub] };
+  }
+
+  private async distributorOrderRefs(organizationId: string, distributorId: string) {
+    const orders = await this.orderModel
+      .find({ organizationId, assignedDistributorId: distributorId })
+      .select('_id outletId')
+      .exec();
+    return {
+      orderIds: orders.map((o: any) => o._id.toString()),
+      outletIds: [...new Set(orders.map((o: any) => o.outletId).filter(Boolean))] as string[],
+    };
+  }
+
+  // Filter for per-user reports; `field` is the model's user reference.
+  private userFilter(scope: ReportScope, field: string): Record<string, any> {
+    return scope.kind === 'users' ? { [field]: { $in: scope.userIds } } : {};
+  }
+
+  private async generateReportAsync(organizationId: string, payload: any, jobId: string, scope: ReportScope = { kind: 'org' }) {
     await this.reportJobModel.updateOne({ jobId }, { progress: 20 });
     const db = this.orderModel.db;
     let rows: string[][] = [];
+    const distributorId = scope.kind === 'distributor' ? scope.distributorId : undefined;
 
     switch (payload.reportId || payload.reportName) {
       case 'rep-01':
       case 'Order Report': {
-        const data = await this.orderModel.find({ organizationId }).populate('outletId').exec();
+        const query: any = { organizationId, ...this.userFilter(scope, 'createdByUserId') };
+        if (distributorId) query.assignedDistributorId = distributorId;
+        const data = await this.orderModel.find(query).exec();
+
+        // Batch-load outlet names in a single $in query instead of one
+        // findById per order.
+        const outletIds = [...new Set(
+          data
+            .map((r: any) => (r.outletId && typeof r.outletId === 'object' ? r.outletId._id : r.outletId))
+            .filter((id: any) => id && isValidObjectId(id))
+            .map((id: any) => id.toString()),
+        )];
+        const outlets = outletIds.length
+          ? await this.outletModel.find({ _id: { $in: outletIds } }).select('name').exec()
+          : [];
+        const outletNames = new Map<string, string>(outlets.map((o: any) => [o._id.toString(), o.name]));
+
         rows = [['Order ID', 'Date', 'Outlet Name', 'Status', 'Grand Total', 'Created By']];
-        for (const r of data) {
-          let outletName = 'Unknown Outlet';
-          if (r.outletId) {
-            const outletDoc = await this.outletModel.findById(r.outletId);
-            if (outletDoc) outletName = outletDoc.name;
-          }
+        for (const r of data as any[]) {
+          const outletKey = r.outletId && typeof r.outletId === 'object' ? r.outletId._id?.toString() : r.outletId?.toString();
+          const outletName = (outletKey && outletNames.get(outletKey)) || 'Unknown Outlet';
           rows.push([ r.orderNumber || r._id.toString(), new Date(r.createdAt as any).toISOString().split('T')[0], outletName, r.status, (r.totals?.grandTotal || 0).toString(), r.createdByUserId || 'System' ]);
         }
         break;
@@ -110,7 +199,7 @@ export class ReportsService {
       case 'rep-02':
       case 'Attendance Report': {
         const model = db.model('Attendance');
-        const data = await model.find({ organizationId }).exec();
+        const data = await model.find({ organizationId, ...this.userFilter(scope, 'user') }).exec();
         rows = [['Date', 'User ID', 'Start Time', 'End Time', 'Status']];
         data.forEach((r: any) => rows.push([r.date, r.user, r.startTime, r.endTime || '', r.status]));
         break;
@@ -118,7 +207,7 @@ export class ReportsService {
       case 'rep-03':
       case 'Visits Report': {
         const model = db.model('Visit');
-        const data = await model.find({ organizationId }).exec();
+        const data = await model.find({ organizationId, ...this.userFilter(scope, 'user') }).exec();
         rows = [['Visit ID', 'Outlet ID', 'User ID', 'Productive', 'Status']];
         data.forEach((r: any) => rows.push([r._id.toString(), r.outlet, r.user, r.isProductive ? 'Yes' : 'No', r.status]));
         break;
@@ -126,7 +215,9 @@ export class ReportsService {
       case 'rep-04':
       case 'Inventory Report': {
         const model = db.model('Inventory');
-        const data = await model.find({ organizationId }).exec();
+        const query: any = { organizationId };
+        if (distributorId) query.distributorId = distributorId;
+        const data = await model.find(query).exec();
         rows = [['Product ID', 'Batch', 'Quantity', 'Status']];
         data.forEach((r: any) => rows.push([r.productId, r.batch, r.quantity.toString(), r.status]));
         break;
@@ -134,7 +225,9 @@ export class ReportsService {
       case 'rep-05':
       case 'Dispatch Report': {
         const model = db.model('Dispatch');
-        const data = await model.find({ organizationId }).exec();
+        const query: any = { organizationId };
+        if (distributorId) query.assignedDistributorId = distributorId;
+        const data = await model.find(query).exec();
         rows = [['Dispatch ID', 'Order ID', 'Status', 'Driver']];
         data.forEach((r: any) => rows.push([r._id.toString(), r.orderId, r.status, r.driverId || '']));
         break;
@@ -142,7 +235,15 @@ export class ReportsService {
       case 'rep-06':
       case 'Delivery Report': {
         const model = db.model('Delivery');
-        const data = await model.find({ organizationId }).exec();
+        const query: any = { organizationId };
+        if (distributorId) {
+          const dispatches = await db.model('Dispatch')
+            .find({ organizationId, assignedDistributorId: distributorId })
+            .select('_id')
+            .exec();
+          query.dispatchId = { $in: dispatches.map((d: any) => d._id.toString()) };
+        }
+        const data = await model.find(query).exec();
         rows = [['Delivery ID', 'Dispatch ID', 'Status']];
         data.forEach((r: any) => rows.push([r._id.toString(), r.dispatchId, r.status]));
         break;
@@ -150,7 +251,12 @@ export class ReportsService {
       case 'rep-07':
       case 'Returns Report': {
         const model = db.model('ReturnOrder');
-        const data = await model.find({ organizationId }).exec();
+        const query: any = { organizationId };
+        if (distributorId) {
+          const { orderIds } = await this.distributorOrderRefs(organizationId, distributorId);
+          query.orderId = { $in: orderIds };
+        }
+        const data = await model.find(query).exec();
         rows = [['Return ID', 'Order ID', 'Outlet ID', 'Status', 'Value']];
         data.forEach((r: any) => rows.push([r._id.toString(), r.orderId || '', r.outlet, r.status, r.value]));
         break;
@@ -158,7 +264,7 @@ export class ReportsService {
       case 'rep-08':
       case 'Claims Report': {
         const model = db.model('Claim');
-        const data = await model.find({ organizationId }).exec();
+        const data = await model.find({ organizationId, ...this.userFilter(scope, 'submittedByUserId') }).exec();
         rows = [['Claim ID', 'Type', 'Amount', 'Status']];
         data.forEach((r: any) => rows.push([r._id.toString(), r.type, r.amount.toString(), r.status]));
         break;
@@ -166,14 +272,23 @@ export class ReportsService {
       case 'rep-09':
       case 'Collections Report': {
         const model = db.model('Collection');
-        const data = await model.find({ organizationId }).exec();
+        const query: any = { organizationId, ...this.userFilter(scope, 'collectedByUserId') };
+        if (distributorId) {
+          // Collections have no distributorId — derive the distributor's
+          // outlet-set via the orders routed to them (as CollectionsService does).
+          const { outletIds } = await this.distributorOrderRefs(organizationId, distributorId);
+          query.outletId = { $in: outletIds };
+        }
+        const data = await model.find(query).exec();
         rows = [['Collection ID', 'Outlet ID', 'Amount', 'Mode', 'Status']];
         data.forEach((r: any) => rows.push([r._id.toString(), r.outlet, r.amount.toString(), r.mode, r.status]));
         break;
       }
       case 'rep-10':
       case 'Outstanding Report': {
-        const data = await this.outletModel.find({ organizationId }).exec();
+        const query: any = { organizationId };
+        if (distributorId) query['commercial.assignedDistributorId'] = distributorId;
+        const data = await this.outletModel.find(query).exec();
         rows = [['Outlet ID', 'Name', 'Outstanding Balance', 'Credit Limit']];
         data.forEach((r: any) => rows.push([r._id.toString(), r.name, r.commercial?.outstandingBalance?.toString() || '0', r.commercial?.creditLimit?.toString() || '0']));
         break;
@@ -181,7 +296,12 @@ export class ReportsService {
       case 'rep-11':
       case 'Targets Report': {
         const model = db.model('Target');
-        const data = await model.find({ organizationId }).exec();
+        const query: any = { organizationId };
+        if (scope.kind === 'users') {
+          query.entityType = 'User';
+          query.entityId = { $in: scope.userIds };
+        }
+        const data = await model.find(query).exec();
         rows = [['Target ID', 'Entity Type', 'Entity ID', 'Metric', 'Target Value']];
         data.forEach((r: any) => rows.push([r._id.toString(), r.entityType, r.entityId, r.targetMetric || 'SalesValue', r.targetValue.toString()]));
         break;
@@ -211,15 +331,25 @@ export class ReportsService {
     );
   }
 
-  async getJobStatus(organizationId: string, jobId: string): Promise<any> {
+  // A job is visible to whoever ran it; an Organization Admin may see any job
+  // in their org. Someone else's job answers 404 so job ids cannot be probed.
+  private async findOwnJob(organizationId: string, jobId: string, user?: ReportUser) {
     const job = await this.reportJobModel.findOne({ organizationId, jobId }).exec();
-    if (!job) throw new Error(`Job ${jobId} not found`);
+    if (!job) throw new NotFoundException(`Job ${jobId} not found`);
+    if (user && user.role !== 'Organization Admin' && job.requestedBy !== user.sub) {
+      throw new NotFoundException(`Job ${jobId} not found`);
+    }
+    return job;
+  }
+
+  async getJobStatus(organizationId: string, jobId: string, user?: ReportUser): Promise<any> {
+    const job = await this.findOwnJob(organizationId, jobId, user);
     return { status: job.status, progress: job.progress, url: job.url, error: job.error };
   }
 
-  async getExport(organizationId: string, jobId: string): Promise<any> {
-    const job = await this.reportJobModel.findOne({ organizationId, jobId }).exec();
-    if (!job || job.status !== 'Completed' || !job.data) throw new Error(`Export for job ${jobId} is not ready`);
+  async getExport(organizationId: string, jobId: string, user?: ReportUser): Promise<any> {
+    const job = await this.findOwnJob(organizationId, jobId, user);
+    if (job.status !== 'Completed' || !job.data) throw new ConflictException(`Export for job ${jobId} is not ready`);
     return { data: job.data, filename: `Report_${jobId.substring(0, 8)}.csv`, contentType: 'text/csv' };
   }
 }

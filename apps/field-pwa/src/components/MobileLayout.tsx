@@ -21,7 +21,7 @@ export function MobileLayout({ children }: MobileLayoutProps) {
   const activeTab = TABS.find(tab => tab.match(location.pathname))?.label ?? '';
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 pb-16">
+    <div className="flex flex-col h-screen bg-background pb-16">
       {/* Main Content Area - scrollable */}
       <main className="flex-1 overflow-y-auto w-full">
         {children}

@@ -1,15 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersService } from './orders.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { InventoryService } from '../inventory/inventory.service';
-import { ApprovalsService } from '../approvals/approvals.service';
-
-import { BadRequestException } from '@nestjs/common';
-import { getConnectionToken } from '@nestjs/mongoose';
-import { HierarchyService } from '../hierarchy/hierarchy.service';
-import { AttendanceService } from '../attendance/attendance.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { ModuleRef } from '@nestjs/core';
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -58,61 +47,19 @@ describe('OrdersService', () => {
   }
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        OrdersService,
-        {
-          provide: getModelToken('Order'),
-          useValue: mockOrderModel,
-        },
-        {
-          provide: getModelToken('Outlet'),
-          useValue: mockOutletModel,
-        },
-        {
-          provide: getModelToken('Scheme'),
-          useValue: mockSchemeModel,
-        },
-        {
-          provide: getModelToken('Distributor'),
-          useValue: mockDistributorModel,
-        },
-        {
-          provide: getModelToken('Product'),
-          useValue: mockProductModel,
-        },
-        {
-          provide: InventoryService,
-          useValue: mockInventoryService,
-        },
-        {
-          provide: ModuleRef,
-          useValue: { get: jest.fn() },
-        },
-        {
-          provide: ApprovalsService,
-          useValue: mockApprovalsService,
-        },
-        {
-          provide: HierarchyService,
-          useValue: mockHierarchyService,
-        },
-        {
-          provide: AttendanceService,
-          useValue: mockAttendanceService,
-        },
-        {
-          provide: NotificationsService,
-          useValue: { create: jest.fn().mockResolvedValue(undefined) },
-        },
-        {
-          provide: getConnectionToken(),
-          useValue: mockConnection,
-        },
-      ],
-    }).compile();
-
-    service = module.get<OrdersService>(OrdersService);
+    service = new OrdersService(
+      mockOrderModel as any,
+      mockOutletModel as any,
+      mockSchemeModel as any,
+      mockDistributorModel as any,
+      mockProductModel as any,
+      mockInventoryService as any,
+      mockApprovalsService as any,
+      mockHierarchyService as any,
+      mockAttendanceService as any,
+      { create: jest.fn().mockResolvedValue(undefined) } as any,
+      mockConnection as any,
+    );
     // override constructor
     (service as any).orderModel = function(data: any) {
       this.save = jest.fn().mockResolvedValue(data);

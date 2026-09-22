@@ -1,41 +1,72 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { Product as IProduct } from '@bharatsales/shared-types';
+import { Schema, Document } from 'mongoose';
 
 export type ProductDocument = Product & Document;
 
-@Schema({ _id: false })
-class Pricing {
-  @Prop({ required: true, min: 0 }) mrp: number;
-  @Prop({ required: true, min: 0 }) basePrice: number;
-  @Prop({ required: true, min: 0 }) pts: number;
-  @Prop({ required: true, min: 0 }) ptr: number;
-  @Prop({ required: true, min: 0 }) gstPercentage: number;
-  @Prop({ type: Map, of: Number }) tierPricing?: Record<string, number>;
+interface Pricing {
+  mrp: number;
+  basePrice: number;
+  pts: number;
+  ptr: number;
+  gstPercentage: number;
+  tierPricing?: Record<string, number>;
 }
 
-@Schema({ _id: false })
-class Stock {
-  @Prop({ required: true, min: 0, default: 0 }) available: number;
-  @Prop({ required: true }) uom: string;
-  @Prop({ min: 1 }) conversionFactor?: number;
+interface Stock {
+  available: number;
+  uom: string;
+  conversionFactor?: number;
 }
 
-@Schema({ timestamps: true, collection: 'products' })
-export class Product implements Omit<IProduct, 'id' | 'createdAt' | 'updatedAt'> {
-  @Prop({ required: true, index: true }) organizationId: string;
-  @Prop({ required: true }) sku: string;
-  @Prop({ required: true }) name: string;
-  @Prop({ required: true }) brand: string;
-  @Prop({ required: true }) category: string;
-  @Prop() hsn?: string;
-  @Prop({ default: 1, min: 1 }) moq: number;
-  @Prop({ required: true, enum: ['Active', 'Inactive'], default: 'Active' }) status: 'Active' | 'Inactive';
-  @Prop({ type: Pricing, required: true }) pricing: Pricing;
-  @Prop({ type: Stock, required: true }) stock: Stock;
-  @Prop({ type: [{ rate: Number, effectiveFrom: String }] }) taxHistory?: { rate: number, effectiveFrom: string }[];
+const PricingSchema = new Schema(
+  {
+    mrp: { type: Number, required: true, min: 0 },
+    basePrice: { type: Number, required: true, min: 0 },
+    pts: { type: Number, required: true, min: 0 },
+    ptr: { type: Number, required: true, min: 0 },
+    gstPercentage: { type: Number, required: true, min: 0 },
+    tierPricing: { type: Map, of: Number },
+  },
+  { _id: false },
+);
+
+const StockSchema = new Schema(
+  {
+    available: { type: Number, required: true, min: 0, default: 0 },
+    uom: { type: String, required: true },
+    conversionFactor: { type: Number, min: 1 },
+  },
+  { _id: false },
+);
+
+export interface Product {
+  organizationId: string;
+  sku: string;
+  name: string;
+  brand: string;
+  category: string;
+  hsn?: string;
+  moq: number;
+  status: 'Active' | 'Inactive';
+  pricing: Pricing;
+  stock: Stock;
+  taxHistory?: { rate: number, effectiveFrom: string }[];
 }
 
-export const ProductSchema = SchemaFactory.createForClass(Product);
+export const ProductSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    sku: { type: String, required: true },
+    name: { type: String, required: true },
+    brand: { type: String, required: true },
+    category: { type: String, required: true },
+    hsn: { type: String },
+    moq: { type: Number, default: 1, min: 1 },
+    status: { type: String, required: true, enum: ['Active', 'Inactive'], default: 'Active' },
+    pricing: { type: PricingSchema, required: true },
+    stock: { type: StockSchema, required: true },
+    taxHistory: { type: [{ rate: Number, effectiveFrom: String }] },
+  },
+  { timestamps: true, collection: 'products' },
+);
 
 ProductSchema.index({ organizationId: 1, sku: 1 }, { unique: true });

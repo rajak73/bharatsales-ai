@@ -1,18 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { Logger } from '../core/logger';
 import { Model } from 'mongoose';
 import { NotificationLog } from '../schemas/notification.schema';
 import { AppNotification } from '../schemas/app-notification.schema';
 
-@Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
   private brevoApiKey = process.env.BREVO_API_KEY;
   private smsSender = process.env.BREVO_SMS_SENDER || 'BharatAI';
 
   constructor(
-    @InjectModel(NotificationLog.name) private notificationModel: Model<NotificationLog>,
-    @InjectModel(AppNotification.name) private appNotificationModel: Model<AppNotification>,
+    private notificationModel: Model<NotificationLog>,
+    private appNotificationModel: Model<AppNotification>,
   ) {}
 
   async create(organizationId: string, userId: string, data: { type: string; title: string; message: string }) {

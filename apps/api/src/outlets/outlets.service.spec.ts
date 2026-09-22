@@ -1,12 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { OutletsService } from './outlets.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { Outlet } from '../schemas/outlet.schema';
-import { Order } from '../schemas/order.schema';
-import { Visit } from '../schemas/visit.schema';
-import { HierarchyService } from '../hierarchy/hierarchy.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { ConflictException, BadRequestException } from '@nestjs/common';
+import type { HierarchyService } from '../hierarchy/hierarchy.service';
+import type { NotificationsService } from '../notifications/notifications.service';
+import { BadRequestException } from '../core/http-errors';
 
 describe('OutletsService', () => {
   let service: OutletsService;
@@ -31,43 +26,15 @@ describe('OutletsService', () => {
   }
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        OutletsService,
-        {
-          provide: getModelToken(Outlet.name),
-          useValue: mockOutletModel,
-        },
-        {
-          provide: getModelToken(Order.name),
-          useValue: mockOrderModel,
-        },
-        {
-          provide: getModelToken(Visit.name),
-          useValue: mockVisitModel,
-        },
-        {
-          provide: getModelToken('Tenant'),
-          useValue: mockTenantModel,
-        },
-        {
-          provide: getModelToken('User'),
-          useValue: mockUserModel,
-        },
-        {
-          provide: HierarchyService,
-          useValue: {
-            getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't2'])
-          }
-        },
-        {
-          provide: NotificationsService,
-          useValue: { create: jest.fn().mockResolvedValue(undefined) }
-        }
-      ],
-    }).compile();
-
-    service = module.get<OutletsService>(OutletsService);
+    service = new OutletsService(
+      mockOutletModel as any,
+      mockOrderModel as any,
+      mockVisitModel as any,
+      mockTenantModel as any,
+      mockUserModel as any,
+      { getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't2']) } as unknown as HierarchyService,
+      { create: jest.fn().mockResolvedValue(undefined) } as unknown as NotificationsService,
+    );
     // override constructor
     (service as any).outletModel = function(data: any) {
       this.save = jest.fn().mockResolvedValue(data);

@@ -1,7 +1,6 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { UnauthorizedException, BadRequestException } from '../core/http-errors';
 import { Model } from 'mongoose';
-import { JwtService } from '@nestjs/jwt';
+import jwt from 'jsonwebtoken';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { AuditService } from '../audit/audit.service';
@@ -18,21 +17,26 @@ export interface ISSOProvider {
   verifyToken(token: string): Promise<any>;
 }
 
-import { Logger } from '@nestjs/common';
+import { Logger } from '../core/logger';
+import { emailLookup, normalizeEmail } from '../core/validation';
 
 class TwilioSMSProvider implements ISMSProvider {
   private readonly logger = new Logger(TwilioSMSProvider.name);
   private accountSid = process.env.TWILIO_ACCOUNT_SID;
   private authToken = process.env.TWILIO_AUTH_TOKEN;
 
-  async sendSMS(to: string, message: string): Promise<boolean> {
+  // No SMS gateway is integrated yet: say so loudly instead of pretending
+  // the message was sent, and never write the message (it carries the OTP)
+  // or the full phone number to the logs. OTPs are also emailed, so the
+  // login flow still works.
+  async sendSMS(to: string, _message: string): Promise<boolean> {
+    const masked = to ? `***${String(to).slice(-3)}` : 'unknown';
     if (this.accountSid && this.authToken) {
-      this.logger.log(`Sending SMS to ${to} via Twilio...`);
-      // Simulating real API call
-      return true;
+      this.logger.warn(`SMS to ${masked} NOT sent: Twilio credentials are set but the SMS integration is not implemented.`);
+    } else {
+      this.logger.warn(`SMS to ${masked} NOT sent: no SMS provider configured (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN).`);
     }
-    this.logger.debug(`[Development Mode] SMS to ${to}. Message: ${message}`);
-    return true;
+    return false;
   }
 }
 
@@ -42,8 +46,9 @@ class MockGoogleSSOProvider implements ISSOProvider {
     return 'https://accounts.google.com/o/oauth2/v2/auth?client_id=mock-client-id&redirect_uri=mock-redirect&response_type=code&scope=email%20profile';
   }
   async verifyToken(token: string): Promise<any> {
-    // In a real app, this verifies the OAuth token with Google
-    this.logger.log(`Verifying token ${token}`);
+    // In a real app, this verifies the OAuth token with Google.
+    // Never log the token itself.
+    this.logger.log(`Verifying Google SSO token (${token ? token.length : 0} chars)`);
     return { email: 'mockuser@gmail.com', name: 'Mock Google User' };
   }
 }
@@ -54,24 +59,31 @@ class MockMicrosoftSSOProvider implements ISSOProvider {
     return 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=mock-client-id&response_type=code&redirect_uri=mock-redirect&scope=user.read';
   }
   async verifyToken(token: string): Promise<any> {
-    // In a real app, this verifies the OAuth token with Microsoft
-    this.logger.log(`Verifying token ${token}`);
+    // In a real app, this verifies the OAuth token with Microsoft.
+    // Never log the token itself.
+    this.logger.log(`Verifying Microsoft SSO token (${token ? token.length : 0} chars)`);
     return { email: 'mockuser@outlook.com', name: 'Mock Microsoft User' };
   }
 }
 
-@Injectable()
+/** Refresh tokens are stored only as a SHA-256 hash. */
+export function hashRefreshToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+// Keep a bounded history of rotated tokens per session for reuse detection.
+const MAX_ROTATED_TOKENS = 20;
+
 export class AuthService {
   private smsProvider: ISMSProvider = new TwilioSMSProvider();
   public googleSSO: ISSOProvider = new MockGoogleSSOProvider();
   public microsoftSSO: ISSOProvider = new MockMicrosoftSSOProvider();
 
   constructor(
-    @InjectModel('User') private userModel: Model<UserDocument>,
-    @InjectModel('Tenant') private tenantModel: Model<TenantDocument>,
-    @InjectModel('Session') private sessionModel: Model<SessionDocument>,
-    @InjectModel('Token') private tokenModel: Model<TokenDocument>,
-    private jwtService: JwtService,
+    private userModel: Model<UserDocument>,
+    private tenantModel: Model<TenantDocument>,
+    private sessionModel: Model<SessionDocument>,
+    private tokenModel: Model<TokenDocument>,
     private auditService: AuditService,
     private notificationsService: NotificationsService,
     private emailProvider: BrevoEmailProvider
@@ -80,7 +92,7 @@ export class AuthService {
   async register(registerDto: any) {
     const { companyName, firstName, lastName, email, password } = registerDto;
 
-    const existingUser = await this.userModel.findOne({ email }).exec();
+    const existingUser = await this.userModel.findOne(emailLookup(email)).exec();
     if (existingUser) {
       throw new BadRequestException('User with this email already exists');
     }
@@ -96,7 +108,7 @@ export class AuthService {
 
     const newUser = new this.userModel({
       organizationId: savedTenant._id.toString(),
-      email,
+      email: normalizeEmail(email),
       name: `${firstName} ${lastName}`.trim(),
       password: hashedPassword,
       role: 'Organization Admin',
@@ -167,7 +179,7 @@ export class AuthService {
 
   async login(loginDto: { email: string; password?: string; otp?: string; deviceInfo?: string }, ipAddress?: string) {
     const { email, password, otp, deviceInfo } = loginDto;
-    const user = await this.userModel.findOne({ email }).exec();
+    const user = await this.userModel.findOne(emailLookup(email)).exec();
 
     if (!user || user.status !== 'Active') {
       throw new UnauthorizedException('User account is not active or not found');
@@ -212,6 +224,9 @@ export class AuthService {
       }).exec();
 
       if (!validToken) {
+        // A wrong OTP counts toward the same lockout as a wrong password,
+        // otherwise the 6-digit code could be brute-forced.
+        await this.handleFailedLogin(user);
         throw new UnauthorizedException('Invalid or expired OTP');
       }
       validToken.used = true;
@@ -227,7 +242,7 @@ export class AuthService {
     const session = new this.sessionModel({
       userId: user._id,
       organizationId: user.organizationId,
-      refreshToken,
+      refreshToken: hashRefreshToken(refreshToken),
       deviceInfo,
       ipAddress,
       expiresAt,
@@ -269,12 +284,20 @@ export class AuthService {
   }
 
   async requestOtp(email: string) {
-    const user = await this.userModel.findOne({ email }).exec();
+    const user = await this.userModel.findOne(emailLookup(email)).exec();
     if (!user || user.status !== 'Active') {
       throw new BadRequestException('User account is not active or not found');
     }
     
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Cryptographically secure 6-digit code.
+    const otp = crypto.randomInt(100000, 1000000).toString();
+
+    // Only the most recent OTP is ever valid: invalidate any earlier unused ones.
+    await this.tokenModel.updateMany(
+      { userId: user._id.toString(), type: 'OTP', used: false },
+      { $set: { used: true } }
+    ).exec();
+
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 10);
     
@@ -302,9 +325,13 @@ export class AuthService {
   }
 
   async verifyOtp(email: string, otp: string) {
-    const user = await this.userModel.findOne({ email }).exec();
+    const user = await this.userModel.findOne(emailLookup(email)).exec();
     if (!user) {
       throw new UnauthorizedException('Invalid OTP');
+    }
+
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new UnauthorizedException(`Account is locked due to too many failed attempts. Try again later.`);
     }
 
     const validToken = await this.tokenModel.findOne({
@@ -318,13 +345,20 @@ export class AuthService {
     if (validToken) {
       validToken.used = true;
       await validToken.save();
+      if (user.failedLoginAttempts! > 0 || user.lockedUntil) {
+        user.failedLoginAttempts = 0;
+        user.lockedUntil = undefined;
+        await user.save();
+      }
       return { success: true };
     }
+    // Wrong OTPs count toward the same lockout as wrong passwords.
+    await this.handleFailedLogin(user);
     throw new UnauthorizedException('Invalid or expired OTP');
   }
 
   async forgotPassword(email: string) {
-    const user = await this.userModel.findOne({ email }).exec();
+    const user = await this.userModel.findOne(emailLookup(email)).exec();
     if (!user || user.status !== 'Active') {
       // Don't leak user existence
       return { success: true, message: 'If the account exists, a reset link has been sent.' };
@@ -381,6 +415,14 @@ export class AuthService {
     validToken.used = true;
     await validToken.save();
 
+    // A password reset must kick out every existing session (e.g. an
+    // attacker who had the old password): revoke all of this user's
+    // refresh tokens so they can't mint new access tokens.
+    await this.sessionModel.updateMany(
+      { userId: user._id.toString(), revoked: false },
+      { $set: { revoked: true } }
+    ).exec();
+
     this.auditService.logAction({
       organizationId: user.organizationId,
       actorId: user._id.toString(),
@@ -429,14 +471,48 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string) {
-    const session = await this.sessionModel.findOne({ refreshToken, revoked: false }).exec();
-    if (!session || session.expiresAt < new Date()) {
+    const hashed = hashRefreshToken(refreshToken);
+    // Legacy sessions (created before hashing) still hold the plaintext.
+    const session = await this.sessionModel.findOne({
+      refreshToken: { $in: [hashed, refreshToken] },
+      revoked: false,
+    }).exec();
+
+    if (!session) {
+      // Reuse detection: a token that was already rotated out is being
+      // replayed — whoever holds the current token may be an attacker (or the
+      // victim). Revoke the whole session so neither can continue.
+      const reused = await this.sessionModel.findOneAndUpdate(
+        { rotatedRefreshTokens: hashed, revoked: false },
+        { $set: { revoked: true } },
+      ).exec();
+      if (reused) {
+        this.auditService.logAction({
+          organizationId: reused.organizationId,
+          actorId: reused.userId?.toString(),
+          actorRole: 'Unknown',
+          action: 'REFRESH_TOKEN_REUSE',
+          entityName: 'Session',
+          entityId: reused._id.toString(),
+          reason: 'Rotated refresh token was presented again; session revoked',
+        }).catch(err => console.error('Audit Log Error:', err));
+      }
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+    if (session.expiresAt < new Date()) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
     const user = await this.userModel.findById(session.userId).exec();
     if (!user || user.status !== 'Active') {
       throw new UnauthorizedException('User account is not active');
+    }
+    // Same gates as login.
+    if (user.emailVerified === false) {
+      throw new UnauthorizedException('Please verify your email before logging in.');
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new UnauthorizedException('Account is locked due to too many failed attempts. Try again later.');
     }
 
     if (!user.platformAdmin) {
@@ -447,7 +523,9 @@ export class AuthService {
     }
 
     const newRefreshToken = crypto.randomBytes(40).toString('hex');
-    session.refreshToken = newRefreshToken;
+    const rotated = [...(session.rotatedRefreshTokens || []), hashed].slice(-MAX_ROTATED_TOKENS);
+    session.rotatedRefreshTokens = rotated;
+    session.refreshToken = hashRefreshToken(newRefreshToken);
     session.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await session.save();
 
@@ -456,7 +534,7 @@ export class AuthService {
 
   async logout(refreshToken: string) {
     const session = await this.sessionModel.findOneAndUpdate(
-      { refreshToken },
+      { refreshToken: { $in: [hashRefreshToken(refreshToken), refreshToken] } },
       { $set: { revoked: true } }
     ).exec();
 
@@ -477,7 +555,7 @@ export class AuthService {
 
   async getActiveSessions(userId: string) {
     return this.sessionModel.find({ userId, revoked: false, expiresAt: { $gt: new Date() } })
-      .select('-refreshToken')
+      .select('-refreshToken -rotatedRefreshTokens')
       .exec();
   }
 
@@ -511,7 +589,7 @@ export class AuthService {
       territoryIds: user.territoryIds || []
     };
 
-    const access_token = await this.jwtService.signAsync(payload, { expiresIn: '15m' });
+    const access_token = jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: '15m' });
 
     return {
       access_token,

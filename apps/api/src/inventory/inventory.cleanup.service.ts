@@ -1,21 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { InjectModel } from '@nestjs/mongoose';
+import { Logger } from '../core/logger';
 import { Model } from 'mongoose';
 import { Order } from '../schemas/order.schema';
 import { InventoryService } from './inventory.service';
 
-@Injectable()
 export class InventoryCleanupService {
   private readonly logger = new Logger(InventoryCleanupService.name);
 
   constructor(
-    @InjectModel('Order') private readonly orderModel: Model<Order>,
+    private readonly orderModel: Model<Order>,
     private readonly inventoryService: InventoryService,
   ) {}
 
-  // Run every 15 minutes to check for expired holds
-  @Cron('*/15 * * * *')
+  // Run every 15 minutes to check for expired holds.
+  // Scheduled by the integrator: cron '*/15 * * * *' (Asia/Kolkata).
   async handleCron() {
     this.logger.debug('Running expired inventory hold cleanup...');
 
@@ -50,8 +47,17 @@ export class InventoryCleanupService {
           }
         }
         
-        // Update order status so it doesn't get picked up again
+        // Update order status so it doesn't get picked up again, and record
+        // why in the order's audit trail like every other transition does.
+        const previousStatus = order.status;
         order.status = 'Cancelled';
+        order.statusHistory = order.statusHistory || [];
+        order.statusHistory.push({
+          status: 'Cancelled',
+          actorId: 'system',
+          timestamp: new Date(),
+          reason: `Auto-cancelled: order stayed in ${previousStatus} for more than 24 hours`,
+        });
         await order.save();
         
         this.logger.log(`Successfully released stock and cancelled order ${order._id}`);

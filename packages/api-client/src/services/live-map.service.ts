@@ -6,8 +6,4 @@ export class LiveMapService {
     const response = await apiClient.get<LiveRep[]>('/live-map/reps');
     return response.data;
   }
-
-  static getLiveRepsStreamUrl(organizationId: string): string {
-    return `${apiClient.defaults.baseURL || 'http://localhost:3001'}/live-map/stream?organizationId=${organizationId}`;
-  }
 }

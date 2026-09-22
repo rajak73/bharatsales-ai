@@ -1,8 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { SyncService } from './sync.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { OrdersService } from '../orders/orders.service';
-import { InventoryService } from '../inventory/inventory.service';
+import type { OrdersService } from '../orders/orders.service';
 
 describe('SyncService Security', () => {
   let service: SyncService;
@@ -38,22 +35,11 @@ describe('SyncService Security', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SyncService,
-        { provide: getModelToken('Order'), useValue: mockModel },
-        { provide: getModelToken('Visit'), useValue: mockModel },
-        { provide: getModelToken('Collection'), useValue: mockModel },
-        { provide: getModelToken('Product'), useValue: mockModel },
-        { provide: getModelToken('PriceList'), useValue: mockModel },
-        { provide: getModelToken('Outlet'), useValue: mockModel },
-        { provide: OrdersService, useValue: mockOrdersService },
-        { provide: InventoryService, useValue: mockInventoryService }
-      ],
-    }).compile();
-
-    service = module.get<SyncService>(SyncService);
-    ordersService = module.get<OrdersService>(OrdersService);
+    service = new SyncService(
+      mockModel as any, mockModel as any, mockModel as any, mockModel as any, mockModel as any, mockModel as any,
+      mockOrdersService as any, mockInventoryService as any,
+    );
+    ordersService = mockOrdersService as unknown as OrdersService;
   });
 
   afterEach(() => {
@@ -84,5 +70,64 @@ describe('SyncService Security', () => {
     }));
     
     expect(result.conflicts).toHaveLength(0);
+  });
+  describe('pull scoping', () => {
+    const chain = (result: any) => ({ exec: jest.fn().mockResolvedValue(result), populate: jest.fn().mockReturnThis() });
+    let outletModel: any, collectionModel: any, orderModel: any, beatScheduleModel: any, beatModel: any, hierarchyService: any;
+
+    const build = () => {
+      const genericModel: any = { find: jest.fn(() => chain([])) };
+      beatScheduleModel = { find: jest.fn(() => chain([])), distinct: jest.fn().mockResolvedValue(['beat-1']) };
+      beatModel = { distinct: jest.fn().mockResolvedValue(['outlet-on-beat']) };
+      orderModel = {
+        find: jest.fn(() => chain([])),
+        distinct: jest.fn().mockResolvedValue(['dist-outlet']),
+        db: { model: jest.fn((name: string) => (name === 'BeatSchedule' ? beatScheduleModel : name === 'Beat' ? beatModel : genericModel)) },
+      };
+      outletModel = { find: jest.fn(() => chain([])) };
+      collectionModel = { find: jest.fn(() => chain([])) };
+      hierarchyService = { getDescendantTerritoryIds: jest.fn().mockResolvedValue(['t1', 't1-child']) };
+      return new SyncService(
+        orderModel, genericModel, collectionModel, genericModel, genericModel, outletModel,
+        mockOrdersService as any, mockInventoryService as any, hierarchyService,
+      );
+    };
+
+    it('scopes a Sales Representative to their territory/beat outlets, own collections, and no inventory', async () => {
+      const svc = build();
+      const res = await svc.pull('org-1', 'rep-1', '2026-01-01T00:00:00Z', { role: 'Sales Representative', territoryIds: ['t1'] });
+
+      const outletQuery = outletModel.find.mock.calls[0][0];
+      expect(outletQuery.organizationId).toBe('org-1');
+      expect(outletQuery.$or).toEqual(expect.arrayContaining([
+        { territoryId: { $in: ['t1', 't1-child'] } },
+        { _id: { $in: ['outlet-on-beat'] } },
+      ]));
+
+      const collectionQuery = collectionModel.find.mock.calls[0][0];
+      expect(collectionQuery).toMatchObject({ organizationId: 'org-1', collectedByUserId: 'rep-1' });
+      expect(collectionQuery.updatedAt.$gt).toEqual(new Date('2026-01-01T00:00:00Z'));
+
+      expect(mockInventoryService.getInventory).not.toHaveBeenCalled();
+      expect(res.inventory).toEqual([]);
+    });
+
+    it('scopes a Distributor to their own distributorId', async () => {
+      const svc = build();
+      await svc.pull('org-1', 'dist-user', undefined, { role: 'Distributor', distributorId: 'D1' });
+
+      expect(outletModel.find.mock.calls[0][0]).toMatchObject({ 'commercial.assignedDistributorId': 'D1' });
+      expect(orderModel.distinct).toHaveBeenCalledWith('outletId', { organizationId: 'org-1', assignedDistributorId: 'D1' });
+      expect(collectionModel.find.mock.calls[0][0]).toMatchObject({ outletId: { $in: ['dist-outlet'] } });
+      expect(mockInventoryService.getInventory).toHaveBeenCalledWith('org-1', expect.objectContaining({ distributorId: 'D1' }));
+    });
+
+    it('gives a Sales Representative with no territories and no beats no outlets', async () => {
+      const svc = build();
+      beatScheduleModel.distinct.mockResolvedValue([]);
+      const res = await svc.pull('org-1', 'rep-1', undefined, { role: 'Sales Representative', territoryIds: [] });
+      expect(outletModel.find).not.toHaveBeenCalled();
+      expect(res.outlets).toEqual([]);
+    });
   });
 });

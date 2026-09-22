@@ -1,6 +1,7 @@
 import { ActivityIndicator, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useSessionStore, isAllowedRole } from '../src/store/sessionStore';
+import { colors } from '../src/theme/tokens';
 
 export default function Index() {
   const user = useSessionStore((s) => s.user);
@@ -8,8 +9,8 @@ export default function Index() {
 
   if (isInitializing) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
+        <ActivityIndicator size="large" color={colors.primary} accessibilityLabel="Loading" />
       </View>
     );
   }

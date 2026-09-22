@@ -1,12 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { NotFoundException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { TaxRate } from '../schemas/tax-rate.schema';
 import { TaxRate as SharedTaxRate } from '@bharatsales/shared-types';
 
-@Injectable()
 export class TaxRatesService {
-  constructor(@InjectModel('TaxRate') private taxRateModel: Model<TaxRate>) {}
+  constructor(private taxRateModel: Model<TaxRate>) {}
 
   async findAllByOrgId(organizationId: string): Promise<TaxRate[]> {
     return this.taxRateModel.find({ organizationId }).exec();

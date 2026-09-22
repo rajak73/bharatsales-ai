@@ -1,16 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from '../src/app.module';
-import { getConnectionToken } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
-import { JwtService } from '@nestjs/jwt';
-import { execSync } from 'child_process';
+import { bootTestApp, TestApp, seedTestDatabase } from './test/test-app';
 
 describe('UAT-01 & UAT-11 Validation (e2e)', () => {
-  let app: INestApplication;
+  let app: TestApp;
   let connection: Connection;
-  let jwtService: JwtService;
+  let jwtService: TestApp['jwtService'];
 
   let tenant1Id: string;
   let tenant2Id: string;
@@ -19,18 +14,13 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
   let repToken: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    app = await bootTestApp();
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
-
-    connection = app.get<Connection>(getConnectionToken());
-    jwtService = app.get<JwtService>(JwtService);
+    connection = app.connection;
+    jwtService = app.jwtService;
 
     // Completely reset database to seed state
-    execSync('npx ts-node src/seed.ts', { stdio: 'ignore' });
+    await seedTestDatabase(connection);
 
     // Fetch tenant IDs
     const tenants = await connection.collection('tenants').find({}).toArray();
@@ -177,7 +167,9 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
           productId,
           batch: 'TEST-BATCH-01',
           type: 'Purchase',
-          quantity: 100
+          quantity: 100,
+          // A Purchase that creates a new batch must now carry an expiry (FEFO needs it).
+          expiry: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
         })
         .expect(201);
     });
@@ -305,7 +297,9 @@ describe('UAT-01 & UAT-11 Validation (e2e)', () => {
         })
         .expect(201);
 
-      expect(res.body.status).toBe('Pending');
+      // Status is now derived server-side from paymentMode (Cash/UPI settle immediately);
+      // the client can no longer choose it.
+      expect(res.body.status).toBe('Cleared');
       expect(res.body.amount).toBe(5000);
     });
 

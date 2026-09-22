@@ -1,32 +1,33 @@
-# React + TypeScript + Vite
+# BharatSales AI: Field PWA
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+An offline-first progressive web app for **Sales Representatives**, built with React 19, Vite and vite-plugin-pwa (service worker `src/sw.ts`). It covers the rep's day: attendance, beat, outlet visits with photos, cart and orders, and collections. Offline writes go to a Dexie (IndexedDB) queue and sync with retry and backoff (see [docs/OFFLINE_SYNC.md](../../docs/OFFLINE_SYNC.md)).
 
-Currently, two official plugins are available:
+The Android app (`apps/mobile`) implements the same rep workflows natively. See [docs/KNOWN_LIMITATIONS.md](../../docs/KNOWN_LIMITATIONS.md).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Run locally
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+# from the repo root, after `pnpm install` and building the shared packages
+cp apps/field-pwa/.env.example apps/field-pwa/.env.local   # VITE_API_URL=http://localhost:6002
+pnpm --filter @bharatsales/field-pwa dev                   # http://localhost:6001
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+| Script | Does |
+|--------|------|
+| `dev` | Vite dev server on port 6001 (service worker enabled in dev) |
+| `build` | `tsc -b && vite build` → `dist/` |
+| `preview` | serves `dist/` on port 6001 |
+| `lint` | oxlint |
+
+## Layout
+
+- `src/screens/`: pages (outlets, visit, cart, collection, and so on)
+- `src/database/db.ts`: Dexie schema (cached reference data and `syncQueue`)
+- `src/sync/`: sync engine, retry policy and queue ownership
+- `src/contexts/`: auth, attendance and cart state
+
+## Deploy
+
+On Vercel, set Root Directory to `apps/field-pwa`, the framework to Vite and the output to `dist`. `vercel.json` adds the SPA rewrite. Production builds take `VITE_API_URL` from `.env.production` (`https://bharatsales-ai.onrender.com`). Add the deployed URL to `CORS_ORIGINS` on the API. Details are in [docs/DEPLOYMENT.md](../../docs/DEPLOYMENT.md).
+
+Capacitor is configured (`capacitor.config.ts`), but no native Android project is checked in.

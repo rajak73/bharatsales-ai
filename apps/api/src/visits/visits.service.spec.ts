@@ -1,7 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { VisitsService } from './visits.service';
-import { getModelToken } from '@nestjs/mongoose';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException } from '../core/http-errors';
 
 describe('VisitsService', () => {
   let service: VisitsService;
@@ -22,25 +20,7 @@ describe('VisitsService', () => {
   }
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        VisitsService,
-        {
-          provide: getModelToken('Visit'),
-          useValue: mockVisitModel,
-        },
-        {
-          provide: getModelToken('Outlet'),
-          useValue: mockOutletModel,
-        },
-        {
-          provide: getModelToken('Order'),
-          useValue: { findOne: jest.fn() },
-        },
-      ],
-    }).compile();
-
-    service = module.get<VisitsService>(VisitsService);
+    service = new VisitsService(mockVisitModel as any, mockOutletModel as any, { findOne: jest.fn() } as any);
     // override constructor
     (service as any).visitModel = function(data: any) {
       this.save = jest.fn().mockResolvedValue(data);

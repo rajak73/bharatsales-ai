@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../database/db';
+import type { SyncQueueItem } from '../database/db';
 import { SyncEngine } from '../sync/syncEngine';
+import { getCurrentUserId } from '../sync/ownership';
+
+export type SyncIssue = SyncQueueItem & { foreign: boolean };
+
+const NO_ISSUES: SyncIssue[] = [];
 
 export function useSyncEngine() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  
-  // Real-time count of items waiting to be synced
-  const pendingCount = useLiveQuery(
-    () => db.syncQueue.where('status').equals('PENDING').count(),
-    []
-  ) ?? 0;
+  const userId = getCurrentUserId();
+
+  // Live queue counts for the logged-in user: pending = PENDING (incl.
+  // backing off) + SYNCING; failed = their FAILED items plus anything another
+  // user queued on this device.
+  const counts = useLiveQuery(() => SyncEngine.countByStatus(userId), [userId]);
+  const pendingCount = counts?.pendingCount ?? 0;
+  const failedCount = counts?.failedCount ?? 0;
+
+  // The items behind failedCount, for the Sync issues screen.
+  const failedItems = useLiveQuery(() => SyncEngine.getFailed(userId), [userId]) ?? NO_ISSUES;
 
   useEffect(() => {
     const handleOnline = () => {
@@ -40,6 +50,10 @@ export function useSyncEngine() {
   return {
     isOnline,
     pendingCount,
-    forceSync: () => SyncEngine.triggerSync()
+    failedCount,
+    failedItems,
+    forceSync: () => SyncEngine.triggerSync(),
+    retryFailed: (id: number) => SyncEngine.retryFailed(id),
+    discardFailed: (id: number) => SyncEngine.discardFailed(id),
   };
 }

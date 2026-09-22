@@ -1,13 +1,21 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { NotFoundException, BadRequestException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { HierarchyNode } from '@bharatsales/shared-types';
 
-@Injectable()
+// parentId is typed ObjectId, but nodes written by raw inserts (seed scripts,
+// imports) hold it as a plain string. A normal `parentId: { $in: ids }` is
+// cast to ObjectId by Mongoose, so it silently misses string parents (a
+// manager's team resolves to nobody) and throws a CastError on a non-ObjectId
+// id. Comparing the stringified field matches both storage forms. $expr is
+// not cast by Mongoose, so no id can fail to cast either.
+function parentIdIn(ids: string[]) {
+  return { $expr: { $in: [{ $toString: '$parentId' }, ids.map(String)] } };
+}
+
 export class HierarchyService {
   constructor(
-    @InjectModel('HierarchyNode') private readonly hierarchyModel: Model<any>,
-    @InjectModel('User') private readonly userModel: Model<any>
+    private readonly hierarchyModel: Model<any>,
+    private readonly userModel: Model<any>
   ) {}
 
   async getUserRole(userId: string) {
@@ -114,7 +122,7 @@ export class HierarchyService {
   }
 
   async deleteNode(organizationId: string, id: string) {
-    const childrenCount = await this.hierarchyModel.countDocuments({ parentId: id, organizationId }).exec();
+    const childrenCount = await this.hierarchyModel.countDocuments({ organizationId, ...parentIdIn([id]) }).exec();
     if (childrenCount > 0) {
       throw new BadRequestException('Cannot delete node with assigned children. Reassign children first.');
     }
@@ -153,10 +161,9 @@ export class HierarchyService {
 
     // Max depth is 4 (Zone -> Region -> Area -> Territory)
     for (let depth = 0; depth < 4; depth++) {
-      if (currentIds.length === 0) break;
-      const children = await this.hierarchyModel.find({ 
-        organizationId, 
-        parentId: { $in: currentIds } 
+      const children = await this.hierarchyModel.find({
+        organizationId,
+        ...parentIdIn(currentIds),
       }).exec();
       
       currentIds = children.map((c: any) => c._id.toString());

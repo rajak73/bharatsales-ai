@@ -1,6 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { LiveMapService } from './live-map.service';
-import { getModelToken } from '@nestjs/mongoose';
 
 describe('LiveMapService', () => {
   let service: LiveMapService;
@@ -10,16 +8,7 @@ describe('LiveMapService', () => {
   const mockLocationPingModel = { findOne: jest.fn() };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        LiveMapService,
-        { provide: getModelToken('AttendanceSession'), useValue: mockAttendanceModel },
-        { provide: getModelToken('Visit'), useValue: mockVisitModel },
-        { provide: getModelToken('LocationPing'), useValue: mockLocationPingModel },
-      ],
-    }).compile();
-
-    service = module.get<LiveMapService>(LiveMapService);
+    service = new LiveMapService(mockAttendanceModel as any, mockVisitModel as any, mockLocationPingModel as any);
   });
 
   afterEach(() => {

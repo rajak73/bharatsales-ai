@@ -1,19 +1,18 @@
-import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { ForbiddenException } from '../core/http-errors';
+import { Logger } from '../core/logger';
 import { Model } from 'mongoose';
 import { Distributor } from '../schemas/distributor.schema';
 import { Distributor as SharedDistributor } from '@bharatsales/shared-types';
 
 const ACTIVE_ORDER_STATUSES = ['Submitted', 'Hold_Credit', 'Hold_Stock', 'Pending_Approval', 'Approved', 'Dispatched', 'Partial_Delivery'];
 
-@Injectable()
 export class DistributorsService {
   private readonly logger = new Logger(DistributorsService.name);
 
   constructor(
-    @InjectModel(Distributor.name) private distributorModel: Model<Distributor>,
-    @InjectModel('Order') private orderModel: Model<any>,
-    @InjectModel('Inventory') private inventoryModel: Model<any>,
+    private distributorModel: Model<Distributor>,
+    private orderModel: Model<any>,
+    private inventoryModel: Model<any>,
   ) {}
 
   async getDistributors(organizationId: string): Promise<any[]> {

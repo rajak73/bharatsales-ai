@@ -32,3 +32,13 @@ export const useSessionStore = create<SessionState>((set) => ({
 export function isAllowedRole(role?: string): role is AllowedRole {
   return !!role && (ALLOWED_ROLES as readonly string[]).includes(role);
 }
+
+/** Id of the logged-in user (the login response sends `id`), or null. */
+export function userIdOf(user: SessionUser | null | undefined): string | null {
+  const id = user?.id ?? user?._id;
+  return id ? String(id) : null;
+}
+
+export function getCurrentUserId(): string | null {
+  return userIdOf(useSessionStore.getState().user);
+}

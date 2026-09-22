@@ -1,0 +1,62 @@
+# Render Blueprint for the BharatSales API (Node.js + Express + MongoDB).
+# https://render.com/docs/blueprint-spec
+#
+# The web dashboard (apps/web, React + Vite) is deployed on Vercel, see
+# apps/web/vercel.json. The Android APK and the field PWA call this service at
+# https://bharatsales-ai.onrender.com, so keep the service name / URL stable.
+#
+# Secrets are `sync: false`: Render asks for them when the Blueprint is first
+# applied and never reads them from this file. Do not commit real values.
+services:
+  - type: web
+    name: bharatsales-ai
+    runtime: node
+    region: singapore
+    plan: free
+    branch: main
+    # Repo root: the build needs the whole pnpm workspace.
+    # --prod=false: NODE_ENV=production is also set at build time, and pnpm
+    # would otherwise skip the devDependencies (TypeScript) the build needs.
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @bharatsales/api... build
+    # tsc -p apps/api/tsconfig.build.json: rootDir src -> outDir dist.
+    startCommand: node apps/api/dist/main.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22.23.1
+      # Must be a replica set (MongoDB Atlas clusters are); orders, dispatch
+      # and collections use multi-document transactions.
+      - key: MONGODB_URI
+        sync: false
+      # At least 32 characters, or the API refuses to start in production.
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      # Comma-separated browser origins, e.g. https://your-site.vercel.app
+      # Unset in production = every cross-origin browser request is denied.
+      - key: CORS_ORIGINS
+        value: https://bharatsales-ai-web.vercel.app
+      # Public URL of the web dashboard, used in password-reset / invite emails.
+      - key: FRONTEND_URL
+        sync: false
+      # Render terminates TLS in one proxy hop in front of the service.
+      - key: TRUST_PROXY
+        value: "1"
+      # Uploaded photos are stored in MongoDB GridFS: Render's disk is wiped
+      # on every deploy.
+      - key: STORAGE_DRIVER
+        value: gridfs
+      # Transactional email / SMS via Brevo (optional; without a key emails
+      # are logged and skipped).
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        sync: false
+      - key: BREVO_SMS_SENDER
+        sync: false

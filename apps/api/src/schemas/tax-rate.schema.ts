@@ -1,22 +1,20 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 
-@Schema({ timestamps: true })
-export class TaxRate extends Document {
-  @Prop({ required: true, index: true })
+export interface TaxRate extends Document {
   organizationId: string;
-
-  @Prop({ required: true })
   name: string;
-
-  @Prop({ required: true })
   percentage: number;
-
-  @Prop({ required: true })
   country: string;
-
-  @Prop()
   region?: string;
 }
 
-export const TaxRateSchema = SchemaFactory.createForClass(TaxRate);
+export const TaxRateSchema = new Schema(
+  {
+    organizationId: { type: String, required: true, index: true },
+    name: { type: String, required: true },
+    percentage: { type: Number, required: true },
+    country: { type: String, required: true },
+    region: { type: String },
+  },
+  { timestamps: true },
+);

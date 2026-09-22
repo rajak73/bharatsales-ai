@@ -1,5 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
 import { NotificationsService } from './notifications.service';
 
 describe('NotificationsService', () => {
@@ -20,15 +18,7 @@ describe('NotificationsService', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        NotificationsService,
-        { provide: getModelToken('NotificationLog'), useValue: mockNotificationModel },
-        { provide: getModelToken('AppNotification'), useValue: mockAppNotificationModel },
-      ],
-    }).compile();
-
-    service = module.get<NotificationsService>(NotificationsService);
+    service = new NotificationsService(mockNotificationModel as any, mockAppNotificationModel as any);
   });
 
   afterEach(() => {
@@ -42,14 +32,7 @@ describe('NotificationsService', () => {
       delete process.env.BREVO_API_KEY;
       // Service already constructed with the env var read at instantiation
       // time, so re-create it for this test's env state.
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          NotificationsService,
-          { provide: getModelToken('NotificationLog'), useValue: mockNotificationModel },
-          { provide: getModelToken('AppNotification'), useValue: mockAppNotificationModel },
-        ],
-      }).compile();
-      service = module.get<NotificationsService>(NotificationsService);
+      service = new NotificationsService(mockNotificationModel as any, mockAppNotificationModel as any);
       global.fetch = jest.fn();
 
       const result = await service.sendSms('org1', '+919876543210', 'Hello');
@@ -60,14 +43,7 @@ describe('NotificationsService', () => {
 
     it('calls the Brevo SMS API and marks Failed when the response is not ok', async () => {
       process.env.BREVO_API_KEY = 'test-key';
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          NotificationsService,
-          { provide: getModelToken('NotificationLog'), useValue: mockNotificationModel },
-          { provide: getModelToken('AppNotification'), useValue: mockAppNotificationModel },
-        ],
-      }).compile();
-      service = module.get<NotificationsService>(NotificationsService);
+      service = new NotificationsService(mockNotificationModel as any, mockAppNotificationModel as any);
       global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 400, text: () => Promise.resolve('bad request') });
 
       const result = await service.sendSms('org1', '+919876543210', 'Hello');

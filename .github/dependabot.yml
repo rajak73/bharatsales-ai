@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      # One PR per week for all non-breaking updates across the monorepo.
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Expo pins React Native / React versions; upgrade those with `npx expo install --fix`.
+      - dependency-name: "react-native"
+      - dependency-name: "expo*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]

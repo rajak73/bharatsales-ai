@@ -1,28 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { getConnectionToken } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
-import { AppModule } from '../app.module';
 import mongoose from 'mongoose';
-import { execSync } from 'child_process';
+import { bootTestApp, TestApp, seedTestDatabase } from '../test/test-app';
 
 describe('AuthController (e2e)', () => {
-  let app: INestApplication;
+  let app: TestApp;
   let connection: Connection;
   jest.setTimeout(30000);
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-    connection = app.get<Connection>(getConnectionToken());
+    app = await bootTestApp();
+    connection = app.connection;
     
     // Completely reset database to seed state
-    execSync('npx ts-node src/seed.ts', { stdio: 'ignore' });
+    await seedTestDatabase(connection);
   });
 
   afterAll(async () => {

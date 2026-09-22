@@ -1,6 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
 
-process.env.NEXT_PUBLIC_API_URL = 'http://localhost:6002';
 process.env.VITE_API_URL = 'http://localhost:6002';
 
 export default defineConfig({

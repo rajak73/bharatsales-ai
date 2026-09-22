@@ -1,12 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { NotFoundException } from '../core/http-errors';
 import { Model } from 'mongoose';
 import { SupportTicket } from '../schemas/support-ticket.schema';
 
-@Injectable()
 export class SupportService {
   constructor(
-    @InjectModel('SupportTicket') private ticketModel: Model<SupportTicket>,
+    private ticketModel: Model<SupportTicket>,
   ) {}
 
   async create(organizationId: string, raisedByUserId: string, data: { subject: string; message: string; priority?: string }) {

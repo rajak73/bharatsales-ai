@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -9,13 +9,14 @@ import { colors, formatCurrency, isToday } from '../../../src/lib/theme';
 import { radius, spacing, typography } from '../../../src/theme/tokens';
 import { useCurrentAttendanceSession, useAttendanceActions } from '../../../src/hooks/useAttendance';
 import { useLocalOutlets, useLocalBeatSchedules, useLocalOrders } from '../../../src/hooks/useLocalData';
-import { useSyncStatus } from '../../../src/hooks/useSyncStatus';
-import { OrgHeader, KPICard, EmptyState } from '../../../src/components/ui';
+import { SyncBanner } from '../../../src/components/SyncBanner';
+import { OrgHeader, KPICard, EmptyState, Card, Button, Banner, SectionHeader, ListItem, ProgressBar } from '../../../src/components/ui';
+
+type QuickAction = { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; color?: string; onPress: () => void };
 
 export default function RepHome() {
   const { data: session } = useCurrentAttendanceSession();
   const { endDay } = useAttendanceActions();
-  const syncStatus = useSyncStatus();
   const { data: outlets = [], refetch: refetchOutlets } = useLocalOutlets();
   const { data: beatSchedules = [], refetch: refetchBeats } = useLocalBeatSchedules();
   const { data: orders = [] } = useLocalOrders();
@@ -68,33 +69,50 @@ export default function RepHome() {
     }
   };
 
+  const quickActions: QuickAction[] = [
+    { key: 'book', label: 'Book Order', icon: 'cart', onPress: () => router.push('/(rep)/catalog') },
+    { key: 'beat', label: 'Start Beat', icon: 'navigate', onPress: () => router.push('/(rep)/(tabs)/beat') },
+    { key: 'outlets', label: 'All Outlets', icon: 'storefront', onPress: () => router.push('/(rep)/outlets-list') },
+    { key: 'reports', label: 'Reports', icon: 'bar-chart', onPress: () => router.push('/(rep)/reports') },
+    { key: 'issue', label: 'Report Issue', icon: 'help-buoy', color: colors.danger, onPress: () => router.push('/(rep)/report-issue') },
+  ];
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <OrgHeader />
+      <SyncBanner onPress={() => router.push('/(rep)/(tabs)/profile')} />
 
-      {syncStatus.isSyncing && (
-        <View style={styles.syncBanner}>
-          <Text style={styles.syncBannerText}>Syncing {syncStatus.pendingCount} offline action{syncStatus.pendingCount === 1 ? '' : 's'}...</Text>
-        </View>
-      )}
-      {!syncStatus.isSyncing && syncStatus.pendingCount > 0 && (
-        <View style={[styles.syncBanner, { backgroundColor: colors.warning }]}>
-          <Text style={styles.syncBannerText}>{syncStatus.pendingCount} action{syncStatus.pendingCount === 1 ? '' : 's'} queued, waiting for connection</Text>
-        </View>
-      )}
-
-      <ScrollView contentContainerStyle={styles.scroll} refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}>
-        {!session && (
-          <View style={styles.warningBanner}>
-            <Ionicons name="alert-circle" size={18} color="#B45309" />
-            <View style={{ flex: 1, marginLeft: spacing.md }}>
-              <Text style={styles.warningTitle}>You are Off Duty</Text>
-              <Text style={styles.warningText}>Check in to start visiting outlets today.</Text>
-              <TouchableOpacity style={styles.warningButton} onPress={() => router.push('/(rep)/attendance')}>
-                <Text style={styles.warningButtonText}>Check In</Text>
-              </TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+      >
+        {/* Primary action — what the rep should do next */}
+        {!session ? (
+          <Banner
+            tone="warning"
+            icon="time-outline"
+            title="You're off duty"
+            message="Start your day with a selfie check-in to unlock outlet visits and order booking."
+            action={{ label: 'Start Day', onPress: () => router.push('/(rep)/attendance') }}
+          />
+        ) : (
+          <Card style={styles.heroCard}>
+            <View style={styles.heroRow}>
+              <View style={styles.heroIcon}><Ionicons name="navigate" size={22} color={colors.primary} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.heroTitle}>Today&apos;s beat</Text>
+                <Text style={styles.heroSubtitle}>
+                  {beatOutlets.length > 0 ? `${beatOutlets.length} outlet${beatOutlets.length === 1 ? '' : 's'} on your route` : 'No route assigned — browse all outlets'}
+                </Text>
+              </View>
             </View>
-          </View>
+            <Button
+              label={beatOutlets.length > 0 ? 'Continue Beat' : 'Browse Outlets'}
+              onPress={() => router.push(beatOutlets.length > 0 ? '/(rep)/(tabs)/beat' : '/(rep)/outlets-list')}
+              variant="accent"
+              icon={<Ionicons name="arrow-forward-circle" size={20} color={colors.navy} />}
+            />
+          </Card>
         )}
 
         {/* Today's KPIs */}
@@ -108,7 +126,7 @@ export default function RepHome() {
             onPress={() => router.push('/(rep)/attendance')}
           />
           <KPICard
-            icon="cube"
+            icon="receipt"
             value={todaysOrders.length}
             label="Today's Orders"
             onPress={() => router.push('/(rep)/(tabs)/orders')}
@@ -130,87 +148,84 @@ export default function RepHome() {
         </View>
 
         {/* Target Progress */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Today&apos;s Target Progress</Text>
-          {!myTarget ? (
-            <EmptyState icon="flag-outline" title="No target assigned" message="Please check with your manager." />
-          ) : (
-            <TouchableOpacity onPress={() => router.push('/(rep)/target')}>
-              <View style={styles.targetRow}>
-                <View>
-                  <Text style={styles.targetLabel}>Goal</Text>
-                  <Text style={styles.targetValue}>{formatCurrency(myTarget.targetValue)}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.targetLabel}>Achieved</Text>
-                  <Text style={styles.targetValue}>{formatCurrency(myTarget.actualValue)}</Text>
-                </View>
-              </View>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${Math.min(100, targetPercentage)}%` }]} />
-              </View>
-              <Text style={styles.progressLabel}>{targetPercentage}% complete</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Today&apos;s Beat preview */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today&apos;s Beat</Text>
-          <TouchableOpacity style={styles.viewAllBtn} onPress={() => router.push('/(rep)/(tabs)/beat')}>
-            <Text style={styles.viewAllText}>View All</Text>
-            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {!session ? null : beatPreview.length === 0 ? (
-          <EmptyState icon="navigate-outline" title="No beat assigned for today" />
+        <SectionHeader title="Today's Target" actionLabel={myTarget ? 'Details' : undefined} onAction={() => router.push('/(rep)/target')} />
+        {!myTarget ? (
+          <EmptyState icon="flag-outline" title="No target assigned" message="Please check with your manager." />
         ) : (
-          beatPreview.map((outlet: any) => (
-            <View key={outlet.id} style={styles.outletCard}>
-              <View style={styles.outletIcon}><Ionicons name="storefront" size={18} color={colors.primary} /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.outletName} numberOfLines={1}>{outlet.name}</Text>
-                <Text style={styles.outletAddress} numberOfLines={1}>{outlet.location?.address || 'Unknown'}</Text>
+          <Card onPress={() => router.push('/(rep)/target')} accessibilityLabel={`Today's target ${formatCurrency(myTarget.targetValue)}, achieved ${formatCurrency(myTarget.actualValue)}, ${targetPercentage} percent`}>
+            <View style={styles.targetRow}>
+              <View>
+                <Text style={styles.targetLabel}>Achieved</Text>
+                <Text style={styles.targetValue}>{formatCurrency(myTarget.actualValue)}</Text>
               </View>
-              <TouchableOpacity style={styles.visitBtn} onPress={() => router.push({ pathname: '/(rep)/outlet/[id]', params: { id: outlet.id } })}>
-                <Text style={styles.visitBtnText}>Visit</Text>
-              </TouchableOpacity>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.targetLabel}>Goal</Text>
+                <Text style={[styles.targetValue, { color: colors.textSecondary }]}>{formatCurrency(myTarget.targetValue)}</Text>
+              </View>
             </View>
-          ))
+            <ProgressBar percent={targetPercentage} height={10} />
+            <Text style={styles.progressLabel}>{targetPercentage}% complete</Text>
+          </Card>
         )}
 
+        {/* Today's Beat preview */}
+        {session ? (
+          <>
+            <SectionHeader title="Next on your beat" actionLabel="View all" onAction={() => router.push('/(rep)/(tabs)/beat')} />
+            {beatPreview.length === 0 ? (
+              <EmptyState icon="navigate-outline" title="No beat assigned for today" />
+            ) : (
+              <View style={styles.list}>
+                {beatPreview.map((outlet: any) => (
+                  <ListItem
+                    key={outlet.id}
+                    icon="storefront"
+                    title={outlet.name}
+                    subtitle={outlet.location?.address || 'Address not available'}
+                    onPress={() => router.push({ pathname: '/(rep)/outlet/[id]', params: { id: outlet.id } })}
+                    accessibilityLabel={`Visit ${outlet.name}`}
+                    trailing={<View style={styles.visitPill}><Text style={styles.visitPillText}>Visit</Text></View>}
+                  />
+                ))}
+              </View>
+            )}
+          </>
+        ) : null}
+
         {/* Quick Actions */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <SectionHeader title="Quick Actions" />
         <View style={styles.quickActionsGrid}>
-          <TouchableOpacity style={styles.quickAction} onPress={handleAttendanceQuickAction} disabled={attendanceBusy}>
+          <Pressable
+            style={({ pressed }) => [styles.quickAction, pressed && styles.quickActionPressed]}
+            onPress={handleAttendanceQuickAction}
+            disabled={attendanceBusy}
+            accessibilityRole="button"
+            accessibilityLabel={session ? 'Check out and end day' : 'Check in'}
+            accessibilityState={{ busy: attendanceBusy }}
+          >
             {attendanceBusy ? <ActivityIndicator color={colors.primary} /> : (
               <>
-                <Ionicons name={session ? 'log-out' : 'log-in'} size={22} color={session ? colors.danger : colors.primary} />
+                <View style={[styles.quickIcon, { backgroundColor: session ? colors.dangerLight : colors.primaryLight }]}>
+                  <Ionicons name={session ? 'log-out' : 'log-in'} size={20} color={session ? colors.danger : colors.primary} />
+                </View>
                 <Text style={styles.quickActionText}>{session ? 'Check Out' : 'Check In'}</Text>
               </>
             )}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/(rep)/(tabs)/beat')}>
-            <Ionicons name="navigate" size={22} color={colors.primary} />
-            <Text style={styles.quickActionText}>Start Beat</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/(rep)/catalog')}>
-            <Ionicons name="cart" size={22} color={colors.primary} />
-            <Text style={styles.quickActionText}>Book Order</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/(rep)/(tabs)/beat')}>
-            <Ionicons name="map" size={22} color={colors.primary} />
-            <Text style={styles.quickActionText}>Today&apos;s Route</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/(rep)/reports')}>
-            <Ionicons name="bar-chart" size={22} color={colors.primary} />
-            <Text style={styles.quickActionText}>Reports</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/(rep)/report-issue')}>
-            <Ionicons name="warning" size={22} color={colors.danger} />
-            <Text style={styles.quickActionText}>Report Issue</Text>
-          </TouchableOpacity>
+          </Pressable>
+          {quickActions.map((a) => (
+            <Pressable
+              key={a.key}
+              style={({ pressed }) => [styles.quickAction, pressed && styles.quickActionPressed]}
+              onPress={a.onPress}
+              accessibilityRole="button"
+              accessibilityLabel={a.label}
+            >
+              <View style={[styles.quickIcon, { backgroundColor: a.color === colors.danger ? colors.dangerLight : colors.primaryLight }]}>
+                <Ionicons name={a.icon} size={20} color={a.color || colors.primary} />
+              </View>
+              <Text style={styles.quickActionText} numberOfLines={1}>{a.label}</Text>
+            </Pressable>
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -219,34 +234,27 @@ export default function RepHome() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  syncBanner: { backgroundColor: '#3B82F6', paddingVertical: spacing.sm, alignItems: 'center' },
-  syncBannerText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.huge },
-  warningBanner: { flexDirection: 'row', backgroundColor: colors.warningLight, borderWidth: 1, borderColor: '#FDE68A', borderRadius: radius.lg, padding: spacing.lg },
-  warningTitle: { fontWeight: '700', color: '#92400E', marginBottom: spacing.xs },
-  warningText: { color: '#92400E', fontSize: 12, marginBottom: spacing.sm },
-  warningButton: { backgroundColor: '#D97706', borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, alignSelf: 'flex-start' },
-  warningButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxxl },
+  heroCard: { gap: spacing.lg },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  heroIcon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  heroTitle: { ...typography.h2, color: colors.text },
+  heroSubtitle: { ...typography.body, color: colors.textMuted, marginTop: 2 },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  card: { backgroundColor: colors.card, borderRadius: radius.xl, padding: spacing.xl, borderWidth: 1, borderColor: colors.border },
-  cardTitle: { ...typography.h2, color: colors.text, marginBottom: spacing.md },
-  targetRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
-  targetLabel: { fontSize: 10, color: colors.textMuted, fontWeight: '700', textTransform: 'uppercase' },
-  targetValue: { fontSize: 15, fontWeight: '800', color: colors.text, marginTop: 2 },
-  progressBar: { height: 10, backgroundColor: colors.bg, borderRadius: 5, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 5 },
-  progressLabel: { fontSize: 11, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'right' },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { ...typography.h1, fontSize: 17, color: colors.text },
-  viewAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  viewAllText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
-  outletCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
-  outletIcon: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
-  outletName: { fontWeight: '700', color: colors.text, fontSize: 13 },
-  outletAddress: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
-  visitBtn: { backgroundColor: colors.primaryLight, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.sm },
-  visitBtnText: { color: colors.primary, fontWeight: '700', fontSize: 11 },
+  targetRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
+  targetLabel: { ...typography.caption, color: colors.textMuted },
+  targetValue: { ...typography.h1, color: colors.text, marginTop: 2 },
+  progressLabel: { ...typography.caption, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'right' },
+  list: { gap: spacing.sm },
+  visitPill: { backgroundColor: colors.primaryLight, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.pill },
+  visitPillText: { ...typography.caption, fontFamily: typography.h3.fontFamily, color: colors.primary },
   quickActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  quickAction: { flexBasis: '30%', flexGrow: 1, backgroundColor: colors.card, borderRadius: radius.lg, alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  quickActionText: { fontSize: 11, fontWeight: '700', color: colors.text, textAlign: 'center' },
+  quickAction: {
+    flexBasis: '30%', flexGrow: 1, minHeight: 92, backgroundColor: colors.card, borderRadius: radius.lg,
+    alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.xs,
+    gap: spacing.sm, borderWidth: 1, borderColor: colors.border,
+  },
+  quickActionPressed: { backgroundColor: colors.bg },
+  quickIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  quickActionText: { ...typography.caption, fontFamily: typography.h3.fontFamily, color: colors.text, textAlign: 'center' },
 });

@@ -1,8 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { SuperadminService } from './superadmin.service';
-import { getModelToken, getConnectionToken } from '@nestjs/mongoose';
-import { AuditService } from '../audit/audit.service';
-import { NotificationsService } from '../notifications/notifications.service';
 
 describe('SuperadminService', () => {
   let service: SuperadminService;
@@ -43,20 +39,15 @@ describe('SuperadminService', () => {
   const mockNotificationsService = { create: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SuperadminService,
-        { provide: getModelToken('Tenant'), useValue: mockTenantModel },
-        { provide: getModelToken('User'), useValue: mockUserModel },
-        { provide: getModelToken('PlatformSettings'), useValue: mockPlatformSettingsModel },
-        { provide: getModelToken('Session'), useValue: mockSessionModel },
-        { provide: getConnectionToken(), useValue: mockConnection },
-        { provide: AuditService, useValue: { getGlobalLogs: jest.fn() } },
-        { provide: NotificationsService, useValue: mockNotificationsService },
-      ],
-    }).compile();
-
-    service = module.get<SuperadminService>(SuperadminService);
+    service = new SuperadminService(
+      mockTenantModel,
+      mockUserModel,
+      mockPlatformSettingsModel as any,
+      mockSessionModel as any,
+      mockConnection as any,
+      { getGlobalLogs: jest.fn() } as any,
+      mockNotificationsService as any,
+    );
   });
 
   afterEach(() => {
