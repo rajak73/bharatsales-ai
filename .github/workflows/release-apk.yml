@@ -1,0 +1,71 @@
+# Publishes an EAS-built Android APK as a GitHub release.
+# The job refuses to publish unless the APK is signed with the same key as
+# the APKs already in users' hands, so it always installs as an update.
+name: Release Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk_url:
+        description: EAS artifact URL of the APK (expo.dev/artifacts/eas/....apk)
+        required: true
+      version:
+        description: App version, e.g. 1.0.5
+        required: true
+      build:
+        description: Android versionCode, e.g. 6
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  # SHA-256 of the signing certificate used for every published APK so far.
+  EXPECTED_CERT_SHA256: 4d749c1e490582f4caf25eaf3dc8da948703d479527b9737e6fbeb77e7c03365
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK
+        env:
+          APK_URL: ${{ inputs.apk_url }}
+        run: |
+          case "$APK_URL" in https://expo.dev/artifacts/eas/*.apk) ;; *) echo "Not an EAS artifact URL"; exit 1;; esac
+          curl -sSfL --retry 5 -o app.apk "$APK_URL"
+          ls -la app.apk
+
+      - name: Verify signature, package and version
+        env:
+          VERSION: ${{ inputs.version }}
+          BUILD: ${{ inputs.build }}
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs app.apk | tee certs.txt
+          actual=$(grep -m1 'certificate SHA-256 digest' certs.txt | awk '{print $NF}')
+          echo "expected $EXPECTED_CERT_SHA256"
+          echo "actual   $actual"
+          [ "$actual" = "$EXPECTED_CERT_SHA256" ] || { echo "Signing key differs from the published APKs; refusing to release."; exit 1; }
+          "$AAPT" dump badging app.apk | head -1 | tee badging.txt
+          grep -q "name='com.bharatsales.mobile'" badging.txt
+          grep -q "versionCode='$BUILD'" badging.txt
+          grep -q "versionName='$VERSION'" badging.txt
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          BUILD: ${{ inputs.build }}
+        run: |
+          mv app.apk "BharatSales-AI-v$VERSION.apk"
+          gh release create "v$VERSION-android" "BharatSales-AI-v$VERSION.apk" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
+            --title "BharatSales AI — Android v$VERSION" \
+            --notes "Android app for Sales Representatives and Distributors.
+
+          **Install:** download \`BharatSales-AI-v$VERSION.apk\` below on your Android phone and tap it. If an older version is installed it updates in place; your login and data stay.
+
+          **What's new:** colours match the web dashboard, clearer order status colours, tab labels no longer cut off, reps can record payment collections, and offline orders/payments retry instead of being dropped.
+
+          Version $VERSION (build $BUILD)."
