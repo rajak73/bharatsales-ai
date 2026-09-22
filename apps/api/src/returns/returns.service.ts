@@ -45,7 +45,21 @@ export class ReturnsService {
     this.logger.log(`Fetching returns for org ${organizationId}`);
     const query: any = { organizationId };
 
-    if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
+    if (user && user.role === 'Distributor') {
+      // Distributors have no territories: they see exactly the returns
+      // assertCanActOnReturn lets them act on — tied to an order routed to
+      // them, or (no order) to an outlet assigned to them.
+      if (!user.distributorId) return [];
+      const distributorId = String(user.distributorId);
+      const [orders, outlets] = await Promise.all([
+        this.orderModel.find({ organizationId, assignedDistributorId: distributorId }).select('_id').exec(),
+        this.outletModel.find({ organizationId, 'commercial.assignedDistributorId': distributorId }).select('_id').exec(),
+      ]);
+      query.$or = [
+        { orderId: { $in: orders.map((o: any) => o._id.toString()) } },
+        { orderId: { $in: [null, ''] }, outlet: { $in: outlets.map((o: any) => o._id.toString()) } },
+      ];
+    } else if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
       if (!user.territoryIds || user.territoryIds.length === 0) {
         return [];
       }

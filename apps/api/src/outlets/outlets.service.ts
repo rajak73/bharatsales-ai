@@ -1,6 +1,6 @@
 import { NotFoundException, BadRequestException, ForbiddenException } from '../core/http-errors';
 import { RBAC, Action, Resource, type Role } from '@bharatsales/permissions';
-import { Model } from 'mongoose';
+import { Model, isValidObjectId } from 'mongoose';
 import { Outlet } from '../schemas/outlet.schema';
 import { Order } from '../schemas/order.schema';
 import { Visit } from '../schemas/visit.schema';
@@ -24,7 +24,22 @@ export class OutletsService {
   async findAllByOrgId(organizationId: string, user?: any): Promise<Outlet[]> {
     const query: any = { organizationId };
 
-    if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
+    if (user && user.role === 'Distributor') {
+      // Distributors have no territories; their outlets are the ones routed
+      // to them (and the ones on orders they serve), so the app and the web
+      // dashboard can show outlet names instead of raw ids.
+      if (!user.distributorId) return [];
+      const distributorId = String(user.distributorId);
+      const orders = await this.orderModel
+        .find({ organizationId, assignedDistributorId: distributorId })
+        .select('outletId')
+        .exec();
+      const outletIds = [...new Set(orders.map((o: any) => o.outletId).filter(Boolean).map(String))];
+      query.$or = [
+        { 'commercial.assignedDistributorId': distributorId },
+        { _id: { $in: outletIds.filter((id) => isValidObjectId(id)) } },
+      ];
+    } else if (user && !['Super Admin', 'Organization Admin'].includes(user.role)) {
       if (!user.territoryIds || user.territoryIds.length === 0) {
         return []; // Non-admin with no territory sees nothing
       }

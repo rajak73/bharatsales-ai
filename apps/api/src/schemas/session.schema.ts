@@ -11,6 +11,10 @@ export interface Session {
   // Hashes of refresh tokens already rotated out of this session. Presenting
   // one again means the token was stolen/replayed: the session is revoked.
   rotatedRefreshTokens?: string[];
+  // Hash of the token retired by the latest normal rotation, and when that
+  // happened: it stays usable for a short grace window (lost responses).
+  previousRefreshToken?: string;
+  rotatedAt?: Date;
   deviceInfo?: string;
   ipAddress?: string;
   expiresAt: Date;
@@ -23,6 +27,8 @@ export const SessionSchema = new Schema(
     organizationId: { type: String, required: true, index: true },
     refreshToken: { type: String, required: true, unique: true },
     rotatedRefreshTokens: { type: [String], default: [], index: true },
+    previousRefreshToken: { type: String, index: true, sparse: true },
+    rotatedAt: { type: Date },
     deviceInfo: { type: String },
     ipAddress: { type: String },
     expiresAt: { type: Date, required: true },

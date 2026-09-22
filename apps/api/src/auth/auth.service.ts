@@ -74,6 +74,21 @@ export function hashRefreshToken(token: string): string {
 // Keep a bounded history of rotated tokens per session for reuse detection.
 const MAX_ROTATED_TOKENS = 20;
 
+// A refresh token that was rotated out less than this long ago is accepted
+// once more (and rotated again) instead of being treated as stolen: on a
+// weak mobile network the server can rotate the token while the response
+// carrying the new one never reaches the phone, which then (correctly) retries
+// with the token it still has.
+export const REFRESH_REUSE_GRACE_MS = 2 * 60 * 1000;
+
+// bcrypt hash of a random string, compared against when the email is unknown
+// so that path costs the same as a wrong password.
+let dummyPasswordHash: string | undefined;
+function dummyHash(): string {
+  if (!dummyPasswordHash) dummyPasswordHash = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+  return dummyPasswordHash;
+}
+
 /** Which credential the client submitted; each is fully verified by login(). */
 function loginMethod(password: unknown, otp: unknown): 'password' | 'otp' | null {
   if (typeof password === 'string' && password.length > 0) return 'password';
@@ -203,8 +218,55 @@ export class AuthService {
   async login(loginDto: { email: string; password?: string; otp?: string; deviceInfo?: string }, ipAddress?: string) {
     const { email, password, otp, deviceInfo } = loginDto;
     const user = await this.userModel.findOne(emailLookup(email)).exec();
+    const method = loginMethod(password, otp);
+    if (!method) {
+      throw new BadRequestException('Password or OTP is required for login');
+    }
 
-    if (!user || user.status !== 'Active') {
+    // An unknown email gets exactly the same answer as a wrong password (and
+    // still pays for a bcrypt compare), so the login form can't be used to
+    // find out which emails are registered.
+    if (!user) {
+      if (method === 'password') await passwordMatches(password, dummyHash());
+      throw new UnauthorizedException(method === 'otp' ? 'Invalid or expired OTP' : 'Invalid credentials');
+    }
+
+    // Account Lockout Check
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new UnauthorizedException(`Account is locked due to too many failed attempts. Try again later.`);
+    }
+
+    // Which credential the client chose is up to the client (password or
+    // OTP); either way the credential itself is verified below and every
+    // failure counts toward the same lockout, so the choice bypasses nothing.
+    // The credential is checked BEFORE the account-state gates below, so
+    // those more specific messages (inactive, unverified, org pending) are
+    // only ever shown to someone who already proved they own the account.
+    let usedOtp: any;
+    if (method === 'password') {
+      const isMatch = await passwordMatches(password, user.password);
+      if (!isMatch) {
+        await this.recordFailedAttempt(user);
+        throw new UnauthorizedException('Invalid credentials');
+      }
+    } else {
+      usedOtp = await this.tokenModel.findOne({
+        userId: user._id.toString(),
+        token: eqString(otp),
+        type: 'OTP',
+        used: false,
+        expiresAt: { $gt: new Date() }
+      }).exec();
+
+      if (!usedOtp) {
+        // A wrong OTP counts toward the same lockout as a wrong password,
+        // otherwise the 6-digit code could be brute-forced.
+        await this.recordFailedAttempt(user);
+        throw new UnauthorizedException('Invalid or expired OTP');
+      }
+    }
+
+    if (user.status !== 'Active') {
       throw new UnauthorizedException('User account is not active or not found');
     }
 
@@ -222,40 +284,9 @@ export class AuthService {
       }
     }
 
-    // Account Lockout Check
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      throw new UnauthorizedException(`Account is locked due to too many failed attempts. Try again later.`);
-    }
-
-    // Which credential the client chose is up to the client (password or
-    // OTP); either way the credential itself is verified below and every
-    // failure counts toward the same lockout, so the choice bypasses nothing.
-    const method = loginMethod(password, otp);
-    if (method === 'password') {
-      const isMatch = await passwordMatches(password, user.password);
-      if (!isMatch) {
-        await this.recordFailedAttempt(user);
-        throw new UnauthorizedException('Invalid credentials');
-      }
-    } else if (method === 'otp') {
-      const validToken = await this.tokenModel.findOne({
-        userId: user._id.toString(),
-        token: eqString(otp),
-        type: 'OTP',
-        used: false,
-        expiresAt: { $gt: new Date() }
-      }).exec();
-
-      if (!validToken) {
-        // A wrong OTP counts toward the same lockout as a wrong password,
-        // otherwise the 6-digit code could be brute-forced.
-        await this.recordFailedAttempt(user);
-        throw new UnauthorizedException('Invalid or expired OTP');
-      }
-      validToken.used = true;
-      await validToken.save();
-    } else {
-      throw new BadRequestException('Password or OTP is required for login');
+    if (usedOtp) {
+      usedOtp.used = true;
+      await usedOtp.save();
     }
 
     const refreshToken = crypto.randomBytes(40).toString('hex');
@@ -496,10 +527,23 @@ export class AuthService {
   async refresh(refreshToken: string) {
     const hashed = hashRefreshToken(refreshToken);
     // Legacy sessions (created before hashing) still hold the plaintext.
-    const session = await this.sessionModel.findOne({
+    let session = await this.sessionModel.findOne({
       refreshToken: { $in: [hashed, refreshToken] },
       revoked: false,
     }).exec();
+
+    // Grace window: the token rotated out by the most recent normal refresh,
+    // presented again shortly after, is the same client retrying because it
+    // never received the response (see REFRESH_REUSE_GRACE_MS).
+    let inGrace = false;
+    if (!session) {
+      session = await this.sessionModel.findOne({
+        previousRefreshToken: hashed,
+        revoked: false,
+        rotatedAt: { $gt: new Date(Date.now() - REFRESH_REUSE_GRACE_MS) },
+      }).exec();
+      inGrace = !!session;
+    }
 
     if (!session) {
       // Reuse detection: a token that was already rotated out is being
@@ -546,9 +590,18 @@ export class AuthService {
     }
 
     const newRefreshToken = crypto.randomBytes(40).toString('hex');
-    const rotated = [...(session.rotatedRefreshTokens || []), hashed].slice(-MAX_ROTATED_TOKENS);
+    // Retire whatever the session currently holds: normally the token just
+    // presented, or — in the grace case — the one whose response was lost.
+    const retiring = inGrace ? session.refreshToken : hashed;
+    const rotated = [...(session.rotatedRefreshTokens || []), retiring].slice(-MAX_ROTATED_TOKENS);
     session.rotatedRefreshTokens = rotated;
     session.refreshToken = hashRefreshToken(newRefreshToken);
+    if (!inGrace) {
+      // The grace window is anchored to the last normal rotation and is not
+      // extended by grace refreshes.
+      session.previousRefreshToken = hashed;
+      session.rotatedAt = new Date();
+    }
     session.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await session.save();
 
@@ -578,7 +631,7 @@ export class AuthService {
 
   async getActiveSessions(userId: string) {
     return this.sessionModel.find({ userId, revoked: false, expiresAt: { $gt: new Date() } })
-      .select('-refreshToken -rotatedRefreshTokens')
+      .select('-refreshToken -rotatedRefreshTokens -previousRefreshToken')
       .exec();
   }
 

@@ -38,12 +38,24 @@ export class DispatchService {
       throw new ForbiddenException('This order is not assigned to you');
     }
 
-    // Reuses the existing, already-tested stock deduction + Approved->Dispatched transition.
-    await this.ordersService.dispatchOrder(organizationId, orderId, actorId);
+    const existing = await this.dispatchModel.findOne({ organizationId, orderId: String(order._id) }).exec();
+    if (existing) {
+      // Idempotent: a retried dispatch (e.g. the app's sync queue replaying
+      // after a lost response) returns the delivery already created.
+      return existing;
+    }
+    if (order.status === 'Dispatched') {
+      // Dispatched through the old POST /orders/:id/dispatch, which never
+      // created a delivery record: stock was already deducted, so only the
+      // missing record is created (lets such orders be delivered).
+    } else {
+      // Reuses the existing, already-tested stock deduction + Approved->Dispatched transition.
+      await this.ordersService.dispatchOrder(organizationId, orderId, actorId);
+    }
 
     const dispatch = new this.dispatchModel({
       organizationId,
-      orderId,
+      orderId: String(order._id),
       assignedDistributorId: order.assignedDistributorId,
       dispatchedByUserId: actorId,
       vehicle: data.vehicle,

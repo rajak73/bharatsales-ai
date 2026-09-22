@@ -132,6 +132,16 @@ async function bootstrap() {
         stock: 500, reservedStock: 0, expiry: '2026-12-01', status: 'Active',
       });
     }
+    // The demo distributor's own stock: a Distributor accepting an order
+    // only ever reserves from batches carrying their distributorId, so
+    // without this every accept in the demo ended in Hold_Stock.
+    const batchDist = `BATCH-DEMO-${i}-DIST`;
+    if (!(await InventoryModel.findOne({ organizationId, productId: product._id.toString(), batch: batchDist, distributorId }))) {
+      await InventoryModel.create({
+        organizationId, productId: product._id.toString(), productName: product.name, sku, distributorId, batch: batchDist,
+        stock: 400, reservedStock: 0, expiry: '2027-03-01', status: 'Active',
+      });
+    }
     const batchFar = `BATCH-DEMO-${i}-FAR`;
     if (!(await InventoryModel.findOne({ organizationId, productId: product._id.toString(), batch: batchFar }))) {
       await InventoryModel.create({
@@ -229,12 +239,24 @@ async function bootstrap() {
     const igstAmount = Math.round(subTotal * gstPercentage / 100);
     const total = subTotal + igstAmount;
 
+    // An Approved order holds a stock reservation (as approveOrder would have
+    // made), otherwise dispatching it fails with "Insufficient reserved stock".
+    let allocations: { inventoryId: string; batch: string; quantity: number }[] | undefined;
+    if (status === 'Approved') {
+      const inv = await InventoryModel.findOneAndUpdate(
+        { organizationId, productId: product._id.toString(), distributorId, batch: `BATCH-DEMO-${(i % products.length) + 1}-DIST` },
+        { $inc: { reservedStock: quantity } },
+        { new: true },
+      );
+      if (inv) allocations = [{ inventoryId: inv._id.toString(), batch: inv.batch, quantity }];
+    }
+
     await OrderModel.create({
       organizationId, idempotencyKey, orderNumber: `DEMO-ORD-${1000 + i}`, outletId: outlet._id.toString(), createdByUserId: rep._id.toString(),
       assignedDistributorId: distributorId, status,
       items: [{
         productId: product._id.toString(), sku: product.sku, name: product.name, quantity, unitPrice, discount: 0,
-        gstPercentage, cgstAmount: 0, sgstAmount: 0, igstAmount, subTotal, total,
+        gstPercentage, cgstAmount: 0, sgstAmount: 0, igstAmount, subTotal, total, allocations,
       }],
       totals: { subTotal, discountTotal: 0, cgstTotal: 0, sgstTotal: 0, igstTotal: igstAmount, grandTotal: total },
       createdAt: new Date(Date.now() - (statuses.length - i) * 86400000),

@@ -34,6 +34,8 @@ export async function seedDatabase(db: Db, opts: { quiet?: boolean } = {}) {
     name: 'Bharat Foods Pvt Ltd',
     status: 'Active',
     plan: 'Enterprise',
+    // The demo org has more than the schema's default 10 users.
+    subscriptionUsersLimit: 50,
     timezone: 'Asia/Kolkata',
     currency: 'INR',
     createdAt: new Date(),

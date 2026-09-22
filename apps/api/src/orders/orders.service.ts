@@ -351,7 +351,7 @@ export class OrdersService {
     const validTransitions: Record<string, string[]> = {
       'Draft': ['Submitted', 'Cancelled'],
       'Submitted': ['Pending_Approval', 'Hold_Credit', 'Hold_Stock', 'Approved', 'Rejected', 'Cancelled'],
-      'Pending_Approval': ['Approved', 'Rejected', 'Cancelled'],
+      'Pending_Approval': ['Submitted', 'Approved', 'Rejected', 'Cancelled'],
       'Hold_Credit': ['Approved', 'Rejected', 'Cancelled'],
       'Hold_Stock': ['Approved', 'Rejected', 'Cancelled'],
       'Approved': ['Dispatched', 'Cancelled'],
@@ -469,6 +469,13 @@ export class OrdersService {
       if (!['Submitted', 'Hold_Stock', 'Pending_Approval'].includes(order.status as string)) {
         throw new BadRequestException(`Order cannot be approved from status ${order.status}`);
       }
+      // Pending_Approval means a manager has to sign off a price/MOQ
+      // exception first (Approvals). A Distributor accepting the order must
+      // not be able to skip that step.
+      if (order.status === 'Pending_Approval' && opts.distributorId) {
+        throw new ForbiddenException('This order is waiting for manager approval of its pricing');
+      }
+      const wasPendingApproval = order.status === 'Pending_Approval';
 
       if (manualAllocations && !reason) {
         throw new BadRequestException('A reason is mandatory when providing manual batch overrides');
@@ -534,6 +541,12 @@ export class OrdersService {
       await order.save({ session });
       const updated = await this.updateStatus(organizationId, orderId, 'Approved', actorId, reason || 'Approved by web dashboard', session);
       await session.commitTransaction();
+
+      if (wasPendingApproval && order.orderNumber) {
+        // Approving the order directly also settles its pending price request.
+        this.approvalsService.settlePendingForOrder(organizationId, order.orderNumber, 'Approved')
+          .catch(err => this.logger.error('Failed to settle approval request', err));
+      }
 
       this.notificationsService.create(organizationId, order.createdByUserId, {
         type: 'order_approved',
@@ -623,6 +636,30 @@ export class OrdersService {
       throw new BadRequestException(`Order ${orderId} not found`);
     }
     return order as any;
+  }
+
+  /**
+   * Called when a manager decides a price-override / MOQ approval request
+   * (PUT /approvals/:id). Approving sends the order back into the normal
+   * queue (Submitted) so the distributor can accept it and reserve stock;
+   * rejecting rejects the order. Orders no longer Pending_Approval are left
+   * alone.
+   */
+  async resolveApprovalRequest(
+    organizationId: string,
+    orderNumber: string,
+    decision: 'Approved' | 'Rejected',
+    actorId: string,
+    reason?: string,
+  ): Promise<void> {
+    const order: any = await this.orderModel.findOne({ organizationId, orderNumber: String(orderNumber) }).exec();
+    if (!order || order.status !== 'Pending_Approval') return;
+    const id = order._id.toString();
+    if (decision === 'Approved') {
+      await this.updateStatus(organizationId, id, 'Submitted', actorId, reason || 'Pricing approved by manager');
+    } else {
+      await this.rejectOrder(organizationId, id, actorId, reason || 'Pricing request rejected by manager');
+    }
   }
 
   async rejectOrder(organizationId: string, orderId: string, actorId: string, reason?: string): Promise<Order> {

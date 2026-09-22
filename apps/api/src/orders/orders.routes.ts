@@ -5,6 +5,7 @@ import { authenticate, requirePermission } from '../core/auth.middleware';
 import { audit } from '../core/audit.middleware';
 import { route, validateBody } from '../core/http';
 import type { OrdersService } from './orders.service';
+import type { DispatchService } from '../dispatch/dispatch.service';
 import type { AuditService } from '../audit/audit.service';
 
 const ORDER_STATUSES = [
@@ -55,8 +56,8 @@ const reasonSchema = z.object({
   reason: z.string().optional(),
 });
 
-export function createOrdersRouter(deps: { ordersService: OrdersService; auditService: AuditService }): Router {
-  const { ordersService, auditService } = deps;
+export function createOrdersRouter(deps: { ordersService: OrdersService; dispatchService: DispatchService; auditService: AuditService }): Router {
+  const { ordersService, dispatchService, auditService } = deps;
   const router = Router();
   router.use(authenticate, audit(auditService, 'Orders'));
 
@@ -88,7 +89,13 @@ export function createOrdersRouter(deps: { ordersService: OrdersService; auditSe
   router.post('/:id/dispatch', requirePermission(Resource.Orders, Action.Approve),
     route(async (req) => {
       await ordersService.assertDistributorCanActOnOrder(req.user.orgId, req.params.id, req.user);
-      return ordersService.dispatchOrder(req.user.orgId, req.params.id, req.user.sub);
+      // Goes through DispatchService so a delivery (Dispatch record) is
+      // created too, exactly like POST /dispatches: the mobile app's
+      // "Mark as Dispatched" uses this route, and without the record the
+      // order never shows under Deliveries and can't be confirmed delivered.
+      // The response stays the updated order.
+      await dispatchService.createDispatch(req.user.orgId, req.params.id, req.user.sub, { vehicle: '', driver: '' }, req.user);
+      return ordersService.findById(req.user.orgId, req.params.id);
     }));
 
   router.post('/:id/reject', requirePermission(Resource.Orders, Action.Approve), validateBody(reasonSchema),

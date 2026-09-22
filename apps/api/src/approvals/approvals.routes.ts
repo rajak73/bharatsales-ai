@@ -65,7 +65,7 @@ export function createApprovalsRouter(deps: { approvalsService: ApprovalsService
   // Approving/rejecting a request is Approvals:Approve (Org Admin, Sales
   // Manager); Approvals:Update was held by no role, so this always 403'd.
   router.put('/:id', requirePermission(Resource.Approvals, Action.Approve), validateBody(updateApprovalSchema),
-    route((req) => approvalsService.updateApproval(req.user.orgId, req.params.id, req.body)));
+    route((req) => approvalsService.updateApproval(req.user.orgId, req.params.id, req.body, req.user.sub)));
 
   router.delete('/:id', requirePermission(Resource.Settings, Action.Delete),
     route((req) => approvalsService.deleteApproval(req.user.orgId, req.params.id)));

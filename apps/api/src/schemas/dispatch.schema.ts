@@ -20,8 +20,10 @@ export const DispatchSchema = new Schema(
     orderId: { type: String, required: true },
     assignedDistributorId: { type: String, index: true },
     dispatchedByUserId: { type: String },
-    vehicle: { type: String, required: true },
-    driver: { type: String, required: true },
+    // Optional: POST /dispatches accepts them as optional, and the mobile
+    // app's "Mark as Dispatched" (POST /orders/:id/dispatch) sends neither.
+    vehicle: { type: String, default: '' },
+    driver: { type: String, default: '' },
     status: {
       type: String,
       required: true,

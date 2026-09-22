@@ -1,5 +1,6 @@
 import { AuthService } from './auth.service';
 import { UnauthorizedException } from '../core/http-errors';
+import * as bcrypt from 'bcryptjs';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -109,7 +110,9 @@ describe('AuthService', () => {
 
   describe('login — Pending Approval gate', () => {
     it('should reject login for a user whose organization is Pending Approval', async () => {
-      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ status: 'Active', platformAdmin: false, organizationId: 'org1' }) });
+      // The org-state gates only answer once the password is right.
+      const password = await bcrypt.hash('secret123', 4);
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ status: 'Active', platformAdmin: false, organizationId: 'org1', password }) });
       mockTenantModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue({ status: 'Pending Approval' }) });
 
       await expect(service.login({ email: 'jane@acme.com', password: 'secret123' })).rejects.toThrow('Your organization is awaiting platform administrator approval.');
@@ -118,9 +121,25 @@ describe('AuthService', () => {
 
   describe('login — email verification gate', () => {
     it('should reject login for a user whose email is not yet verified', async () => {
-      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ status: 'Active', emailVerified: false, platformAdmin: false, organizationId: 'org1' }) });
+      const password = await bcrypt.hash('secret123', 4);
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ status: 'Active', emailVerified: false, platformAdmin: false, organizationId: 'org1', password }) });
 
       await expect(service.login({ email: 'jane@acme.com', password: 'secret123' })).rejects.toThrow('Please verify your email before logging in.');
+    });
+
+    it('answers a wrong password with "Invalid credentials" before revealing the email is unverified', async () => {
+      const password = await bcrypt.hash('secret123', 4);
+      mockUserModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ status: 'Active', emailVerified: false, platformAdmin: false, organizationId: 'org1', password, save: jest.fn() }),
+      });
+
+      await expect(service.login({ email: 'jane@acme.com', password: 'wrong-one' })).rejects.toThrow('Invalid credentials');
+    });
+
+    it('answers an unknown email with "Invalid credentials" too', async () => {
+      mockUserModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(service.login({ email: 'nobody@acme.com', password: 'secret123' })).rejects.toThrow('Invalid credentials');
     });
 
     it('should allow login through when emailVerified is undefined (pre-existing accounts)', async () => {

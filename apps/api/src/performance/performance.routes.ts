@@ -13,7 +13,10 @@ export function createPerformanceRouter(deps: { performanceService: PerformanceS
   const router = Router();
   router.use(authenticate, audit(auditService, 'Analytics'));
 
-  router.get('/dsr', requirePermission(Resource.Analytics, Action.Read),
+  // The personal DSR only ever covers req.user.sub's own day, so any role that
+  // records visits (including Sales Representative, whose app has a "Today's
+  // Report" screen) may read it; the team endpoints stay behind Analytics.
+  router.get('/dsr', requirePermission(Resource.Visits, Action.Read),
     route((req) => {
       const targetDate = (req.query.date as string | undefined) || today();
       return performanceService.generateDSR(req.user.orgId, req.user.sub, targetDate);

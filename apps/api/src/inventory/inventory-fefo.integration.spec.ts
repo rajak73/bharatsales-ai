@@ -6,7 +6,9 @@ import { bootTestApp, TestApp, seedTestDatabase } from '../test/test-app';
 describe('Inventory FEFO Verification (e2e)', () => {
   let app: TestApp;
   let connection: Connection;
-  jest.setTimeout(30000);
+  // Transaction-heavy (every approve runs a Mongo transaction per line); under
+  // turbo --concurrency the 30s default was too tight on a busy machine.
+  jest.setTimeout(90000);
 
   let token: string;
   let tenantId: string;

@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate, requirePlatformAdmin } from '../core/auth.middleware';
 import { route, validateBody } from '../core/http';
+import { audit } from '../core/audit.middleware';
+import type { AuditService } from '../audit/audit.service';
 import type { SuperadminService } from './superadmin.service';
 import type { SupportService } from '../support/support.service';
 
@@ -59,10 +61,13 @@ const platformSettingsSchema = z.object({
 export function createSuperadminRouter(deps: {
   superadminService: SuperadminService;
   supportService: SupportService;
+  auditService: AuditService;
 }): Router {
-  const { superadminService, supportService } = deps;
+  const { superadminService, supportService, auditService } = deps;
   const router = Router();
-  router.use(authenticate, requirePlatformAdmin);
+  // Every platform-level change (tenant approval/suspension, subscription and
+  // billing edits, platform settings, ticket status) is written to the audit log.
+  router.use(authenticate, requirePlatformAdmin, audit(auditService, 'Platform'));
 
   router.get('/dashboard', route(() => superadminService.getPlatformDashboard()));
 

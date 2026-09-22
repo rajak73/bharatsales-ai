@@ -78,10 +78,38 @@ export class ApprovalsService {
     return approval.save();
   }
 
-  async updateApproval(organizationId: string, id: string, data: any): Promise<Approval> {
+  // Set by the container once OrdersService exists (OrdersService itself
+  // depends on this service, so it can't be a constructor argument).
+  private onDecision?: (organizationId: string, orderNumber: string, decision: 'Approved' | 'Rejected', actorId: string, reason?: string) => Promise<void>;
+
+  setDecisionHandler(handler: NonNullable<ApprovalsService['onDecision']>): void {
+    this.onDecision = handler;
+  }
+
+  /** Marks every still-Pending request for this order as decided. */
+  async settlePendingForOrder(organizationId: string, orderNumber: string, status: 'Approved' | 'Rejected'): Promise<void> {
+    await this.approvalModel.updateMany(
+      { organizationId, order: String(orderNumber), status: 'Pending' },
+      { $set: { status } },
+    ).exec();
+  }
+
+  async updateApproval(organizationId: string, id: string, data: any, actorId?: string): Promise<Approval> {
+    const update = approvalUpdate(data);
+    const existing = await this.approvalModel.findOne({ _id: String(id), organizationId }).exec();
+    if (!existing) throw new NotFoundException('Approval not found');
+    // Deciding a request acts on the order it was raised for; otherwise the
+    // order would sit in Pending_Approval until the cleanup job cancels it.
+    const decision = update.status;
+    if (
+      this.onDecision && existing.order && existing.status === 'Pending' &&
+      (decision === 'Approved' || decision === 'Rejected')
+    ) {
+      await this.onDecision(organizationId, existing.order, decision, actorId || '', update.reason);
+    }
     const approval = await this.approvalModel.findOneAndUpdate(
       { _id: String(id), organizationId },
-      { $set: approvalUpdate(data) },
+      { $set: update },
       { new: true }
     ).exec();
     if (!approval) throw new NotFoundException('Approval not found');

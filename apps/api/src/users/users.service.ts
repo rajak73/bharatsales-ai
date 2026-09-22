@@ -129,7 +129,7 @@ export class UsersService {
     return result;
   }
 
-  async inviteUser(organizationId: string, actorRole: string, email: string, role: string, name?: string, territoryIds?: string[], actorDistributorId?: string) {
+  async inviteUser(organizationId: string, actorRole: string, email: string, role: string, name?: string, territoryIds?: string[], actorDistributorId?: string, mobile?: string) {
     if (role === 'Super Admin' && actorRole !== 'Super Admin') {
       throw new ForbiddenException('Only Super Admins can invite other Super Admins.');
     }
@@ -168,6 +168,7 @@ export class UsersService {
       organizationId,
       status: 'Invited'
     };
+    if (mobile) newUserData.mobile = String(mobile);
     // A Distributor-invited user is scoped to that same distributor's staff.
     if (actorRole === 'Distributor') {
       newUserData.distributorId = actorDistributorId;

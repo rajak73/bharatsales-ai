@@ -42,6 +42,7 @@ const inviteUserSchema = z.object({
   role: roleSchema,
   name: z.string().optional(),
   territoryIds: z.array(z.string()).optional(),
+  mobile: z.string().trim().max(20).optional(),
 });
 
 export function createUsersRouter(deps: { usersService: UsersService; auditService: AuditService }): Router {
@@ -58,7 +59,7 @@ export function createUsersRouter(deps: { usersService: UsersService; auditServi
     route((req) => {
       const data = req.body;
       return usersService.inviteUser(
-        req.user.orgId, req.user.role, data.email, data.role, data.name, data.territoryIds, req.user.distributorId,
+        req.user.orgId, req.user.role, data.email, data.role, data.name, data.territoryIds, req.user.distributorId, data.mobile,
       );
     }));
 

@@ -86,6 +86,8 @@ export function buildContainer(conn: Connection, opts: ContainerOptions = {}) {
     inventoryService, approvalsService, hierarchyService, attendanceService, notificationsService,
     conn,
   );
+  approvalsService.setDecisionHandler((orgId, orderNumber, decision, actorId, reason) =>
+    ordersService.resolveApprovalRequest(orgId, orderNumber, decision, actorId, reason));
   const inventoryCleanupService = new InventoryCleanupService(m.Order, inventoryService);
   const returnsService = new ReturnsService(
     m.ReturnOrder, m.Outlet, m.Invoice, m.Order, m.Product,

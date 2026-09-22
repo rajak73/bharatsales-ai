@@ -21,6 +21,22 @@ type ReportScope =
   | { kind: 'distributor'; distributorId: string }
   | { kind: 'users'; userIds: string[] };
 
+/** One CSV field: quoted when it contains a comma, quote or newline. */
+function csvCell(value: unknown): string {
+  const text = value === undefined || value === null ? '' : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function isoDateTime(value: unknown): string {
+  if (!value) return '';
+  const d = new Date(value as any);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+}
+
+function isoDate(value: unknown): string {
+  return isoDateTime(value).slice(0, 10);
+}
+
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
 
@@ -188,20 +204,27 @@ export class ReportsService {
           : [];
         const outletNames = new Map<string, string>(outlets.map((o: any) => [o._id.toString(), o.name]));
 
+        const creatorIds = [...new Set(data.map((r: any) => r.createdByUserId?.toString()).filter((id: any) => id && isValidObjectId(id)))];
+        const creators = creatorIds.length
+          ? await db.model('User').find({ _id: { $in: creatorIds } }).select('name').exec()
+          : [];
+        const creatorNames = new Map<string, string>(creators.map((u: any) => [u._id.toString(), u.name]));
+
         rows = [['Order ID', 'Date', 'Outlet Name', 'Status', 'Grand Total', 'Created By']];
         for (const r of data as any[]) {
           const outletKey = r.outletId && typeof r.outletId === 'object' ? r.outletId._id?.toString() : r.outletId?.toString();
           const outletName = (outletKey && outletNames.get(outletKey)) || 'Unknown Outlet';
-          rows.push([ r.orderNumber || r._id.toString(), new Date(r.createdAt as any).toISOString().split('T')[0], outletName, r.status, (r.totals?.grandTotal || 0).toString(), r.createdByUserId || 'System' ]);
+          rows.push([ r.orderNumber || r._id.toString(), new Date(r.createdAt as any).toISOString().split('T')[0], outletName, r.status, (r.totals?.grandTotal || 0).toString(), creatorNames.get(r.createdByUserId?.toString()) || r.createdByUserId || 'System' ]);
         }
         break;
       }
       case 'rep-02':
       case 'Attendance Report': {
-        const model = db.model('Attendance');
-        const data = await model.find({ organizationId, ...this.userFilter(scope, 'user') }).exec();
+        // Attendance is stored as AttendanceSession documents (one per shift).
+        const model = db.model('AttendanceSession');
+        const data = await model.find({ organizationId, ...this.userFilter(scope, 'user') }).sort({ startTime: -1 }).exec();
         rows = [['Date', 'User ID', 'Start Time', 'End Time', 'Status']];
-        data.forEach((r: any) => rows.push([r.date, r.user, r.startTime, r.endTime || '', r.status]));
+        data.forEach((r: any) => rows.push([isoDate(r.startTime), String(r.user ?? ''), isoDateTime(r.startTime), isoDateTime(r.endTime), r.status]));
         break;
       }
       case 'rep-03':
@@ -219,7 +242,7 @@ export class ReportsService {
         if (distributorId) query.distributorId = distributorId;
         const data = await model.find(query).exec();
         rows = [['Product ID', 'Batch', 'Quantity', 'Status']];
-        data.forEach((r: any) => rows.push([r.productId, r.batch, r.quantity.toString(), r.status]));
+        data.forEach((r: any) => rows.push([r.productId, r.batch, String(r.stock ?? 0), r.status]));
         break;
       }
       case 'rep-05':
@@ -229,23 +252,19 @@ export class ReportsService {
         if (distributorId) query.assignedDistributorId = distributorId;
         const data = await model.find(query).exec();
         rows = [['Dispatch ID', 'Order ID', 'Status', 'Driver']];
-        data.forEach((r: any) => rows.push([r._id.toString(), r.orderId, r.status, r.driverId || '']));
+        data.forEach((r: any) => rows.push([r._id.toString(), r.orderId, r.status, r.driver || '']));
         break;
       }
       case 'rep-06':
       case 'Delivery Report': {
-        const model = db.model('Delivery');
-        const query: any = { organizationId };
-        if (distributorId) {
-          const dispatches = await db.model('Dispatch')
-            .find({ organizationId, assignedDistributorId: distributorId })
-            .select('_id')
-            .exec();
-          query.dispatchId = { $in: dispatches.map((d: any) => d._id.toString()) };
-        }
+        // There is no separate Delivery model: a delivery is a Dispatch whose
+        // delivery has been confirmed (DispatchService.confirmDelivery).
+        const model = db.model('Dispatch');
+        const query: any = { organizationId, 'deliveredItems.0': { $exists: true } };
+        if (distributorId) query.assignedDistributorId = distributorId;
         const data = await model.find(query).exec();
         rows = [['Delivery ID', 'Dispatch ID', 'Status']];
-        data.forEach((r: any) => rows.push([r._id.toString(), r.dispatchId, r.status]));
+        data.forEach((r: any) => rows.push([r._id.toString(), r._id.toString(), r.status]));
         break;
       }
       case 'rep-07':
@@ -266,7 +285,7 @@ export class ReportsService {
         const model = db.model('Claim');
         const data = await model.find({ organizationId, ...this.userFilter(scope, 'submittedByUserId') }).exec();
         rows = [['Claim ID', 'Type', 'Amount', 'Status']];
-        data.forEach((r: any) => rows.push([r._id.toString(), r.type, r.amount.toString(), r.status]));
+        data.forEach((r: any) => rows.push([r._id.toString(), r.type, String(r.amount ?? 0), r.status]));
         break;
       }
       case 'rep-09':
@@ -281,7 +300,7 @@ export class ReportsService {
         }
         const data = await model.find(query).exec();
         rows = [['Collection ID', 'Outlet ID', 'Amount', 'Mode', 'Status']];
-        data.forEach((r: any) => rows.push([r._id.toString(), r.outlet, r.amount.toString(), r.mode, r.status]));
+        data.forEach((r: any) => rows.push([r._id.toString(), r.outletId, String(r.amount ?? 0), r.paymentMode, r.status]));
         break;
       }
       case 'rep-10':
@@ -303,7 +322,7 @@ export class ReportsService {
         }
         const data = await model.find(query).exec();
         rows = [['Target ID', 'Entity Type', 'Entity ID', 'Metric', 'Target Value']];
-        data.forEach((r: any) => rows.push([r._id.toString(), r.entityType, r.entityId, r.targetMetric || 'SalesValue', r.targetValue.toString()]));
+        data.forEach((r: any) => rows.push([r._id.toString(), r.entityType, r.entityId, r.targetMetric || 'SalesValue', String(r.targetValue ?? r.targetAmount ?? 0)]));
         break;
       }
       case 'rep-12':
@@ -311,7 +330,7 @@ export class ReportsService {
         const model = db.model('AuditLog');
         const data = await model.find({ organizationId }).exec();
         rows = [['Audit ID', 'Entity', 'Action', 'User ID', 'Date']];
-        data.forEach((r: any) => rows.push([r._id.toString(), r.entity, r.action, r.userId, r.createdAt]));
+        data.forEach((r: any) => rows.push([r._id.toString(), r.entityName, r.action, r.actorId, isoDateTime(r.createdAt)]));
         break;
       }
       default: {
@@ -319,7 +338,7 @@ export class ReportsService {
       }
     }
 
-    const csvData = rows.map(r => r.join(',')).join('\n');
+    const csvData = rows.map(r => r.map(csvCell).join(',')).join('\n');
     await this.reportJobModel.updateOne(
       { jobId }, 
       { 
