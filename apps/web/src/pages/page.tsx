@@ -296,7 +296,7 @@ export default function HomePage() {
             </ul>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
               <a href={ANDROID_APK_URL} className={buttonClassName({ variant: 'primary', size: 'lg', className: 'gap-2' })}>
-                <Download aria-hidden="true" /> Download APK (v1.0.5)
+                <Download aria-hidden="true" /> Download APK (v1.0.6)
               </a>
               <span className="text-xs text-foreground-muted">Android · direct download from GitHub releases</span>
             </div>

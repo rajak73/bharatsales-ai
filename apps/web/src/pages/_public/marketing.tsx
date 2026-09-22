@@ -16,7 +16,7 @@ export const CONTACT_EMAIL: string = String(import.meta.env.VITE_CONTACT_EMAIL ?
 export const WHATSAPP_DIGITS: string = String(import.meta.env.VITE_WHATSAPP_NUMBER ?? '').replace(/\D/g, '');
 
 /** Signed Android build of the field app (GitHub release asset). */
-export const ANDROID_APK_URL = 'https://github.com/rajak73/bharatsales-ai/releases/download/v1.0.5-android/BharatSales-AI-v1.0.5.apk';
+export const ANDROID_APK_URL = 'https://github.com/rajak73/bharatsales-ai/releases/download/v1.0.6-android/BharatSales-AI-v1.0.6.apk';
 
 const NAV_LINKS = [
   { to: '/features', label: 'Features' },
