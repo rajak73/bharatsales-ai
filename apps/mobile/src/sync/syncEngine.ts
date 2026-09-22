@@ -26,6 +26,15 @@ export function onSyncStatus(listener: SyncListener): () => void {
   return () => listeners.delete(listener);
 }
 
+// Actions that change data the local cache mirrors (orders, dispatches,
+// inventory, outlet balances). Once one of these reaches the server the
+// cache is re-pulled, so e.g. an accepted order stops showing as Submitted
+// with the Accept button still enabled until the next app restart.
+const REFRESH_AFTER: ReadonlySet<SyncAction> = new Set<SyncAction>([
+  'CREATE_ORDER', 'APPROVE_ORDER', 'REJECT_ORDER', 'DISPATCH_ORDER',
+  'CONFIRM_DELIVERY', 'UPDATE_OUTLET', 'CREATE_PAYMENT',
+]);
+
 let isSyncing = false;
 let rerunRequested = false;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -129,6 +138,7 @@ export const SyncEngine = {
     }
 
     let processed = 0;
+    let needsRefresh = false;
     try {
       isSyncing = true;
       rerunRequested = false;
@@ -148,6 +158,7 @@ export const SyncEngine = {
           await markSyncing(item.id);
           await dispatchSyncAction(item.action, item.payload);
           await remove(item.id);
+          if (REFRESH_AFTER.has(item.action)) needsRefresh = true;
           if (item.action === 'CREATE_ORDER' && item.payload?.id) {
             // Keep the just-synced order visible in My Orders until the
             // next pullSync replaces the cache with the server's copy.
@@ -168,6 +179,13 @@ export const SyncEngine = {
       await refreshSyncStatus();
       if (processed > 0) invalidateLocalQueries();
       await scheduleNextRetry().catch(() => {});
+    }
+
+    if (needsRefresh) {
+      const role = useSessionStore.getState().user?.role;
+      if (role === 'Sales Representative' || role === 'Distributor') {
+        await SyncEngine.pullSync(role).catch((err) => console.warn('[Sync] refresh after sync failed', err));
+      }
     }
 
     if (rerunRequested) {

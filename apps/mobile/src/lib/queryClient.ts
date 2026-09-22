@@ -12,3 +12,10 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// ['local', ...] queries read the on-device SQLite cache, never the network,
+// so they must keep running while offline. With the default networkMode
+// ('online') they pause whenever TanStack's onlineManager reports offline, and
+// an order booked offline would not show up as "Pending Sync" until the
+// connection came back.
+queryClient.setQueryDefaults(['local'], { networkMode: 'always' });

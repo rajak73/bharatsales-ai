@@ -234,7 +234,7 @@ export class TargetsService {
       this.notificationsService.create(organizationId, (data as any).entityId, {
         type: 'target_assigned',
         title: 'New Target Assigned',
-        message: `A new ${(data as any).metric || ''} target has been assigned to you.`
+        message: ['A new', (data as any).targetMetric || (data as any).metric, 'target has been assigned to you.'].filter(Boolean).join(' ')
       }).catch(err => this.logger.error('Failed to create target-assigned notification', err));
     }
 

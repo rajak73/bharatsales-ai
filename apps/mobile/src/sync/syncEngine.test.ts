@@ -1,0 +1,82 @@
+import { OrdersService, DispatchService, InventoryService } from '@bharatsales/api-client';
+import { replaceTable } from '../db/client';
+import { getPending } from '../db/syncQueue';
+import { dispatchSyncAction } from './dispatch';
+import { SyncEngine } from './syncEngine';
+import { useSessionStore } from '../store/sessionStore';
+
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: { fetch: jest.fn(async () => ({ isConnected: true, isInternetReachable: true })), addEventListener: jest.fn() },
+}));
+
+jest.mock('@bharatsales/api-client', () => {
+  const list = () => jest.fn(async () => []);
+  return {
+    OutletsService: { getOutlets: list() },
+    ProductsService: { getProducts: list() },
+    DistributorsService: { getDistributors: list() },
+    BeatsService: { getTodayBeat: jest.fn(async () => null) },
+    SchemesService: { getSchemes: list() },
+    OrdersService: { getOrders: jest.fn(async () => [{ id: 'o1', status: 'Approved' }]) },
+    DispatchService: { getDispatches: list() },
+    InventoryService: { getInventory: list() },
+  };
+});
+
+jest.mock('../db/client', () => ({ replaceTable: jest.fn(async () => {}), upsertRow: jest.fn(async () => {}) }));
+
+jest.mock('../db/syncQueue', () => ({
+  enqueue: jest.fn(),
+  getPending: jest.fn(async () => []),
+  getPendingCount: jest.fn(async () => 0),
+  getFailedCount: jest.fn(async () => 0),
+  getNextScheduledAttempt: jest.fn(async () => null),
+  markSyncing: jest.fn(async () => {}),
+  markFailed: jest.fn(async () => {}),
+  markRetry: jest.fn(async () => {}),
+  remove: jest.fn(async () => {}),
+  claimLegacyItems: jest.fn(async () => {}),
+}));
+
+jest.mock('../lib/queryClient', () => ({ queryClient: { invalidateQueries: jest.fn(async () => {}) } }));
+jest.mock('./dispatch', () => ({ dispatchSyncAction: jest.fn(async () => {}) }));
+
+const pendingItem = (action: string, payload: any = {}) => ({ id: 1, action, payload, attempts: 0 });
+
+describe('SyncEngine.triggerSync cache refresh', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useSessionStore.setState({ user: { id: 'u1', role: 'Distributor' } });
+  });
+
+  it('re-pulls orders from the server after an order action syncs, so the accepted order stops showing as Submitted', async () => {
+    (getPending as jest.Mock).mockResolvedValueOnce([pendingItem('APPROVE_ORDER', { orderId: 'o1' })]);
+
+    await SyncEngine.triggerSync();
+
+    expect(dispatchSyncAction).toHaveBeenCalledWith('APPROVE_ORDER', { orderId: 'o1' });
+    expect(OrdersService.getOrders).toHaveBeenCalled();
+    expect(DispatchService.getDispatches).toHaveBeenCalled();
+    expect(InventoryService.getInventory).toHaveBeenCalled();
+    expect(replaceTable).toHaveBeenCalledWith('orders', [{ id: 'o1', status: 'Approved' }]);
+  });
+
+  it('does not re-pull for location pings', async () => {
+    (getPending as jest.Mock).mockResolvedValueOnce([pendingItem('CREATE_LOCATION_PING')]);
+
+    await SyncEngine.triggerSync();
+
+    expect(dispatchSyncAction).toHaveBeenCalled();
+    expect(OrdersService.getOrders).not.toHaveBeenCalled();
+  });
+
+  it('does not re-pull when the order action failed to sync', async () => {
+    (getPending as jest.Mock).mockResolvedValueOnce([pendingItem('APPROVE_ORDER', { orderId: 'o1' })]);
+    (dispatchSyncAction as jest.Mock).mockRejectedValueOnce(Object.assign(new Error('Bad Request'), { response: { status: 400 } }));
+
+    await SyncEngine.triggerSync();
+
+    expect(OrdersService.getOrders).not.toHaveBeenCalled();
+  });
+});
