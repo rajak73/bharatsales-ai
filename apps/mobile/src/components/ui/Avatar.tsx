@@ -1,5 +1,5 @@
 import { View, Text, Image, StyleSheet } from 'react-native';
-import { colors } from '../../theme/tokens';
+import { colors, fontFamily } from '../../theme/tokens';
 
 interface AvatarProps {
   uri?: string | null;
@@ -29,5 +29,5 @@ export function Avatar({ uri, initials, size = 44, backgroundColor = colors.prim
 const styles = StyleSheet.create({
   image: { resizeMode: 'cover' },
   fallback: { alignItems: 'center', justifyContent: 'center' },
-  initials: { fontWeight: '800' },
+  initials: { fontFamily: fontFamily.bold },
 });

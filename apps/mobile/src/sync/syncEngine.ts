@@ -3,13 +3,22 @@ import {
   OutletsService, ProductsService, DistributorsService, BeatsService,
   DispatchService, InventoryService, OrdersService, SchemesService,
 } from '@bharatsales/api-client';
-import { replaceTable } from '../db/client';
-import { getPending, getPendingCount, markSyncing, markFailed, remove } from '../db/syncQueue';
+import { AppState } from 'react-native';
+import { replaceTable, upsertRow } from '../db/client';
+import type { SyncAction } from '../db/client';
+import {
+  enqueue, getPending, getPendingCount, getFailedCount, getNextScheduledAttempt,
+  markSyncing, markFailed, markRetry, remove, claimLegacyItems,
+} from '../db/syncQueue';
+import { queryClient } from '../lib/queryClient';
+import { useSessionStore, getCurrentUserId } from '../store/sessionStore';
 import { dispatchSyncAction } from './dispatch';
+import { decideRetry } from './retryPolicy';
 
-type SyncListener = (state: { isSyncing: boolean; pendingCount: number }) => void;
+export interface SyncStatus { isSyncing: boolean; pendingCount: number; failedCount: number }
+type SyncListener = (state: SyncStatus) => void;
 const listeners = new Set<SyncListener>();
-function emit(state: { isSyncing: boolean; pendingCount: number }) {
+function emit(state: SyncStatus) {
   listeners.forEach((l) => l(state));
 }
 export function onSyncStatus(listener: SyncListener): () => void {
@@ -18,10 +27,50 @@ export function onSyncStatus(listener: SyncListener): () => void {
 }
 
 let isSyncing = false;
+let rerunRequested = false;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function isOnline(): Promise<boolean> {
   const state = await NetInfo.fetch();
   return !!state.isConnected && state.isInternetReachable !== false;
+}
+
+// Every ['local', ...] query reads SQLite, so after the cache or queue
+// changes, have mounted screens re-read it.
+function invalidateLocalQueries() {
+  queryClient.invalidateQueries({ queryKey: ['local'] }).catch(() => {});
+}
+
+export async function getSyncStatus(): Promise<SyncStatus> {
+  const userId = getCurrentUserId();
+  const [pendingCount, failedCount] = await Promise.all([getPendingCount(userId), getFailedCount(userId)]);
+  return { isSyncing, pendingCount, failedCount };
+}
+
+/** Recompute queue counts and notify useSyncStatus() subscribers. */
+export async function refreshSyncStatus(): Promise<void> {
+  try {
+    emit(await getSyncStatus());
+  } catch (err) {
+    console.warn('[Sync] refreshSyncStatus failed', err);
+  }
+}
+
+// Wakes the engine up when the earliest backed-off item becomes due, so a
+// transient failure is retried without waiting for the next reconnect /
+// foreground / interval trigger.
+async function scheduleNextRetry() {
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+  const next = await getNextScheduledAttempt(getCurrentUserId());
+  if (next === null) return;
+  const delay = Math.min(Math.max(next - Date.now(), 1_000), 30 * 60 * 1000);
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    SyncEngine.triggerSync().catch(() => {});
+  }, delay);
 }
 
 export const SyncEngine = {
@@ -58,41 +107,87 @@ export const SyncEngine = {
       if (dispatches.status === 'fulfilled') await replaceTable('dispatches', dispatches.value);
       if (inventory.status === 'fulfilled') await replaceTable('inventory', inventory.value);
     }
+    invalidateLocalQueries();
   },
 
-  // Drains the offline queue in FIFO order, exactly like field-pwa's
-  // triggerSync() — one item's failure marks it FAILED and moves on rather
-  // than blocking the rest of the queue.
+  // Drains the offline queue in FIFO order. One item's failure never blocks
+  // the rest: transient failures (network/timeout/5xx/408/429) go back to
+  // PENDING with exponential backoff, permanent ones (other 4xx, or retries
+  // exhausted) become FAILED and surface in the Profile screen for the user
+  // to Retry or Discard.
   async triggerSync(): Promise<void> {
-    if (isSyncing || !(await isOnline())) return;
+    if (isSyncing) {
+      rerunRequested = true;
+      return;
+    }
+    // Without a session every request would 401 and burn the item's retry
+    // budget — hold the queue until someone logs back in.
+    if (!useSessionStore.getState().user) return;
+    if (!(await isOnline())) {
+      await refreshSyncStatus();
+      return;
+    }
 
+    let processed = 0;
     try {
       isSyncing = true;
-      const pending = await getPending();
+      rerunRequested = false;
+      // Only ever send the logged-in user's own items with their token.
+      // Another user's items stay queued (shown under Sync issues) for
+      // their owner's next login; pre-ownership rows are claimed here.
+      const userId = getCurrentUserId();
+      await claimLegacyItems(userId);
+      const pending = await getPending(userId);
 
-      if (pending.length === 0) {
-        emit({ isSyncing: false, pendingCount: 0 });
-        return;
+      if (pending.length > 0) {
+        emit({ isSyncing: true, pendingCount: await getPendingCount(userId), failedCount: await getFailedCount(userId) });
       }
-
-      emit({ isSyncing: true, pendingCount: pending.length });
 
       for (const item of pending) {
         try {
           await markSyncing(item.id);
           await dispatchSyncAction(item.action, item.payload);
           await remove(item.id);
-        } catch (error: any) {
-          await markFailed(item.id, error?.message || 'Sync failed');
+          if (item.action === 'CREATE_ORDER' && item.payload?.id) {
+            // Keep the just-synced order visible in My Orders until the
+            // next pullSync replaces the cache with the server's copy.
+            await upsertRow('orders', item.payload).catch(() => {});
+          }
+        } catch (error: unknown) {
+          const decision = decideRetry(error, item.attempts);
+          if (decision.kind === 'retry') {
+            await markRetry(item.id, decision.attempts, decision.nextAttemptAt, decision.error);
+          } else {
+            await markFailed(item.id, decision.error, decision.attempts);
+          }
         }
+        processed++;
       }
     } finally {
       isSyncing = false;
-      const remaining = await getPendingCount();
-      emit({ isSyncing: false, pendingCount: remaining });
+      await refreshSyncStatus();
+      if (processed > 0) invalidateLocalQueries();
+      await scheduleNextRetry().catch(() => {});
+    }
+
+    if (rerunRequested) {
+      rerunRequested = false;
+      await SyncEngine.triggerSync();
     }
   },
 };
+
+/**
+ * Queue an offline mutation and immediately try to push it, instead of
+ * leaving it until the next connectivity change. Refreshes local queries so
+ * optimistic "Pending Sync" rows appear straight away.
+ */
+export async function enqueueAndSync(action: SyncAction, payload: any): Promise<void> {
+  await enqueue(action, payload, getCurrentUserId());
+  invalidateLocalQueries();
+  refreshSyncStatus();
+  SyncEngine.triggerSync().catch((err) => console.warn('[Sync] triggerSync after enqueue failed', err));
+}
 
 // Wires an automatic triggerSync() whenever connectivity is regained,
 // mirroring field-pwa's online/offline banner + background sync behavior.
@@ -107,4 +202,37 @@ export function startAutoSync(): () => void {
     wasOnline = nowOnline;
   });
   return unsubscribe;
+}
+
+export const FOREGROUND_SYNC_INTERVAL_MS = 2 * 60 * 1000;
+
+// While a user is logged in: sync whenever the app comes to the foreground,
+// and every 2 minutes while it stays there. Returns a cleanup function.
+export function startForegroundSync(): () => void {
+  let interval: ReturnType<typeof setInterval> | null = null;
+  const startInterval = () => {
+    if (interval) return;
+    interval = setInterval(() => {
+      SyncEngine.triggerSync().catch(() => {});
+    }, FOREGROUND_SYNC_INTERVAL_MS);
+  };
+  const stopInterval = () => {
+    if (interval) clearInterval(interval);
+    interval = null;
+  };
+
+  if (AppState.currentState === 'active') startInterval();
+  const sub = AppState.addEventListener('change', (next) => {
+    if (next === 'active') {
+      startInterval();
+      SyncEngine.triggerSync().catch(() => {});
+    } else {
+      stopInterval();
+    }
+  });
+
+  return () => {
+    sub.remove();
+    stopInterval();
+  };
 }

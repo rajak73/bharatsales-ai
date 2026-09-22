@@ -32,9 +32,9 @@ export function CatalogScreen() {
   };
 
   return (
-    <div className="px-4 pt-8 pb-24 space-y-4">
+    <div className="px-4 pt-6 pb-24 space-y-4">
       <div className="flex justify-between items-center mb-2">
-        <h1 className="text-2xl font-bold text-gray-900">Catalog</h1>
+        <h1 className="text-xl font-bold text-gray-900">Catalog</h1>
         <button onClick={() => navigate('/cart')} className="bg-primary-100 text-primary-800 p-2 rounded-full relative">
           <ShoppingCart className="w-5 h-5" />
           {totalItems > 0 && (
@@ -57,7 +57,7 @@ export function CatalogScreen() {
       </div>
 
       {products.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="text-center py-6 bg-white rounded-xl shadow-sm border border-border">
           <ShoppingCart className="mx-auto h-12 w-12 text-gray-300 mb-2" />
           <h3 className="text-sm font-semibold text-gray-900">No products found</h3>
           <p className="text-sm text-gray-500">Your local database has not synced the catalog yet.</p>
@@ -67,7 +67,7 @@ export function CatalogScreen() {
           {filteredProducts.map((product) => {
             const qty = getQuantityInCart(product.id);
             return (
-              <div key={product.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
+              <div key={product.id} className="bg-white p-3 rounded-xl shadow-sm border border-border flex flex-col h-full">
                 <div className="flex-1">
                   <div className="text-[10px] text-gray-400 font-medium mb-1">{product.sku}</div>
                   <h3 className="font-semibold text-gray-900 text-sm leading-tight mb-2 line-clamp-2">{product.name}</h3>

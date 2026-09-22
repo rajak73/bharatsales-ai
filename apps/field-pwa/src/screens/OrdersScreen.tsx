@@ -36,30 +36,30 @@ export function OrdersScreen() {
   const formatCurrency = (amount: number) => '₹' + amount.toLocaleString('en-IN');
 
   return (
-    <div className="bg-slate-50 min-h-screen font-sans pb-24">
-      <div className="bg-primary-600 px-5 pt-12 pb-6 shadow-md sticky top-0 z-40">
+    <div className="bg-background min-h-screen font-sans pb-24">
+      <div className="bg-navy-900 px-4 pt-10 pb-4 shadow-md sticky top-0 z-40">
         <h1 className="text-white text-xl font-bold tracking-tight">My Orders</h1>
-        <p className="text-white/80 text-sm mt-1">Orders you've booked</p>
+        <p className="text-navy-200 text-sm mt-0.5">Orders you've booked</p>
       </div>
 
-      <div className="px-5 py-6 space-y-3">
+      <div className="px-4 py-4 space-y-3">
         {loading ? (
-          <div className="text-center py-8 text-sm text-gray-500">Loading orders...</div>
+          <div className="text-center py-6 text-sm text-gray-500">Loading orders...</div>
         ) : error ? (
-          <div className="text-center py-8 text-sm text-red-500">{error}</div>
+          <div className="text-center py-6 text-sm text-red-500">{error}</div>
         ) : orders.length === 0 ? (
-          <div className="bg-white rounded-2xl p-6 text-center border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-4 text-center border border-border shadow-sm">
             <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
             <p className="text-sm font-medium text-gray-500">No orders yet.</p>
           </div>
         ) : (
           orders.map((order) => (
-            <div key={order.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div key={order.id} className="bg-white rounded-2xl p-4 shadow-sm border border-border">
               <div className="flex items-start justify-between">
                 <div className="min-w-0">
                   <h3 className="font-bold text-slate-800 truncate">{outletName(order.outletId)}</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{order.orderNumber}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  <p className="text-xs text-foreground-muted mt-0.5">{order.orderNumber}</p>
+                  <p className="text-xs text-foreground-muted mt-0.5">{new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-bold text-slate-800">{formatCurrency(order.totals?.grandTotal || 0)}</p>

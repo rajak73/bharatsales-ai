@@ -1,11 +1,12 @@
 import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, formatCurrency } from '../../../src/lib/theme';
-import { spacing, radius, typography } from '../../../src/theme/tokens';
+import { router } from 'expo-router';
+import { colors, formatCurrency, formatDate } from '../../../src/lib/theme';
+import { spacing, typography } from '../../../src/theme/tokens';
 import { useLocalOrders, useLocalOutlets } from '../../../src/hooks/useLocalData';
 import { useIsOnline } from '../../../src/hooks/useIsOnline';
-import { ORDER_STATUS_TONE, orderStatusLabel } from '../../../src/lib/orderStatus';
-import { ScreenHeader, EmptyState, ErrorState, SkeletonList, StatusPill } from '../../../src/components/ui';
+import { statusTone, orderStatusLabel } from '../../../src/lib/orderStatus';
+import { ScreenHeader, EmptyState, ErrorState, SkeletonList, StatusPill, ListItem } from '../../../src/components/ui';
 
 export default function OrdersScreen() {
   const { data: orders = [], refetch, isRefetching, isLoading, isError } = useLocalOrders();
@@ -17,7 +18,12 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScreenHeader title="My Orders" subtitle="Orders you've booked" showBack={false} />
+      <ScreenHeader
+        title="My Orders"
+        subtitle={sorted.length > 0 ? `${sorted.length} order${sorted.length === 1 ? '' : 's'} booked` : "Orders you've booked"}
+        showBack={false}
+        rightAction={{ icon: 'add-circle-outline', accessibilityLabel: 'Book a new order', onPress: () => router.push('/(rep)/catalog') }}
+      />
 
       {isLoading ? (
         <View style={styles.list}><SkeletonList count={5} /></View>
@@ -28,20 +34,30 @@ export default function OrdersScreen() {
           contentContainerStyle={styles.list}
           data={sorted}
           keyExtractor={(item: any) => item.id}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-          ListEmptyComponent={<EmptyState icon="cube-outline" title="No orders yet" message="Orders you book from the catalog will show up here." />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.primary]} tintColor={colors.primary} />}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          ListEmptyComponent={
+            <EmptyState
+              icon="receipt-outline"
+              title="No orders yet"
+              message="Orders you book from the catalog will show up here."
+              actionLabel="Book an Order"
+              onAction={() => router.push('/(rep)/catalog')}
+            />
+          }
           renderItem={({ item }: any) => (
-            <View style={styles.orderCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.outletName} numberOfLines={1}>{outletName(item.outletId)}</Text>
-                <Text style={styles.orderMeta}>{item.orderNumber}</Text>
-                <Text style={styles.orderMeta}>{new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
-                <Text style={styles.orderAmount}>{formatCurrency(item.totals?.grandTotal)}</Text>
-                <StatusPill label={orderStatusLabel(item.status)} tone={ORDER_STATUS_TONE[item.status] || 'neutral'} />
-              </View>
-            </View>
+            <ListItem
+              icon="receipt-outline"
+              title={outletName(item.outletId)}
+              subtitle={`${item.orderNumber || 'Order'} · ${formatDate(item.createdAt)}`}
+              accessibilityLabel={`${outletName(item.outletId)}, ${item.orderNumber}, ${formatCurrency(item.totals?.grandTotal)}, ${orderStatusLabel(item.status)}`}
+              trailing={
+                <View style={styles.trailing}>
+                  <Text style={styles.amount}>{formatCurrency(item.totals?.grandTotal)}</Text>
+                  <StatusPill label={orderStatusLabel(item.status)} tone={statusTone(item.status)} />
+                </View>
+              }
+            />
           )}
         />
       )}
@@ -51,9 +67,7 @@ export default function OrdersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  list: { padding: spacing.lg, paddingBottom: spacing.huge },
-  orderCard: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  outletName: { ...typography.h3, color: colors.text },
-  orderMeta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  orderAmount: { ...typography.h3, color: colors.text },
+  list: { padding: spacing.lg, paddingBottom: spacing.xxxl },
+  trailing: { alignItems: 'flex-end', gap: spacing.xs },
+  amount: { ...typography.h3, color: colors.text },
 });

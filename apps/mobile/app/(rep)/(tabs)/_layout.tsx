@@ -1,15 +1,15 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { tabBarScreenOptions } from '../../../src/theme/tabBarOptions';
+import { useTabBarScreenOptions, tabIcon } from '../../../src/theme/tabBarOptions';
 
 export default function RepTabsLayout() {
+  const screenOptions = useTabBarScreenOptions();
   return (
-    <Tabs screenOptions={tabBarScreenOptions}>
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} /> }} />
-      <Tabs.Screen name="beat" options={{ title: "Today's Beat", tabBarIcon: ({ color, size }) => <Ionicons name="navigate" size={size} color={color} /> }} />
-      <Tabs.Screen name="orders" options={{ title: 'Orders', tabBarIcon: ({ color, size }) => <Ionicons name="cube" size={size} color={color} /> }} />
-      <Tabs.Screen name="notifications" options={{ title: 'Notifications', tabBarIcon: ({ color, size }) => <Ionicons name="notifications" size={size} color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} /> }} />
+    <Tabs screenOptions={screenOptions}>
+      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: tabIcon('home', 'home-outline') }} />
+      <Tabs.Screen name="beat" options={{ title: 'Beat', tabBarAccessibilityLabel: "Today's beat", tabBarIcon: tabIcon('navigate', 'navigate-outline') }} />
+      <Tabs.Screen name="orders" options={{ title: 'Orders', tabBarIcon: tabIcon('receipt', 'receipt-outline') }} />
+      <Tabs.Screen name="notifications" options={{ title: 'Alerts', tabBarAccessibilityLabel: 'Notifications', tabBarIcon: tabIcon('notifications', 'notifications-outline') }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon('person-circle', 'person-circle-outline') }} />
     </Tabs>
   );
 }

@@ -26,9 +26,9 @@ export function OutletsScreen() {
   const filteredOutlets = displayOutlets.filter(o => o.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="px-4 pt-8 pb-24 space-y-4">
+    <div className="px-4 pt-6 pb-24 space-y-4">
       <div className="flex justify-between items-center mb-2">
-        <h1 className="text-2xl font-bold text-gray-900">My Outlets</h1>
+        <h1 className="text-xl font-bold text-gray-900">My Outlets</h1>
         <span className="bg-primary-100 text-primary-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
           {displayOutlets.length} total
         </span>
@@ -79,7 +79,7 @@ export function OutletsScreen() {
           </div>
         </div>
       ) : displayOutlets.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="text-center py-6 bg-white rounded-xl shadow-sm border border-border">
           <Route className="mx-auto h-12 w-12 text-gray-300 mb-2" />
           <h3 className="text-sm font-semibold text-gray-900">No route assigned</h3>
           <p className="text-sm text-gray-500">You don't have any outlets assigned to your route today. Switch to 'All Outlets' to see your territory.</p>
@@ -90,7 +90,7 @@ export function OutletsScreen() {
             <div 
               key={outlet.id} 
               onClick={() => navigate('/visit', { state: { outlet } })}
-              className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer hover:border-primary-200 transition-colors"
+              className="bg-white p-4 rounded-xl shadow-sm border border-border flex justify-between items-center cursor-pointer hover:border-primary-200 transition-colors"
             >
               <div>
                 <h3 className="font-semibold text-gray-900">{outlet.name}</h3>

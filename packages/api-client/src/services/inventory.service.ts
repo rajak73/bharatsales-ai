@@ -12,11 +12,6 @@ export class InventoryService {
     return response.data;
   }
 
-  static async addInventory(data: Partial<Inventory>): Promise<Inventory> {
-    const response = await apiClient.post<Inventory>('/inventory', data);
-    return response.data;
-  }
-
   static async adjustStock(adjustment: any): Promise<Inventory> {
     const response = await apiClient.post<Inventory>('/inventory/adjust', adjustment);
     return response.data;

@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, Stack } from 'expo-router';
 import { colors, formatCurrency } from '../../src/lib/theme';
+import { radius, spacing, typography } from '../../src/theme/tokens';
 import { useCartStore } from '../../src/store/cartStore';
 import { useLocalOutlets, useLocalDistributors, useLocalSchemes } from '../../src/hooks/useLocalData';
 import { useSessionStore } from '../../src/store/sessionStore';
 import { calculateOrder } from '../../src/features/rep/orderCalc';
-import { enqueue } from '../../src/db/syncQueue';
-import { EmptyState, Button } from '../../src/components/ui';
+import { enqueueAndSync } from '../../src/sync/syncEngine';
+import { EmptyState, Button, ScreenHeader, Banner, Card, IconButton, BottomBar, SuccessState } from '../../src/components/ui';
 
 function uuid(): string {
   // Cheap RFC4122-ish v4 generator — no crypto.randomUUID in the RN JS
@@ -58,10 +59,13 @@ export default function CartScreen() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      await enqueue('CREATE_ORDER', payload);
+      await enqueueAndSync('CREATE_ORDER', payload);
       setSubmitted(true);
       clearCart();
       setTimeout(() => router.replace('/(rep)/(tabs)'), 2500);
+    } catch (err: any) {
+      // The cart is left intact so the rep can simply try again.
+      Alert.alert('Could not save order', err?.message || 'The order could not be saved on this device. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -69,25 +73,27 @@ export default function CartScreen() {
 
   if (submitted) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Ionicons name="checkmark-circle" size={80} color={colors.success} />
-        <Text style={styles.submittedTitle}>Order Placed!</Text>
-        <Text style={styles.submittedText}>The order has been saved and will automatically sync when connected.</Text>
-      </SafeAreaView>
+      <SuccessState
+        title="Order Placed!"
+        message={outlet?.name ? `Order for ${outlet.name} has been saved.` : 'The order has been saved.'}
+        note="Syncs automatically when you're online"
+      />
     );
   }
+
+  const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}><Ionicons name="chevron-back" size={22} color={colors.text} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Order Booking</Text>
-        <View style={{ width: 22 }} />
-      </View>
+      <ScreenHeader
+        title="Review Order"
+        subtitle={outlet?.name || undefined}
+        rightAction={cart.length > 0 ? { icon: 'add-circle-outline', accessibilityLabel: 'Add more products', onPress: () => router.push('/(rep)/catalog') } : undefined}
+      />
 
       {cart.length === 0 ? (
-        <View style={{ margin: 16 }}>
+        <View style={styles.scroll}>
           <EmptyState
             icon="cart-outline"
             title="Cart is empty"
@@ -100,113 +106,106 @@ export default function CartScreen() {
         <>
           <ScrollView contentContainerStyle={styles.scroll}>
             {!outletId && (
-              <View style={styles.warningBanner}>
-                <Ionicons name="information-circle" size={18} color="#B45309" />
-                <Text style={styles.warningText}>Select an outlet from the Beat or Outlets tab before booking an order.</Text>
-              </View>
+              <Banner tone="warning" message="Select an outlet from the Beat or Outlets tab before booking an order." />
             )}
 
             {creditExceeded && (
-              <View style={styles.dangerBanner}>
-                <Ionicons name="warning" size={18} color={colors.danger} />
-                <Text style={styles.dangerText}>This order exceeds the outlet&apos;s available credit limit. Reduce the order or collect an outstanding payment first.</Text>
-              </View>
+              <Banner
+                tone="danger"
+                title="Credit limit exceeded"
+                message="This order exceeds the outlet's available credit limit. Reduce the order or collect an outstanding payment first."
+              />
             )}
 
             {cart.map((item) => {
               const calcItem = items.find((i) => i.productId === item.product.id);
               return (
-                <View key={item.product.id} style={styles.cartItem}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.itemName} numberOfLines={1}>{item.product.name}</Text>
-                    <Text style={styles.itemSku}>{item.product.sku}</Text>
-                    <Text style={styles.itemPrice}>{formatCurrency(item.product.pricing.basePrice)}</Text>
-                  </View>
-                  <View style={styles.qtyControls}>
-                    <View style={styles.qtyRow}>
-                      <TouchableOpacity onPress={() => updateQuantity(item.product.id, item.quantity - 1)}>
-                        <Ionicons name={item.quantity === 1 ? 'trash' : 'remove'} size={16} color={item.quantity === 1 ? colors.danger : colors.textMuted} />
-                      </TouchableOpacity>
-                      <Text style={styles.qtyValue}>{item.quantity}</Text>
-                      <TouchableOpacity style={styles.qtyAddBtn} onPress={() => updateQuantity(item.product.id, item.quantity + 1)}>
-                        <Ionicons name="add" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
+                <Card key={item.product.id} padding="md" elevation="none" style={styles.cartItem}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.itemName} numberOfLines={2}>{item.product.name}</Text>
+                    <Text style={styles.itemSku}>{item.product.sku} · {formatCurrency(item.product.pricing.basePrice)} each</Text>
                     <Text style={styles.itemTotal}>{formatCurrency(calcItem?.total || 0)}</Text>
                   </View>
-                </View>
+                  <View style={styles.qtyRow}>
+                    <IconButton
+                      icon={item.quantity === 1 ? 'trash-outline' : 'remove'}
+                      tone={item.quantity === 1 ? 'danger' : 'plain'}
+                      size={18}
+                      onPress={() => updateQuantity(item.product.id, item.quantity - 1)}
+                      accessibilityLabel={item.quantity === 1 ? `Remove ${item.product.name}` : `Decrease quantity of ${item.product.name}`}
+                    />
+                    <Text style={styles.qtyValue} accessibilityLabel={`Quantity ${item.quantity}`}>{item.quantity}</Text>
+                    <IconButton
+                      icon="add"
+                      tone="primary"
+                      size={18}
+                      onPress={() => updateQuantity(item.product.id, item.quantity + 1)}
+                      accessibilityLabel={`Increase quantity of ${item.product.name}`}
+                    />
+                  </View>
+                </Card>
               );
             })}
 
-            <View style={styles.summaryCard}>
+            <Card>
               <Text style={styles.summaryTitle}>Order Summary</Text>
-              <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Subtotal ({cart.length} items)</Text><Text style={styles.summaryValue}>{formatCurrency(totals.subTotal)}</Text></View>
-              <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Discount</Text><Text style={styles.summaryValue}>- {formatCurrency(totals.discountTotal)}</Text></View>
-              <View style={[styles.summaryRow, styles.summaryDivider]}><Text style={styles.summaryLabelBold}>Total Before Tax</Text><Text style={styles.summaryValueBold}>{formatCurrency(totals.totalBeforeTax)}</Text></View>
-              <View style={styles.summaryRow}><Text style={styles.summaryLabel}>CGST</Text><Text style={styles.summaryValue}>{formatCurrency(totals.cgstTotal)}</Text></View>
-              <View style={styles.summaryRow}><Text style={styles.summaryLabel}>SGST</Text><Text style={styles.summaryValue}>{formatCurrency(totals.sgstTotal)}</Text></View>
-              <View style={styles.summaryRow}><Text style={styles.summaryLabel}>IGST</Text><Text style={styles.summaryValue}>{formatCurrency(totals.igstTotal)}</Text></View>
-            </View>
+              <SummaryRow label={`Subtotal (${itemCount} item${itemCount === 1 ? '' : 's'})`} value={formatCurrency(totals.subTotal)} />
+              <SummaryRow label="Discount" value={`- ${formatCurrency(totals.discountTotal)}`} valueColor={totals.discountTotal > 0 ? colors.success : undefined} />
+              <SummaryRow label="Total Before Tax" value={formatCurrency(totals.totalBeforeTax)} bold divider />
+              <SummaryRow label="CGST" value={formatCurrency(totals.cgstTotal)} />
+              <SummaryRow label="SGST" value={formatCurrency(totals.sgstTotal)} />
+              <SummaryRow label="IGST" value={formatCurrency(totals.igstTotal)} />
+              <SummaryRow label="Grand Total" value={formatCurrency(totals.grandTotal)} bold divider />
+            </Card>
           </ScrollView>
 
-          <View style={styles.footer}>
-            <View>
+          <BottomBar>
+            <View style={{ flex: 1 }}>
               <Text style={styles.footerLabel}>Total Amount</Text>
-              <Text style={styles.footerValue}>{formatCurrency(totals.grandTotal)}</Text>
+              <Text style={styles.footerValue} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(totals.grandTotal)}</Text>
             </View>
             <Button
-              label="Place Order  →"
+              label="Place Order"
               onPress={handleSubmit}
               loading={submitting}
               disabled={!outletId || creditExceeded}
               fullWidth={false}
-              style={{ paddingHorizontal: 24 }}
+              variant="accent"
+              style={{ paddingHorizontal: spacing.xxl }}
+              icon={<Ionicons name="checkmark-circle" size={20} color={!outletId || creditExceeded ? colors.textMuted : colors.navy} />}
             />
-          </View>
+          </BottomBar>
         </>
       )}
     </SafeAreaView>
   );
 }
 
+function SummaryRow({ label, value, bold, divider, valueColor }: { label: string; value: string; bold?: boolean; divider?: boolean; valueColor?: string }) {
+  return (
+    <View style={[styles.summaryRow, divider && styles.summaryDivider]}>
+      <Text style={bold ? styles.summaryLabelBold : styles.summaryLabel}>{label}</Text>
+      <Text style={[bold ? styles.summaryValueBold : styles.summaryValue, valueColor ? { color: valueColor } : undefined]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  submittedTitle: { fontSize: 20, fontWeight: '800', color: colors.text, marginTop: 16 },
-  submittedText: { color: colors.textMuted, textAlign: 'center', marginTop: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
-  headerTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
-  emptyCard: { margin: 16, backgroundColor: colors.card, borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  emptyTitle: { fontWeight: '700', color: colors.text },
-  emptyText: { color: colors.textMuted, fontSize: 13, marginTop: 4, textAlign: 'center' },
-  browseButton: { backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 10, marginTop: 16 },
-  browseButtonText: { color: '#fff', fontWeight: '700' },
-  scroll: { padding: 16, paddingBottom: 140, gap: 10 },
-  warningBanner: { flexDirection: 'row', gap: 8, backgroundColor: colors.warningLight, borderRadius: 12, padding: 12 },
-  warningText: { flex: 1, color: '#92400E', fontSize: 12 },
-  dangerBanner: { flexDirection: 'row', gap: 8, backgroundColor: colors.dangerLight, borderRadius: 12, padding: 12 },
-  dangerText: { flex: 1, color: colors.danger, fontSize: 12, fontWeight: '500' },
-  cartItem: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border },
-  itemName: { fontWeight: '700', color: colors.text, fontSize: 13 },
-  itemSku: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
-  itemPrice: { fontWeight: '700', color: colors.text, fontSize: 13, marginTop: 6 },
-  qtyControls: { alignItems: 'flex-end', justifyContent: 'space-between' },
-  qtyRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg, borderRadius: 10, padding: 4, gap: 8 },
-  qtyValue: { fontWeight: '700', color: colors.text, width: 20, textAlign: 'center' },
-  qtyAddBtn: { backgroundColor: colors.primary, borderRadius: 8, padding: 4 },
-  itemTotal: { fontWeight: '700', color: colors.text, fontSize: 13, marginTop: 8 },
-  summaryCard: { backgroundColor: colors.card, borderRadius: 16, padding: 18, borderWidth: 1, borderColor: colors.border },
-  summaryTitle: { fontWeight: '800', color: colors.text, marginBottom: 12 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  summaryDivider: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 4, paddingTop: 10 },
-  summaryLabel: { color: colors.textMuted, fontSize: 13 },
-  summaryValue: { color: colors.text, fontWeight: '700', fontSize: 13 },
-  summaryLabelBold: { color: colors.text, fontWeight: '800', fontSize: 13 },
-  summaryValueBold: { color: colors.text, fontWeight: '800', fontSize: 13 },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18, borderTopWidth: 1, borderTopColor: colors.border },
-  footerLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '700', textTransform: 'uppercase' },
-  footerValue: { fontSize: 20, fontWeight: '800', color: colors.text },
-  submitButton: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary, borderRadius: 16, paddingHorizontal: 24, paddingVertical: 14 },
-  submitButtonText: { color: '#fff', fontWeight: '800' },
-  disabled: { opacity: 0.5 },
+  scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
+  cartItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  itemName: { ...typography.h3, color: colors.text },
+  itemSku: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  itemTotal: { ...typography.h3, color: colors.text, marginTop: spacing.sm },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border },
+  qtyValue: { ...typography.h3, color: colors.text, minWidth: 28, textAlign: 'center' },
+  summaryTitle: { ...typography.h2, color: colors.text, marginBottom: spacing.sm },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs + 2 },
+  summaryDivider: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.xs, paddingTop: spacing.md },
+  summaryLabel: { ...typography.body, color: colors.textMuted },
+  summaryValue: { ...typography.bodyMedium, color: colors.text },
+  summaryLabelBold: { ...typography.h3, color: colors.text },
+  summaryValueBold: { ...typography.h3, color: colors.text },
+  footerLabel: { ...typography.caption, color: colors.textMuted },
+  footerValue: { ...typography.h1, color: colors.text },
 });

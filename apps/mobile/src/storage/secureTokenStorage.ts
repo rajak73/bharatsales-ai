@@ -1,7 +1,10 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from './secureStore';
 import { router } from 'expo-router';
 import type { TokenStorage } from '@bharatsales/api-client';
 import { useSessionStore } from '../store/sessionStore';
+import { clearLocalCache } from '../db/client';
+import { queryClient } from '../lib/queryClient';
+import { clearStoredActiveVisit } from '../lib/activeVisit';
 
 const ACCESS_TOKEN_KEY = 'bharatsales_token';
 const REFRESH_TOKEN_KEY = 'bharatsales_refresh_token';
@@ -61,6 +64,18 @@ export const secureTokenStorage: TokenStorage = {
       await SecureStore.deleteItemAsync(USER_KEY);
     } catch (err) {
       console.error('[SecureStore] clearTokens failed', err);
+    }
+    // Don't leave the previous user's outlets/orders/etc. on the device for
+    // whoever logs in next. The offline sync queue is intentionally kept:
+    // unsynced work is only discarded by an explicit user choice in
+    // useAuth().logout — a forced logout (expired refresh token) must not
+    // silently lose orders/payments.
+    queryClient.clear();
+    await clearStoredActiveVisit();
+    try {
+      await clearLocalCache();
+    } catch (err) {
+      console.error('[SQLite] clearLocalCache failed on logout', err);
     }
   },
   onUnauthenticated() {

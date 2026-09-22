@@ -5,22 +5,42 @@ import { Platform } from 'react-native';
 // file now just re-exports this one) plus a few additions needed for
 // skeleton loaders and modal overlays.
 export const colors = {
-  primary: '#2563EB',
-  primaryDark: '#1D4ED8',
-  primaryLight: '#EFF6FF',
-  bg: '#F8FAFC',
+  // "Navy + Saffron" theme (shared with apps/web + apps/field-pwa).
+  primary: '#1B4FD8',
+  primaryDark: '#163FAE',
+  primaryLight: '#DFE8FF',
+  navy: '#0B1F44',
+  navyLight: '#16336B',
+  navyDark: '#071530',
+  onNavy: '#C7D2E8',
+  accent: '#FF8A1F',
+  accentDark: '#E9760C',
+  accentLight: '#FFF1E3',
+  bg: '#F4F6FB',
   card: '#FFFFFF',
-  border: '#E2E8F0',
+  border: '#E3E8F2',
   text: '#0F172A',
-  textMuted: '#64748B',
+  textMuted: '#5B6478',
+  textSecondary: '#475569',
   success: '#16A34A',
   successLight: '#F0FDF4',
   warning: '#D97706',
   warningLight: '#FFFBEB',
+  warningBorder: '#FDE68A',
+  warningText: '#92400E',
   danger: '#DC2626',
   dangerLight: '#FEF2F2',
-  overlay: 'rgba(15, 23, 42, 0.55)',
-  skeletonBase: '#E2E8F0',
+  dangerBorder: '#FECACA',
+  successBorder: '#BBF7D0',
+  primaryBorder: '#B9CBFA',
+  // Status tones shared with the web StatusPill (info = sky, progress = violet).
+  info: '#075985',
+  infoLight: '#F0F9FF',
+  progress: '#6D28D9',
+  progressLight: '#F5F3FF',
+  neutralLight: '#F1F5F9',
+  overlay: 'rgba(11, 31, 68, 0.55)',
+  skeletonBase: '#E3E8F2',
   skeletonHighlight: '#F1F5F9',
 };
 
@@ -36,6 +56,10 @@ export const spacing = {
   xxxl: 32,
   huge: 40,
 };
+
+// Minimum tappable size for anything interactive (Material/Apple HIG
+// guidance) — field reps use the app one-handed, often while walking.
+export const touchTarget = 48;
 
 export const radius = {
   sm: 8,

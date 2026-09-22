@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, Stack } from 'expo-router';
-import { colors, formatCurrency } from '../../../src/lib/theme';
+import { router, useLocalSearchParams, Stack } from 'expo-router';
+import { colors, formatCurrency, formatDate } from '../../../src/lib/theme';
+import { radius, spacing, typography } from '../../../src/theme/tokens';
+import { statusTone, orderStatusLabel } from '../../../src/lib/orderStatus';
 import { useLocalOrders } from '../../../src/hooks/useLocalData';
-import { enqueue } from '../../../src/db/syncQueue';
-import { ScreenHeader, Button } from '../../../src/components/ui';
+import { enqueueAndSync } from '../../../src/sync/syncEngine';
+import { ScreenHeader, Button, Banner, Card, EmptyState, BottomBar, FormModal, TextField, StatusPill } from '../../../src/components/ui';
 
 export default function DistributorOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -19,8 +21,18 @@ export default function DistributorOrderDetailScreen() {
 
   if (!order) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text style={{ color: colors.textMuted }}>Order not found in local cache.</Text>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ScreenHeader title="Order" />
+        <View style={styles.scroll}>
+          <EmptyState
+            icon="receipt-outline"
+            title="Order not found"
+            message="This order isn't in your offline data yet. Go back and pull down to sync, then try again."
+            actionLabel="Go Back"
+            onAction={() => router.back()}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -31,9 +43,11 @@ export default function DistributorOrderDetailScreen() {
   const handleAccept = async () => {
     setBusy(true);
     try {
-      await enqueue('APPROVE_ORDER', { orderId: order.id });
+      await enqueueAndSync('APPROVE_ORDER', { orderId: order.id });
       setActionDone('Order accepted — will sync shortly.');
       refetch();
+    } catch (err: any) {
+      Alert.alert('Action failed', err?.message || 'This action could not be saved on this device. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -42,10 +56,12 @@ export default function DistributorOrderDetailScreen() {
   const handleReject = async () => {
     setBusy(true);
     try {
-      await enqueue('REJECT_ORDER', { orderId: order.id, reason: rejectReason });
+      await enqueueAndSync('REJECT_ORDER', { orderId: order.id, reason: rejectReason });
       setRejectModal(false);
       setActionDone('Order rejected — will sync shortly.');
       refetch();
+    } catch (err: any) {
+      Alert.alert('Action failed', err?.message || 'This action could not be saved on this device. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -54,48 +70,55 @@ export default function DistributorOrderDetailScreen() {
   const handleDispatch = async () => {
     setBusy(true);
     try {
-      await enqueue('DISPATCH_ORDER', { orderId: order.id });
+      await enqueueAndSync('DISPATCH_ORDER', { orderId: order.id });
       setActionDone('Order marked as dispatched — will sync shortly.');
       refetch();
+    } catch (err: any) {
+      Alert.alert('Action failed', err?.message || 'This action could not be saved on this device. Please try again.');
     } finally {
       setBusy(false);
     }
   };
 
+  const itemCount = (order.items || []).length;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScreenHeader title={order.orderNumber} />
+      <ScreenHeader title={order.orderNumber || 'Order'} subtitle={order.createdAt ? `Placed ${formatDate(order.createdAt)}` : undefined} />
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {actionDone && (
-          <View style={styles.successBanner}>
-            <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-            <Text style={styles.successText}>{actionDone}</Text>
-          </View>
-        )}
+        {actionDone && <Banner tone="success" message={actionDone} />}
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Order Items</Text>
+        <Card style={styles.summaryCard}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.summaryLabel}>Order value</Text>
+            <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(order.totals?.grandTotal)}</Text>
+            <Text style={styles.summaryMeta}>{itemCount} item{itemCount === 1 ? '' : 's'}</Text>
+          </View>
+          <StatusPill label={orderStatusLabel(order.status)} tone={statusTone(order.status)} />
+        </Card>
+
+        <Card padding={0}>
+          <Text style={styles.sectionTitle}>Items</Text>
           {(order.items || []).map((item: any, idx: number) => (
-            <View key={idx} style={styles.itemRow}>
-              <View style={{ flex: 1 }}>
+            <View key={idx} style={[styles.itemRow, styles.itemRowBorder]}>
+              <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemMeta}>{item.sku} • Qty {item.quantity}</Text>
+                <Text style={styles.itemMeta}>{item.sku} · Qty {item.quantity}</Text>
               </View>
               <Text style={styles.itemTotal}>{formatCurrency(item.total)}</Text>
             </View>
           ))}
-          <View style={styles.divider} />
-          <View style={styles.itemRow}>
+          <View style={[styles.itemRow, styles.totalRow]}>
             <Text style={styles.grandTotalLabel}>Grand Total</Text>
             <Text style={styles.grandTotalValue}>{formatCurrency(order.totals?.grandTotal)}</Text>
           </View>
-        </View>
+        </Card>
 
         {order.deliveredItems && order.deliveredItems.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Delivery Status</Text>
+          <Card>
+            <Text style={[styles.sectionTitle, { padding: 0, paddingBottom: spacing.sm }]}>Delivery Status</Text>
             {order.deliveredItems.map((d: any, idx: number) => (
               <Text key={idx} style={styles.deliveryLine}>
                 {d.productId}: delivered {d.deliveredQty}/{d.orderedQty}
@@ -103,74 +126,68 @@ export default function DistributorOrderDetailScreen() {
                 {d.damagedQty ? ` (damaged ${d.damagedQty})` : ''}
               </Text>
             ))}
-          </View>
+          </Card>
         )}
       </ScrollView>
 
       {(canAccept || canDispatch) && (
-        <View style={styles.footer}>
+        <BottomBar>
           {canAccept && (
             <>
-              <Button label="Reject" onPress={() => setRejectModal(true)} disabled={busy} variant="danger" style={{ flex: 1 }} />
-              <Button label="Accept Order" onPress={handleAccept} loading={busy} style={{ flex: 1 }} />
+              <Button label="Reject" onPress={() => setRejectModal(true)} disabled={busy} variant="danger" fullWidth={false} style={{ flex: 1 }} />
+              <Button
+                label="Accept Order"
+                onPress={handleAccept}
+                loading={busy}
+                fullWidth={false}
+                style={{ flex: 2 }}
+                icon={<Ionicons name="checkmark-circle" size={20} color="#fff" />}
+              />
             </>
           )}
           {canDispatch && (
-            <Button label="Mark as Dispatched" onPress={handleDispatch} loading={busy} style={{ flex: 1 }} />
+            <Button
+              label="Mark as Dispatched"
+              onPress={handleDispatch}
+              loading={busy}
+              icon={<Ionicons name="car" size={20} color="#fff" />}
+            />
           )}
-        </View>
+        </BottomBar>
       )}
 
-      <Modal visible={rejectModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Reject Order</Text>
-            <TextInput style={styles.modalInput} placeholder="Reason for rejection" multiline value={rejectReason} onChangeText={setRejectReason} />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setRejectModal(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSubmit} onPress={handleReject} disabled={!rejectReason || busy}>
-                <Text style={styles.modalSubmitText}>Confirm Reject</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <FormModal
+        visible={rejectModal}
+        title="Reject Order"
+        message="The sales rep will see this reason."
+        onCancel={() => setRejectModal(false)}
+        confirmLabel="Confirm Reject"
+        confirmVariant="destructive"
+        confirmDisabled={!rejectReason || busy}
+        confirmLoading={busy}
+        onConfirm={handleReject}
+      >
+        <TextField label="Reason" placeholder="e.g. Out of stock for 2 SKUs" multiline value={rejectReason} onChangeText={setRejectReason} autoFocus />
+      </FormModal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  header: { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
-  headerTitle: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  scroll: { padding: 16, gap: 12, paddingBottom: 100 },
-  successBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.successLight, borderRadius: 12, padding: 14 },
-  successText: { flex: 1, color: colors.success, fontSize: 12, fontWeight: '600' },
-  card: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border },
-  sectionTitle: { fontWeight: '800', color: colors.text, marginBottom: 10 },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
-  itemName: { fontWeight: '700', color: colors.text, fontSize: 13 },
-  itemMeta: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
-  itemTotal: { fontWeight: '700', color: colors.text, fontSize: 13 },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 8 },
-  grandTotalLabel: { fontWeight: '800', color: colors.text },
-  grandTotalValue: { fontWeight: '800', color: colors.text, fontSize: 16 },
-  deliveryLine: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', gap: 10, backgroundColor: colors.card, padding: 16, borderTopWidth: 1, borderTopColor: colors.border },
-  rejectButton: { flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.dangerLight },
-  rejectButtonText: { color: colors.danger, fontWeight: '700' },
-  acceptButton: { flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.primary },
-  acceptButtonText: { color: '#fff', fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  modalCard: { backgroundColor: '#fff', borderRadius: 18, padding: 20, width: '100%' },
-  modalTitle: { fontWeight: '800', fontSize: 16, color: colors.text, marginBottom: 12 },
-  modalInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 80, textAlignVertical: 'top', fontSize: 13 },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  modalCancel: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
-  modalCancelText: { color: colors.text, fontWeight: '600' },
-  modalSubmit: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: colors.danger },
-  modalSubmitText: { color: '#fff', fontWeight: '700' },
+  scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
+  summaryCard: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  summaryLabel: { ...typography.caption, color: colors.textMuted },
+  summaryValue: { ...typography.display, color: colors.text, marginTop: spacing.xs },
+  summaryMeta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  sectionTitle: { ...typography.h2, color: colors.text, padding: spacing.lg, paddingBottom: spacing.sm },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  itemRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
+  totalRow: { borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg },
+  itemName: { ...typography.bodyMedium, fontFamily: typography.h3.fontFamily, color: colors.text },
+  itemMeta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  itemTotal: { ...typography.h3, color: colors.text },
+  grandTotalLabel: { ...typography.h3, color: colors.text, flex: 1 },
+  grandTotalValue: { ...typography.h2, color: colors.text },
+  deliveryLine: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.xs },
 });

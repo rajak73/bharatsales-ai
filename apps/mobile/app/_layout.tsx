@@ -11,7 +11,7 @@ import { useSessionStore } from '../src/store/sessionStore';
 import { useOrgStore } from '../src/store/orgStore';
 import { queryClient } from '../src/lib/queryClient';
 import { getDb } from '../src/db/client';
-import { SyncEngine, startAutoSync } from '../src/sync/syncEngine';
+import { SyncEngine, startAutoSync, startForegroundSync } from '../src/sync/syncEngine';
 import { registerForPushNotifications } from '../src/lib/registerPushNotifications';
 import { FONTS_TO_LOAD } from '../src/theme/tokens';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
@@ -57,6 +57,15 @@ export default function RootLayout() {
       resetOrgBranding();
     }
   }, [user, loadOrgBranding, resetOrgBranding]);
+
+  // Push the offline queue on every return to the foreground and every 2
+  // minutes while foregrounded — not only on a network reconnect, which
+  // never fires for a device that was online the whole time.
+  const isLoggedIn = !!user;
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    return startForegroundSync();
+  }, [isLoggedIn]);
 
   const onLayoutRootView = useCallback(async () => {
     if (appReady) {

@@ -19,27 +19,39 @@ export function KPICard({ icon, iconColor = colors.primary, iconBackground = col
       <View style={[styles.iconWrap, { backgroundColor: iconBackground }]}>
         <Ionicons name={icon} size={20} color={iconColor} />
       </View>
-      <Text style={styles.value}>{value}</Text>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{value}</Text>
+      <Text style={styles.label} numberOfLines={2}>{label}</Text>
     </View>
   );
 
-  if (!onPress) return content;
-  return <Pressable onPress={onPress}>{content}</Pressable>;
+  if (!onPress) return <View style={styles.cell}>{content}</View>;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.cell, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+    >
+      {content}
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
+  // The flex-basis lives on the outer cell (the direct child of the
+  // parent's wrapping row) so pressable and static cards size identically.
+  cell: { flexBasis: '47%', flexGrow: 1 },
   card: {
-    flexBasis: '47%',
-    flexGrow: 1,
+    flex: 1,
+    minHeight: 100,
     backgroundColor: colors.card,
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.lg,
-    gap: spacing.sm,
+    padding: spacing.md,
+    gap: spacing.xs + 2,
   },
-  iconWrap: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  value: { ...typography.display, fontSize: 24, lineHeight: 28, color: colors.text },
+  iconWrap: { width: 34, height: 34, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  value: { ...typography.display, fontSize: 22, lineHeight: 26, color: colors.text },
   label: { ...typography.caption, color: colors.textMuted },
 });

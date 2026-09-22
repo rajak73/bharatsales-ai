@@ -75,11 +75,11 @@ export function AttendanceScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 pt-8 pb-24">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Daily Attendance</h1>
+    <div className="min-h-screen bg-background px-4 pt-6 pb-24">
+      <h1 className="text-xl font-bold text-gray-900 mb-5">Daily Attendance</h1>
       
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className={`p-8 text-center text-white ${activeSession ? 'bg-green-600' : 'bg-gray-800'}`}>
+      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+        <div className={`p-6 text-center text-white ${activeSession ? 'bg-green-600' : 'bg-gray-800'}`}>
           {activeSession ? (
             <>
               <CheckCircle2 className="w-16 h-16 mx-auto mb-4 opacity-90" />
@@ -95,14 +95,14 @@ export function AttendanceScreen() {
           )}
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium border border-red-100">
+            <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium border border-red-100">
               {error}
             </div>
           )}
 
-          <div className="flex items-start gap-4 mb-8 p-4 bg-primary-50 rounded-xl border border-primary-100 text-primary-800">
+          <div className="flex items-start gap-4 mb-5 p-4 bg-primary-50 rounded-xl border border-primary-100 text-primary-800">
             <MapPin className="w-6 h-6 flex-shrink-0 mt-0.5 text-primary-600" />
             <p className="text-sm">
               Your location is recorded during attendance to verify your starting and ending territory.
@@ -110,7 +110,7 @@ export function AttendanceScreen() {
           </div>
 
           {!activeSession && (
-            <div className="mb-8 space-y-3">
+            <div className="mb-5 space-y-3">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -122,7 +122,7 @@ export function AttendanceScreen() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium"
               >
                 <Camera className="w-5 h-5" />
                 {selfie ? 'Retake Selfie' : 'Take Selfie'}
@@ -136,7 +136,7 @@ export function AttendanceScreen() {
           <button
             onClick={handleAttendanceAction}
             disabled={isLocating || (!activeSession && !selfie)}
-            className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl text-lg font-bold transition-all
+            className={`w-full flex items-center justify-center gap-2 py-4 px-4 rounded-xl text-lg font-bold transition-all
               ${activeSession 
                 ? 'bg-red-50 text-red-600 hover:bg-red-100 border-2 border-red-200' 
                 : 'bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-xl shadow-primary-600/20'

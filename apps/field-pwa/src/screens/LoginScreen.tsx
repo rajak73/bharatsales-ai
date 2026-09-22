@@ -52,25 +52,15 @@ export function LoginScreen() {
 
   if (mode === 'forgot') {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center relative overflow-hidden font-sans">
-        <div className="w-full max-w-sm px-6 relative z-10">
-          <div className="flex flex-col items-center mb-10">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center shadow-md">
-                <div className="text-white font-bold text-2xl italic tracking-tighter flex">
-                  <span className="relative">
-                    B
-                    <div className="absolute -top-1 -right-2 w-3 h-3 border-t-2 border-r-2 border-cyan-400 transform -rotate-45"></div>
-                  </span>
-                </div>
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">BharatSales AI</h1>
-            <h2 className="text-xl font-bold text-slate-800 mt-6">Reset password</h2>
-            <p className="text-slate-500 text-sm mt-1 text-center">Enter your account email and we&apos;ll send you a reset link.</p>
+      <div className="min-h-screen bg-background flex flex-col items-center font-sans">
+        <BrandHeader />
+        <div className="w-full max-w-sm px-4 pt-5 pb-6">
+          <div className="flex flex-col items-center mb-5">
+            <h2 className="text-xl font-bold text-slate-800">Reset password</h2>
+            <p className="text-foreground-muted text-sm mt-1 text-center">Enter your account email and we&apos;ll send you a reset link.</p>
           </div>
 
-          <form className="space-y-4" onSubmit={handleForgotSubmit}>
+          <form className="space-y-3" onSubmit={handleForgotSubmit}>
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm text-center font-medium">
                 {error}
@@ -104,7 +94,7 @@ export function LoginScreen() {
             <button
               type="submit"
               disabled={loading || !forgotEmail}
-              className="w-full flex justify-center items-center rounded-2xl bg-primary-600 px-4 py-4 text-sm font-bold text-white shadow-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-70 transition-all"
+              className="w-full flex justify-center items-center rounded-xl bg-primary-600 px-4 py-3.5 text-sm font-bold text-white shadow-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-70 transition-all"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send Reset Link'}
             </button>
@@ -123,39 +113,17 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center relative overflow-hidden font-sans">
-      
-      {/* Decorative Light Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        {/* Simplified representation of the map/chart background pattern */}
-        <div className="absolute top-20 left-[-20%] w-[140%] h-[140%] bg-gradient-to-br from-blue-50 via-slate-100 to-indigo-50 opacity-60"></div>
-        <div className="absolute top-1/4 left-10 w-20 h-20 bg-blue-100 rounded-full blur-2xl opacity-50"></div>
-        <div className="absolute bottom-1/4 right-10 w-32 h-32 bg-indigo-100 rounded-full blur-3xl opacity-50"></div>
-      </div>
+    <div className="min-h-screen bg-background flex flex-col items-center font-sans">
+      <BrandHeader />
+      <div className="w-full max-w-sm px-4 pt-5 pb-6">
 
-      <div className="w-full max-w-sm px-6 relative z-10">
-        
-        {/* Logo and Welcome Text */}
-        <div className="flex flex-col items-center mb-10">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center shadow-md">
-              {/* Approximating the B with chart arrow logo */}
-              <div className="text-white font-bold text-2xl italic tracking-tighter flex">
-                <span className="relative">
-                  B
-                  <div className="absolute -top-1 -right-2 w-3 h-3 border-t-2 border-r-2 border-cyan-400 transform -rotate-45"></div>
-                </span>
-              </div>
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">BharatSales AI</h1>
-          <p className="text-slate-500 text-xs font-medium tracking-wide uppercase mt-1 mb-6">Smart. Efficient. Sales.</p>
-          
+        {/* Welcome Text */}
+        <div className="flex flex-col items-center mb-5">
           <h2 className="text-xl font-bold text-slate-800">Welcome back!</h2>
-          <p className="text-slate-500 text-sm mt-1">Sign in to continue to your dashboard.</p>
+          <p className="text-foreground-muted text-sm mt-1">Sign in to continue to your dashboard.</p>
         </div>
 
-        <form className="space-y-4" onSubmit={handleLogin}>
+        <form className="space-y-3" onSubmit={handleLogin}>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm text-center font-medium">
               {error}
@@ -225,7 +193,7 @@ export function LoginScreen() {
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full flex justify-center items-center rounded-2xl bg-primary-600 px-4 py-4 text-sm font-bold text-white shadow-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-70 transition-all"
+              className="w-full flex justify-center items-center rounded-xl bg-primary-600 px-4 py-3.5 text-sm font-bold text-white shadow-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-70 transition-all"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -235,7 +203,7 @@ export function LoginScreen() {
             </button>
           </div>
           
-          <div className="flex items-center justify-center pt-2 pb-4">
+          <div className="flex items-center justify-center pt-1 pb-2">
             <input
               id="keep-logged-in"
               type="checkbox"
@@ -248,7 +216,7 @@ export function LoginScreen() {
           </div>
         </form>
 
-        <div className="text-center space-y-4 pt-6 mt-6 border-t border-gray-100">
+        <div className="text-center space-y-3 pt-4 mt-2 border-t border-border">
           <p className="text-sm text-gray-500">
             For access, please contact your Organization Administrator to receive your login credentials.
           </p>
@@ -264,3 +232,16 @@ export function LoginScreen() {
   );
 }
 
+// Navy brand band with the saffron "BS" mark — the same identity as the
+// web app's sidebar/hero and the native app's login. Purely presentational.
+function BrandHeader() {
+  return (
+    <div className="w-full bg-navy-900 rounded-b-2xl px-4 pt-12 pb-6 flex flex-col items-center">
+      <div className="w-12 h-12 bg-saffron-500 rounded-xl flex items-center justify-center mb-3">
+        <span className="font-display text-navy-900 font-extrabold text-lg tracking-tight">BS</span>
+      </div>
+      <h1 className="text-xl font-bold text-white tracking-tight">BharatSales AI</h1>
+      <p className="text-navy-200 text-xs font-medium tracking-wide uppercase mt-1">Smart. Efficient. Sales.</p>
+    </div>
+  );
+}

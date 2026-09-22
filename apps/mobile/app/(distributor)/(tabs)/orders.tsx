@@ -1,22 +1,21 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { colors, formatCurrency } from '../../../src/lib/theme';
-import { spacing, radius, typography } from '../../../src/theme/tokens';
+import { colors, formatCurrency, formatDate } from '../../../src/lib/theme';
+import { spacing, typography } from '../../../src/theme/tokens';
 import { useLocalOrders } from '../../../src/hooks/useLocalData';
 import { useIsOnline } from '../../../src/hooks/useIsOnline';
-import { ORDER_STATUS_TONE, orderStatusLabel } from '../../../src/lib/orderStatus';
-import { ScreenHeader, EmptyState, ErrorState, SkeletonList, StatusPill } from '../../../src/components/ui';
+import { statusTone, orderStatusLabel } from '../../../src/lib/orderStatus';
+import { ScreenHeader, EmptyState, ErrorState, SkeletonList, StatusPill, ListItem, Chip, ChipRow } from '../../../src/components/ui';
 
 type FilterKey = 'incoming' | 'pending' | 'delivered' | 'all';
 
-const FILTERS: { key: FilterKey; label: string; statuses: string[] | null }[] = [
-  { key: 'incoming', label: 'Incoming', statuses: ['Submitted', 'Pending_Approval'] },
-  { key: 'pending', label: 'Pending Dispatch', statuses: ['Approved'] },
-  { key: 'delivered', label: 'Delivered', statuses: ['Delivered', 'Partial_Delivery'] },
-  { key: 'all', label: 'All', statuses: null },
+const FILTERS: { key: FilterKey; label: string; statuses: string[] | null; empty: string }[] = [
+  { key: 'incoming', label: 'Incoming', statuses: ['Submitted', 'Pending_Approval'], empty: 'No new orders waiting for review.' },
+  { key: 'pending', label: 'To Dispatch', statuses: ['Approved'], empty: 'Accepted orders ready to dispatch will appear here.' },
+  { key: 'delivered', label: 'Delivered', statuses: ['Delivered', 'Partial_Delivery'], empty: 'Completed deliveries will appear here.' },
+  { key: 'all', label: 'All', statuses: null, empty: 'Orders from sales reps will appear here.' },
 ];
 
 export default function DistributorOrdersScreen() {
@@ -28,18 +27,17 @@ export default function DistributorOrdersScreen() {
   const filtered = (orders as any[])
     .filter((o) => !activeFilter.statuses || activeFilter.statuses.includes(o.status))
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const countFor = (f: (typeof FILTERS)[number]) => (orders as any[]).filter((o) => !f.statuses || f.statuses.includes(o.status)).length;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScreenHeader title="Order Management" showBack={false} />
+      <ScreenHeader title="Orders" subtitle="Review, accept & dispatch" showBack={false} />
 
-      <View style={styles.filterRow}>
+      <ChipRow>
         {FILTERS.map((f) => (
-          <TouchableOpacity key={f.key} style={[styles.filterChip, filter === f.key && styles.filterChipActive]} onPress={() => setFilter(f.key)}>
-            <Text style={[styles.filterChipText, filter === f.key && styles.filterChipTextActive]}>{f.label}</Text>
-          </TouchableOpacity>
+          <Chip key={f.key} label={f.label} count={countFor(f)} selected={filter === f.key} onPress={() => setFilter(f.key)} />
         ))}
-      </View>
+      </ChipRow>
 
       {isLoading ? (
         <View style={styles.list}><SkeletonList count={5} /></View>
@@ -50,20 +48,24 @@ export default function DistributorOrdersScreen() {
           contentContainerStyle={styles.list}
           data={filtered}
           keyExtractor={(item: any) => item.id}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-          ListEmptyComponent={<EmptyState icon="receipt-outline" title="No orders in this view" />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.primary]} tintColor={colors.primary} />}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          ListEmptyComponent={<EmptyState icon="receipt-outline" title="No orders in this view" message={activeFilter.empty} />}
           renderItem={({ item }: any) => (
-            <TouchableOpacity style={styles.orderCard} onPress={() => router.push({ pathname: '/(distributor)/order/[id]', params: { id: item.id } })}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.orderNumber}>{item.orderNumber}</Text>
-                <Text style={styles.orderDate}>{new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
-                <Text style={styles.orderAmount}>{formatCurrency(item.totals?.grandTotal)}</Text>
-                <StatusPill label={orderStatusLabel(item.status)} tone={ORDER_STATUS_TONE[item.status] || 'neutral'} />
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+            <ListItem
+              icon="receipt-outline"
+              title={item.orderNumber || 'Order'}
+              subtitle={formatDate(item.createdAt)}
+              showChevron
+              onPress={() => router.push({ pathname: '/(distributor)/order/[id]', params: { id: item.id } })}
+              accessibilityLabel={`${item.orderNumber}, ${formatCurrency(item.totals?.grandTotal)}, ${orderStatusLabel(item.status)}. Opens order`}
+              trailing={
+                <View style={styles.trailing}>
+                  <Text style={styles.amount}>{formatCurrency(item.totals?.grandTotal)}</Text>
+                  <StatusPill label={orderStatusLabel(item.status)} tone={statusTone(item.status)} />
+                </View>
+              }
+            />
           )}
         />
       )}
@@ -73,14 +75,7 @@ export default function DistributorOrdersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  filterChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  filterChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-  filterChipText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  filterChipTextActive: { color: colors.primary },
-  list: { padding: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.huge },
-  orderCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border, gap: spacing.sm },
-  orderNumber: { ...typography.h3, color: colors.text },
-  orderDate: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  orderAmount: { ...typography.h3, color: colors.text },
+  list: { padding: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xxxl },
+  trailing: { alignItems: 'flex-end', gap: spacing.xs },
+  amount: { ...typography.h3, color: colors.text },
 });

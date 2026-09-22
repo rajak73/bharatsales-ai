@@ -1,16 +1,20 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { VisitsService } from '@bharatsales/api-client';
 import { colors, formatCurrency } from '../../../src/lib/theme';
+import { radius, spacing, typography, touchTarget } from '../../../src/theme/tokens';
+import { useOrgStore } from '../../../src/store/orgStore';
 import { useCurrentAttendanceSession, getCurrentLocation } from '../../../src/hooks/useAttendance';
 import { captureCameraPhoto, uploadCapturedPhoto } from '../../../src/lib/photoCapture';
 import { useLocalOutlets } from '../../../src/hooks/useLocalData';
 import { useCartStore } from '../../../src/store/cartStore';
 import { callPhone, openWhatsApp, navigateToLocation } from '../../../src/lib/deepLinks';
-import { Button } from '../../../src/components/ui';
+import { Button, Banner, Card, EmptyState, IconButton, ScreenHeader, StatusPill } from '../../../src/components/ui';
+import { useSessionStore } from '../../../src/store/sessionStore';
+import { getStoredActiveVisit, setStoredActiveVisit, clearStoredActiveVisit, uuidV4 } from '../../../src/lib/activeVisit';
 
 export default function OutletVisitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -18,6 +22,7 @@ export default function OutletVisitScreen() {
   const { data: outlets = [] } = useLocalOutlets();
   const outlet: any = outlets.find((o: any) => o.id === id);
   const setOutlet = useCartStore((s) => s.setOutlet);
+  const orgPrimaryColor = useOrgStore((s) => s.primaryColor);
 
   const [status, setStatus] = useState<'pending' | 'checking_in' | 'checked_in'>('pending');
   const [activeVisitId, setActiveVisitId] = useState<string | null>(null);
@@ -25,11 +30,42 @@ export default function OutletVisitScreen() {
   const [error, setError] = useState('');
   const [geofenceWarning, setGeofenceWarning] = useState('');
   const [busy, setBusy] = useState(false);
+  const userId = useSessionStore((s) => (s.user as any)?.id ?? (s.user as any)?._id);
+  // One idempotency key per check-in attempt. It is kept across retries of
+  // the same attempt (e.g. the request reached the server but the response
+  // was lost to a timeout) so the server returns the visit it already
+  // created instead of making a duplicate, and reset once check-in succeeds.
+  const checkInKeyRef = useRef<string | null>(null);
+
+  // Restore an active visit for this outlet so Check Out still works after
+  // navigating away or an app restart.
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    getStoredActiveVisit(id, userId).then((stored) => {
+      if (cancelled || !stored) return;
+      setActiveVisitId(stored.visitId);
+      setStatus('checked_in');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, userId]);
 
   if (!outlet) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text style={{ color: colors.textMuted }}>Outlet not found in local cache. Pull to sync and try again.</Text>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ScreenHeader title="Outlet" />
+        <View style={styles.body}>
+          <EmptyState
+            icon="storefront-outline"
+            title="Outlet not found"
+            message="This outlet isn't in your offline data yet. Go back and pull down to sync, then try again."
+            actionLabel="Go Back"
+            onAction={() => router.back()}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -60,9 +96,13 @@ export default function OutletVisitScreen() {
     try {
       const loc = await getCurrentLocation();
       const photoUrl = await uploadCapturedPhoto({ uri: photoUri }, `visit-${outlet.id}.jpg`);
-      const visit: any = await VisitsService.checkIn({ outletId: outlet.id, ...loc, photoUrl });
-      setActiveVisitId(visit._id || visit.id);
+      if (!checkInKeyRef.current) checkInKeyRef.current = uuidV4();
+      const visit: any = await VisitsService.checkIn({ outletId: outlet.id, ...loc, photoUrl, idempotencyKey: checkInKeyRef.current });
+      const visitId = String(visit._id || visit.id);
+      checkInKeyRef.current = null;
+      setActiveVisitId(visitId);
       setStatus('checked_in');
+      await setStoredActiveVisit({ outletId: outlet.id, visitId, userId, checkedInAt: Date.now() });
       if (!visit.isWithinGeofence) {
         setGeofenceWarning(`You checked in from ${visit.distanceFromOutlet}m away. This is outside the allowed radius and has been flagged.`);
       }
@@ -79,9 +119,19 @@ export default function OutletVisitScreen() {
     setBusy(true);
     try {
       await VisitsService.checkOut(activeVisitId);
+      await clearStoredActiveVisit();
       router.back();
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to check out');
+      const httpStatus = err?.response?.status;
+      if (httpStatus === 404) {
+        // The server no longer considers this visit active (already checked
+        // out elsewhere / auto-closed) — drop the stale id so the rep can
+        // check in again instead of being stuck.
+        await clearStoredActiveVisit();
+        setActiveVisitId(null);
+        setStatus('pending');
+      }
+      setError(err?.response?.data?.message || err?.message || 'Failed to check out');
     } finally {
       setBusy(false);
     }
@@ -94,143 +144,180 @@ export default function OutletVisitScreen() {
 
   const outstanding = outlet?.commercial?.outstandingBalance;
 
+  const hasCoords = !!(outlet.location?.latitude && outlet.location?.longitude);
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: orgPrimaryColor || colors.navy }]} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={20} color="#fff" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.outletName}>{outlet.name}</Text>
+      <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ paddingBottom: spacing.xxxl }}>
+        <View style={[styles.header, { backgroundColor: orgPrimaryColor || colors.navy }]}>
+          <View style={styles.headerTop}>
+            <IconButton icon="chevron-back" size={24} tone="onBrand" onPress={() => router.back()} accessibilityLabel="Go back" />
+            {status === 'checked_in' ? (
+              <View style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>Visit in progress</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={styles.outletName} accessibilityRole="header">{outlet.name}</Text>
           <View style={styles.addressRow}>
-            <Ionicons name="location" size={14} color="rgba(255,255,255,0.85)" />
-            <Text style={styles.addressText}>{outlet.location?.address || 'Unknown Address'}</Text>
+            <Ionicons name="location-outline" size={16} color="rgba(255,255,255,0.85)" />
+            <Text style={styles.addressText}>{outlet.location?.address || 'Address not available'}</Text>
           </View>
-          <View style={styles.quickContactRow}>
-            {outlet.mobile && (
-              <>
-                <TouchableOpacity style={styles.quickContactBtn} onPress={() => callPhone(outlet.mobile)}>
-                  <Ionicons name="call" size={16} color="#fff" />
-                  <Text style={styles.quickContactText}>Call</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.quickContactBtn} onPress={() => openWhatsApp(outlet.mobile)}>
-                  <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-                  <Text style={styles.quickContactText}>WhatsApp</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            {outlet.location?.latitude && outlet.location?.longitude && (
-              <TouchableOpacity
-                style={styles.quickContactBtn}
-                onPress={() => navigateToLocation(outlet.location.latitude, outlet.location.longitude, outlet.name)}
-              >
-                <Ionicons name="navigate" size={16} color="#fff" />
-                <Text style={styles.quickContactText}>Navigate</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          {(outlet.mobile || hasCoords) && (
+            <View style={styles.quickContactRow}>
+              {outlet.mobile && (
+                <>
+                  <ContactButton icon="call" label="Call" onPress={() => callPhone(outlet.mobile)} a11y={`Call ${outlet.name}`} />
+                  <ContactButton icon="logo-whatsapp" label="WhatsApp" onPress={() => openWhatsApp(outlet.mobile)} a11y={`WhatsApp ${outlet.name}`} />
+                </>
+              )}
+              {hasCoords && (
+                <ContactButton
+                  icon="navigate"
+                  label="Navigate"
+                  onPress={() => navigateToLocation(outlet.location.latitude, outlet.location.longitude, outlet.name)}
+                  a11y={`Navigate to ${outlet.name}`}
+                />
+              )}
+            </View>
+          )}
         </View>
 
         <View style={styles.body}>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          {geofenceWarning ? (
-            <View style={styles.warningBanner}>
-              <Ionicons name="warning" size={18} color="#B45309" />
-              <Text style={styles.warningText}>{geofenceWarning}</Text>
-            </View>
-          ) : null}
+          {error ? <Banner tone="danger" message={error} /> : null}
+          {geofenceWarning ? <Banner tone="warning" title="Outside geofence" message={geofenceWarning} /> : null}
 
           {outstanding !== undefined && (
-            <View style={styles.balanceCard}>
-              <Text style={styles.balanceLabel}>Outstanding Balance</Text>
-              <Text style={styles.balanceValue}>{formatCurrency(outstanding)}</Text>
-            </View>
+            <Card style={styles.balanceCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.balanceLabel}>Outstanding Balance</Text>
+                <Text style={styles.balanceValue}>{formatCurrency(outstanding)}</Text>
+              </View>
+              {Number(outstanding) > 0 ? <StatusPill label="Due" tone="warning" /> : <StatusPill label="Clear" tone="success" />}
+            </Card>
           )}
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Visit Status</Text>
+          <Card>
+            <Text style={styles.cardTitle}>Visit</Text>
 
             {status === 'checked_in' ? (
-              <View>
-                <View style={styles.checkedInBanner}>
-                  <Ionicons name="checkmark-circle" size={22} color={colors.success} />
-                  <Text style={styles.checkedInText}>Checked In</Text>
-                </View>
+              <View style={{ gap: spacing.lg }}>
+                <Banner tone="success" message="You're checked in. Book an order or record a payment, then check out." />
                 <View style={styles.actionGrid}>
-                  <TouchableOpacity style={styles.gridButton} onPress={goToOrderBooking}>
-                    <Ionicons name="cart" size={22} color={colors.primary} />
+                  <Pressable
+                    style={({ pressed }) => [styles.gridButton, pressed && { opacity: 0.8 }]}
+                    onPress={goToOrderBooking}
+                    accessibilityRole="button"
+                    accessibilityLabel="Book order"
+                  >
+                    <View style={[styles.gridIcon, { backgroundColor: colors.primary }]}><Ionicons name="cart" size={22} color="#fff" /></View>
                     <Text style={styles.gridButtonText}>Book Order</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.gridButton, { backgroundColor: colors.successLight }]} onPress={() => router.push({ pathname: '/(rep)/collection', params: { outletId: outlet.id } })}>
-                    <Ionicons name="cash" size={22} color={colors.success} />
-                    <Text style={[styles.gridButtonText, { color: colors.success }]}>Payment</Text>
-                  </TouchableOpacity>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.gridButton, { backgroundColor: colors.successLight, borderColor: colors.successBorder }, pressed && { opacity: 0.8 }]}
+                    onPress={() => router.push({ pathname: '/(rep)/collection', params: { outletId: outlet.id } })}
+                    accessibilityRole="button"
+                    accessibilityLabel="Record payment"
+                  >
+                    <View style={[styles.gridIcon, { backgroundColor: colors.success }]}><Ionicons name="cash" size={22} color="#fff" /></View>
+                    <Text style={[styles.gridButtonText, { color: colors.success }]}>Collect Payment</Text>
+                  </Pressable>
                 </View>
                 <Button
                   label="Check Out"
                   onPress={handleCheckOut}
                   loading={busy}
                   variant="danger"
-                  icon={<Ionicons name="exit" size={20} color={colors.danger} />}
+                  icon={<Ionicons name="exit-outline" size={20} color={colors.danger} />}
                 />
               </View>
             ) : (
-              <View>
-                <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
-                  <Ionicons name="camera" size={18} color={colors.text} />
-                  <Text style={styles.photoButtonText}>{photoUri ? 'Retake Shopfront Photo' : 'Take Shopfront Photo'}</Text>
-                </TouchableOpacity>
-                {photoUri && <Image source={{ uri: photoUri }} style={styles.preview} />}
+              <View style={{ gap: spacing.md }}>
+                {!session ? (
+                  <Banner
+                    tone="warning"
+                    message="Start your day before checking into an outlet."
+                    action={{ label: 'Start Day', onPress: () => router.push('/(rep)/attendance') }}
+                  />
+                ) : null}
+                <Text style={styles.stepLabel}>Step 1 · Shopfront photo</Text>
+                {photoUri ? (
+                  <Image source={{ uri: photoUri }} style={styles.preview} accessibilityLabel="Shopfront photo preview" />
+                ) : (
+                  <View style={styles.previewPlaceholder}>
+                    <Ionicons name="image-outline" size={40} color={colors.textMuted} />
+                    <Text style={styles.placeholderText}>Required for check-in</Text>
+                  </View>
+                )}
+                <Button
+                  label={photoUri ? 'Retake Photo' : 'Take Shopfront Photo'}
+                  onPress={handleTakePhoto}
+                  variant={photoUri ? 'ghost' : 'secondary'}
+                  icon={<Ionicons name="camera" size={20} color={photoUri ? colors.text : colors.primary} />}
+                />
+                <Text style={styles.stepLabel}>Step 2 · Check in</Text>
                 <Button
                   label="Check In to Outlet"
                   onPress={handleCheckIn}
                   loading={status === 'checking_in'}
                   disabled={!photoUri}
-                  icon={<Ionicons name="location" size={20} color="#fff" />}
+                  icon={<Ionicons name="location" size={20} color={photoUri ? '#fff' : colors.textMuted} />}
                 />
               </View>
             )}
-          </View>
+          </Card>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function ContactButton({ icon, label, onPress, a11y }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; a11y: string }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.quickContactBtn, pressed && { backgroundColor: 'rgba(255,255,255,0.3)' }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={a11y}
+    >
+      <Ionicons name={icon} size={18} color="#fff" />
+      <Text style={styles.quickContactText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  header: { backgroundColor: colors.primary, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  backText: { color: 'rgba(255,255,255,0.9)', marginLeft: 2 },
-  outletName: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  addressRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  addressText: { color: 'rgba(255,255,255,0.85)', fontSize: 13 },
-  quickContactRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  quickContactBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-  quickContactText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  body: { padding: 20, gap: 16 },
-  error: { backgroundColor: colors.dangerLight, color: colors.danger, padding: 12, borderRadius: 10, fontSize: 13 },
-  warningBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: colors.warningLight, borderWidth: 1, borderColor: '#FDE68A', borderRadius: 12, padding: 14 },
-  warningText: { flex: 1, color: '#92400E', fontSize: 13, fontWeight: '500' },
-  balanceCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border },
-  balanceLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  balanceValue: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 4 },
-  card: { backgroundColor: colors.card, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.border },
-  cardTitle: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 16 },
-  checkedInBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.successLight, padding: 14, borderRadius: 12, marginBottom: 16 },
-  checkedInText: { color: colors.success, fontWeight: '700' },
-  actionGrid: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  gridButton: { flex: 1, backgroundColor: colors.primaryLight, borderRadius: 14, alignItems: 'center', paddingVertical: 18, gap: 6 },
-  gridButtonText: { fontSize: 12, fontWeight: '700', color: colors.primary },
-  checkOutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.dangerLight, borderRadius: 14, paddingVertical: 14 },
-  checkOutText: { color: colors.danger, fontWeight: '700' },
-  photoButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingVertical: 12, marginBottom: 12 },
-  photoButtonText: { fontWeight: '600', color: colors.text },
-  preview: { width: '100%', height: 160, borderRadius: 12, marginBottom: 12 },
-  checkInButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16 },
-  checkInText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  disabled: { opacity: 0.5 },
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xl, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: -spacing.sm, marginBottom: spacing.sm },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.pill },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4ADE80' },
+  liveText: { ...typography.caption, color: '#fff' },
+  outletName: { ...typography.h1, fontSize: 24, lineHeight: 30, color: '#fff' },
+  addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs + 2, marginTop: spacing.sm },
+  addressText: { ...typography.body, color: 'rgba(255,255,255,0.9)', flex: 1 },
+  quickContactRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
+  quickContactBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2, minHeight: touchTarget - 4,
+    backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: spacing.lg, borderRadius: radius.pill,
+  },
+  quickContactText: { ...typography.bodyMedium, fontFamily: typography.h3.fontFamily, color: '#fff' },
+  body: { padding: spacing.lg, gap: spacing.lg },
+  balanceCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  balanceLabel: { ...typography.caption, color: colors.textMuted },
+  balanceValue: { ...typography.h1, color: colors.text, marginTop: spacing.xs },
+  cardTitle: { ...typography.h2, color: colors.text, marginBottom: spacing.lg },
+  actionGrid: { flexDirection: 'row', gap: spacing.md },
+  gridButton: {
+    flex: 1, minHeight: 100, backgroundColor: colors.primaryLight, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.primaryBorder,
+    alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.lg, gap: spacing.sm,
+  },
+  gridIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  gridButtonText: { ...typography.h3, color: colors.primary },
+  stepLabel: { ...typography.caption, fontFamily: typography.h3.fontFamily, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  preview: { width: '100%', height: 200, borderRadius: radius.md, backgroundColor: colors.neutralLight },
+  previewPlaceholder: { height: 140, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.bg },
+  placeholderText: { ...typography.caption, color: colors.textMuted },
 });

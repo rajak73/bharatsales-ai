@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { CollectionsService, FinanceService } from '@bharatsales/api-client';
-import { colors, formatCurrency } from '../../src/lib/theme';
-import { spacing, radius, typography } from '../../src/theme/tokens';
+import { colors, formatCurrency, formatDate } from '../../src/lib/theme';
+import { statusTone } from '../../src/lib/orderStatus';
+import { spacing, typography } from '../../src/theme/tokens';
 import { useIsOnline } from '../../src/hooks/useIsOnline';
-import { ScreenHeader, EmptyState, ErrorState, SkeletonList, StatusPill } from '../../src/components/ui';
+import { ScreenHeader, EmptyState, ErrorState, SkeletonList, StatusPill, ListItem, Chip, ChipRow } from '../../src/components/ui';
 
 type Tab = 'collections' | 'invoices';
 
@@ -15,13 +16,13 @@ export default function PaymentsScreen() {
   const [tab, setTab] = useState<Tab>('collections');
   const isOnline = useIsOnline();
 
-  const { data: collections = [], isLoading: loadingCollections, isError: errorCollections, refetch: refetchCollections } = useQuery({
+  const { data: collections = [], isLoading: loadingCollections, isError: errorCollections, refetch: refetchCollections, isRefetching: refetchingCollections } = useQuery({
     queryKey: ['collections'],
     queryFn: () => CollectionsService.getCollections(),
     enabled: tab === 'collections',
   });
 
-  const { data: invoices = [], isLoading: loadingInvoices, isError: errorInvoices, refetch: refetchInvoices } = useQuery({
+  const { data: invoices = [], isLoading: loadingInvoices, isError: errorInvoices, refetch: refetchInvoices, isRefetching: refetchingInvoices } = useQuery({
     queryKey: ['invoices'],
     queryFn: () => FinanceService.getInvoices(),
     enabled: tab === 'invoices',
@@ -30,19 +31,17 @@ export default function PaymentsScreen() {
   const pendingCollections = (collections as any[]).filter((c) => c.status === 'Pending');
   const clearedCollections = (collections as any[]).filter((c) => c.status !== 'Pending');
 
+  const Separator = () => <View style={{ height: spacing.sm }} />;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenHeader title="Payments" />
 
-      <View style={styles.tabRow}>
-        <TouchableOpacity style={[styles.tab, tab === 'collections' && styles.tabActive]} onPress={() => setTab('collections')}>
-          <Text style={[styles.tabText, tab === 'collections' && styles.tabTextActive]}>Collections</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, tab === 'invoices' && styles.tabActive]} onPress={() => setTab('invoices')}>
-          <Text style={[styles.tabText, tab === 'invoices' && styles.tabTextActive]}>Invoices</Text>
-        </TouchableOpacity>
-      </View>
+      <ChipRow>
+        <Chip label="Collections" icon="wallet-outline" selected={tab === 'collections'} onPress={() => setTab('collections')} />
+        <Chip label="Invoices" icon="document-text-outline" selected={tab === 'invoices'} onPress={() => setTab('invoices')} />
+      </ChipRow>
 
       {tab === 'collections' ? (
         loadingCollections ? (
@@ -54,18 +53,24 @@ export default function PaymentsScreen() {
             contentContainerStyle={styles.list}
             data={[...pendingCollections, ...clearedCollections]}
             keyExtractor={(item: any) => item.id || item._id}
-            ListEmptyComponent={<EmptyState icon="wallet-outline" title="No collections yet" />}
+            refreshControl={<RefreshControl refreshing={refetchingCollections} onRefresh={refetchCollections} colors={[colors.primary]} tintColor={colors.primary} />}
+            ItemSeparatorComponent={Separator}
+            ListEmptyComponent={<EmptyState icon="wallet-outline" title="No collections yet" message="Payments collected by sales reps will appear here." />}
             renderItem={({ item }: any) => (
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>{item.receiptNumber}</Text>
-                  <Text style={styles.rowMeta}>{item.paymentMode} • {new Date(item.collectionDate).toLocaleDateString()}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
-                  <Text style={styles.rowAmount}>{formatCurrency(item.amount)}</Text>
-                  <StatusPill label={item.status} tone={item.status === 'Pending' ? 'warning' : 'success'} />
-                </View>
-              </View>
+              <ListItem
+                icon="cash-outline"
+                iconColor={item.status === 'Pending' ? colors.warning : colors.success}
+                iconBackground={item.status === 'Pending' ? colors.warningLight : colors.successLight}
+                title={item.receiptNumber || 'Receipt'}
+                subtitle={`${item.paymentMode} · ${formatDate(item.collectionDate)}`}
+                accessibilityLabel={`${item.receiptNumber}, ${formatCurrency(item.amount)}, ${item.status}`}
+                trailing={
+                  <View style={styles.trailing}>
+                    <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
+                    <StatusPill label={item.status} tone={statusTone(item.status)} />
+                  </View>
+                }
+              />
             )}
           />
         )
@@ -78,16 +83,26 @@ export default function PaymentsScreen() {
           contentContainerStyle={styles.list}
           data={invoices as any[]}
           keyExtractor={(item: any) => item.id || item._id}
+          refreshControl={<RefreshControl refreshing={refetchingInvoices} onRefresh={refetchInvoices} colors={[colors.primary]} tintColor={colors.primary} />}
+          ItemSeparatorComponent={Separator}
           ListEmptyComponent={<EmptyState icon="document-text-outline" title="No invoices yet" />}
-          renderItem={({ item }: any) => (
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{item.invoiceNumber}</Text>
-                <Text style={styles.rowMeta}>Due: {formatCurrency((item.totalAmount || 0) - (item.paidAmount || 0))}</Text>
-              </View>
-              <Text style={styles.rowAmount}>{formatCurrency(item.totalAmount)}</Text>
-            </View>
-          )}
+          renderItem={({ item }: any) => {
+            const due = (item.totalAmount || 0) - (item.paidAmount || 0);
+            return (
+              <ListItem
+                icon="document-text-outline"
+                title={item.invoiceNumber || 'Invoice'}
+                subtitle={due > 0 ? `Due ${formatCurrency(due)}` : 'Fully paid'}
+                accessibilityLabel={`${item.invoiceNumber}, total ${formatCurrency(item.totalAmount)}, ${due > 0 ? `due ${formatCurrency(due)}` : 'fully paid'}`}
+                trailing={
+                  <View style={styles.trailing}>
+                    <Text style={styles.amount}>{formatCurrency(item.totalAmount)}</Text>
+                    <StatusPill label={due > 0 ? 'Due' : 'Paid'} tone={due > 0 ? 'warning' : 'success'} />
+                  </View>
+                }
+              />
+            );
+          }}
         />
       )}
     </SafeAreaView>
@@ -96,14 +111,7 @@ export default function PaymentsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  tabRow: { flexDirection: 'row', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  tabActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-  tabText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
-  tabTextActive: { color: colors.primary },
-  list: { padding: spacing.lg, paddingTop: spacing.xs, gap: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
-  rowTitle: { ...typography.h3, color: colors.text },
-  rowMeta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  rowAmount: { ...typography.h3, color: colors.text },
+  list: { padding: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xxxl },
+  trailing: { alignItems: 'flex-end', gap: spacing.xs },
+  amount: { ...typography.h3, color: colors.text },
 });

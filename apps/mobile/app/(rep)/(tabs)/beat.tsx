@@ -1,5 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { colors, isToday } from '../../../src/lib/theme';
@@ -8,7 +7,7 @@ import { useCurrentAttendanceSession } from '../../../src/hooks/useAttendance';
 import { useLocalOutlets, useLocalBeatSchedules } from '../../../src/hooks/useLocalData';
 import { useIsOnline } from '../../../src/hooks/useIsOnline';
 import { navigateToLocation } from '../../../src/lib/deepLinks';
-import { ScreenHeader, EmptyState, ErrorState, SkeletonList } from '../../../src/components/ui';
+import { ScreenHeader, EmptyState, ErrorState, SkeletonList, ListItem, IconButton, Banner, Button } from '../../../src/components/ui';
 
 export default function BeatScreen() {
   const { data: session } = useCurrentAttendanceSession();
@@ -30,10 +29,16 @@ export default function BeatScreen() {
 
   const isLoading = l1 || l2;
   const isError = e1 || e2;
+  const beatName = todayBeat?.beat && typeof todayBeat.beat !== 'string' ? (todayBeat.beat as any).name : undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScreenHeader title="Today's Beat" subtitle="Retail shops on today's route" showBack={false} />
+      <ScreenHeader
+        title="Today's Beat"
+        subtitle={session && beatOutlets.length > 0 ? `${beatOutlets.length} outlet${beatOutlets.length === 1 ? '' : 's'}${beatName ? ` · ${beatName}` : ''}` : 'Retail shops on today’s route'}
+        showBack={false}
+        rightAction={{ icon: 'search', accessibilityLabel: 'Browse all outlets', onPress: () => router.push('/(rep)/outlets-list') }}
+      />
 
       {isLoading ? (
         <View style={styles.list}><SkeletonList count={4} /></View>
@@ -44,49 +49,59 @@ export default function BeatScreen() {
           contentContainerStyle={styles.list}
           data={!session ? [] : beatOutlets}
           keyExtractor={(item) => item.id}
-          refreshControl={<RefreshControl refreshing={r1 || r2} onRefresh={onRefresh} />}
-          ListHeaderComponent={
-            <TouchableOpacity style={styles.browseAllButton} onPress={() => router.push('/(rep)/outlets-list')}>
-              <Text style={styles.browseAllText}>Browse All Outlets</Text>
-            </TouchableOpacity>
-          }
+          refreshControl={<RefreshControl refreshing={r1 || r2} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
           ListEmptyComponent={
             !session ? (
-              <View style={styles.warningBanner}>
-                <Ionicons name="alert-circle" size={18} color="#B45309" />
-                <View style={{ flex: 1, marginLeft: spacing.md }}>
-                  <Text style={styles.warningTitle}>You are Off Duty</Text>
-                  <Text style={styles.warningText}>Check in from Home to view your beat and start visiting outlets.</Text>
-                </View>
-              </View>
+              <Banner
+                tone="warning"
+                icon="time-outline"
+                title="You're off duty"
+                message="Start your day to view your beat and start visiting outlets."
+                action={{ label: 'Start Day', onPress: () => router.push('/(rep)/attendance') }}
+              />
             ) : (
-              <EmptyState icon="navigate-outline" title="No beat assigned for today" />
+              <EmptyState
+                icon="navigate-outline"
+                title="No beat assigned for today"
+                message="You can still visit any outlet from the full list."
+                actionLabel="Browse All Outlets"
+                onAction={() => router.push('/(rep)/outlets-list')}
+              />
             )
           }
-          renderItem={({ item }) => (
-            <View style={styles.outletCard}>
-              <View style={styles.outletIcon}>
-                <Ionicons name="storefront" size={20} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.outletName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.outletAddress} numberOfLines={1}>{item.location?.address || 'Unknown'}</Text>
-              </View>
-              {item.location?.latitude && item.location?.longitude && (
-                <TouchableOpacity
-                  style={styles.navigateButton}
-                  onPress={() => navigateToLocation(item.location.latitude, item.location.longitude, item.name)}
-                >
-                  <Ionicons name="navigate" size={16} color={colors.primary} />
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={styles.visitButton}
-                onPress={() => router.push({ pathname: '/(rep)/outlet/[id]', params: { id: item.id } })}
-              >
-                <Text style={styles.visitButtonText}>Visit</Text>
-              </TouchableOpacity>
-            </View>
+          ListFooterComponent={
+            session && beatOutlets.length > 0 ? (
+              <Button
+                label="Browse All Outlets"
+                variant="ghost"
+                onPress={() => router.push('/(rep)/outlets-list')}
+                style={{ marginTop: spacing.lg }}
+              />
+            ) : null
+          }
+          renderItem={({ item, index }) => (
+            <ListItem
+              icon="storefront"
+              title={item.name}
+              subtitle={item.location?.address || 'Address not available'}
+              onPress={() => router.push({ pathname: '/(rep)/outlet/[id]', params: { id: item.id } })}
+              accessibilityLabel={`Stop ${index + 1}, ${item.name}. Opens visit`}
+              trailing={
+                <View style={styles.trailing}>
+                  {item.location?.latitude && item.location?.longitude ? (
+                    <IconButton
+                      icon="navigate"
+                      tone="primary"
+                      size={18}
+                      accessibilityLabel={`Navigate to ${item.name}`}
+                      onPress={() => navigateToLocation(item.location.latitude, item.location.longitude, item.name)}
+                    />
+                  ) : null}
+                  <View style={styles.visitPill}><Text style={styles.visitPillText}>Visit</Text></View>
+                </View>
+              }
+            />
           )}
         />
       )}
@@ -96,17 +111,8 @@ export default function BeatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  list: { padding: spacing.lg, paddingBottom: spacing.huge },
-  browseAllButton: { backgroundColor: colors.primaryLight, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', marginBottom: spacing.md },
-  browseAllText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
-  warningBanner: { flexDirection: 'row', backgroundColor: colors.warningLight, borderWidth: 1, borderColor: '#FDE68A', borderRadius: radius.lg, padding: spacing.lg },
-  warningTitle: { fontWeight: '700', color: '#92400E', marginBottom: 2 },
-  warningText: { color: '#92400E', fontSize: 12 },
-  outletCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  outletIcon: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
-  outletName: { ...typography.h3, color: colors.text },
-  outletAddress: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  navigateButton: { backgroundColor: colors.primaryLight, padding: spacing.sm, borderRadius: radius.md, marginRight: spacing.sm },
-  visitButton: { backgroundColor: colors.primaryLight, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md },
-  visitButtonText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
+  list: { padding: spacing.lg, paddingBottom: spacing.xxxl },
+  trailing: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  visitPill: { backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.pill },
+  visitPillText: { ...typography.caption, fontFamily: typography.h3.fontFamily, color: '#fff' },
 });

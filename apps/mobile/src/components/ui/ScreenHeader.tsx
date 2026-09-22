@@ -1,14 +1,22 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { colors, spacing, typography } from '../../theme/tokens';
+import { colors, spacing, touchTarget, typography } from '../../theme/tokens';
 import { useOrgStore } from '../../store/orgStore';
+import { IconButton } from './IconButton';
 
 interface ScreenHeaderProps {
   title: string;
   subtitle?: string;
   showBack?: boolean;
-  rightAction?: { icon: keyof typeof Ionicons.glyphMap | null; label?: string; onPress: () => void };
+  rightAction?: {
+    icon: keyof typeof Ionicons.glyphMap | null;
+    label?: string;
+    onPress: () => void;
+    accessibilityLabel?: string;
+    badgeCount?: number;
+    disabled?: boolean;
+  };
 }
 
 // Every pushed screen (Reports, Target, Payments, order/[id], delivery/[id],
@@ -16,33 +24,53 @@ interface ScreenHeaderProps {
 // `<View style={header}><TouchableOpacity back /><Text title /></View>`
 // block with its own StyleSheet — this is the single standardized version,
 // using the org's brand color (falling back to the default primary) so
-// every screen visually reflects the logged-in organization.
+// every screen visually reflects the logged-in organization. Both side
+// slots are fixed 48dp touch targets so the title stays centred.
 export function ScreenHeader({ title, subtitle, showBack = true, rightAction }: ScreenHeaderProps) {
   const orgPrimaryColor = useOrgStore((s) => s.primaryColor);
 
+  const goBack = () => {
+    // Deep links / notification taps can open a pushed screen with no
+    // history underneath it — fall back to the role-aware root instead of a
+    // back button that silently does nothing.
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  };
+
   return (
-    <View style={[styles.header, { backgroundColor: orgPrimaryColor || colors.primary }]}>
+    <View style={[styles.header, { backgroundColor: orgPrimaryColor || colors.navy }]}>
       {showBack ? (
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={22} color="#fff" />
-        </TouchableOpacity>
+        <IconButton icon="chevron-back" size={24} tone="onBrand" onPress={goBack} accessibilityLabel="Go back" />
       ) : (
-        <View style={{ width: 22 }} />
+        <View style={styles.side} />
       )}
-      <View style={styles.titleWrap}>
+      <View style={styles.titleWrap} accessibilityRole="header">
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
-        {subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
+        {subtitle ? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text> : null}
       </View>
       {rightAction ? (
-        <TouchableOpacity onPress={rightAction.onPress} hitSlop={12}>
-          {rightAction.icon ? (
-            <Ionicons name={rightAction.icon} size={20} color="#fff" />
-          ) : (
-            <Text style={styles.rightLabel}>{rightAction.label}</Text>
-          )}
-        </TouchableOpacity>
+        rightAction.icon ? (
+          <IconButton
+            icon={rightAction.icon}
+            tone="onBrand"
+            onPress={rightAction.onPress}
+            accessibilityLabel={rightAction.accessibilityLabel || rightAction.label || title}
+            badgeCount={rightAction.badgeCount}
+            disabled={rightAction.disabled}
+          />
+        ) : (
+          <Pressable
+            onPress={rightAction.onPress}
+            disabled={rightAction.disabled}
+            accessibilityRole="button"
+            accessibilityLabel={rightAction.accessibilityLabel || rightAction.label}
+            style={({ pressed }) => [styles.textAction, pressed && { opacity: 0.6 }, rightAction.disabled && { opacity: 0.4 }]}
+          >
+            <Text style={styles.rightLabel} numberOfLines={1}>{rightAction.label}</Text>
+          </Pressable>
+        )
       ) : (
-        <View style={{ width: 22 }} />
+        <View style={styles.side} />
       )}
     </View>
   );
@@ -53,12 +81,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+    minHeight: 56,
   },
-  titleWrap: { flex: 1, alignItems: 'center' },
-  title: { ...typography.h2, color: '#fff' },
-  subtitle: { ...typography.caption, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
-  rightLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '600' },
+  side: { width: touchTarget, height: touchTarget },
+  titleWrap: { flex: 1, alignItems: 'center', paddingHorizontal: spacing.xs },
+  title: { ...typography.h2, fontSize: 17, color: '#fff' },
+  subtitle: { ...typography.caption, color: colors.onNavy, marginTop: 1 },
+  textAction: { minWidth: touchTarget, height: touchTarget, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, maxWidth: 110 },
+  rightLabel: { ...typography.caption, fontFamily: typography.h3.fontFamily, color: '#fff' },
 });

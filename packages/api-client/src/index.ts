@@ -87,7 +87,9 @@ apiClient.interceptors.response.use(
       }
 
       try {
-        const res = await axios.post(`${baseURL}/auth/refresh`, { refreshToken });
+        // Bounded like apiClient itself; a hung refresh would otherwise stall
+        // every queued request behind it indefinitely.
+        const res = await axios.post(`${baseURL}/auth/refresh`, { refreshToken }, { timeout: 30000 });
 
         await storage.setTokens(res.data.access_token, res.data.refresh_token);
 
@@ -96,10 +98,19 @@ apiClient.interceptors.response.use(
 
         processQueue(null, res.data.access_token);
         return apiClient(originalRequest);
-      } catch (err) {
+      } catch (err: any) {
         processQueue(err, null);
-        await storage.clearTokens();
-        storage.onUnauthenticated();
+        // Only a definitive rejection of the refresh token (401/403) means the
+        // session is over. A network error, timeout, cold-starting server or
+        // 5xx says nothing about the token's validity — logging the user out
+        // then would strand them (and their offline queue) just for being in
+        // a dead zone. Keep the tokens and fail only the original request;
+        // the next request will attempt the refresh again.
+        const refreshStatus = err?.response?.status;
+        if (refreshStatus === 401 || refreshStatus === 403) {
+          await storage.clearTokens();
+          storage.onUnauthenticated();
+        }
         return Promise.reject(err);
       } finally {
         isRefreshing = false;
