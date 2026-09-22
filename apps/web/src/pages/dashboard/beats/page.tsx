@@ -27,6 +27,7 @@ import type { Beat, User, Outlet } from '@bharatsales/shared-types';
 import { Target, Plus, MoreHorizontal, Eye, Pencil, Send, UserPlus, Route, FileEdit, CheckCircle2, Store } from 'lucide-react';
 import { useCurrentUser } from '../../../contexts/CurrentUserContext';
 import { ErrorState, getErrorMessage } from '../../../components/common/ErrorState';
+import { localISODate } from '../../../lib/localDate';
 
 function outletId(o: string | { id: string; name: string }): string {
   return typeof o === 'string' ? o : o.id;
@@ -197,7 +198,7 @@ export default function BeatsPage() {
   const openAssignModal = (beat: Beat) => {
     setActionError('');
     setAssigningBeat(beat);
-    setAssignForm({ userId: '', date: new Date().toISOString().slice(0, 10) });
+    setAssignForm({ userId: '', date: localISODate() });
   };
 
   const handleAssign = async () => {

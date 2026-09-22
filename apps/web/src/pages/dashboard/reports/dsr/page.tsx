@@ -17,6 +17,7 @@ import {
 import type { DataTableColumn } from '@bharatsales/ui';
 import { useCurrentUser } from '../../../../contexts/CurrentUserContext';
 import { ErrorState, getErrorMessage } from '../../../../components/common/ErrorState';
+import { localISODate } from '../../../../lib/localDate';
 
 interface RepRow {
   userId: string;
@@ -49,12 +50,12 @@ export default function DSRPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(localISODate());
   // Role comes from the dashboard layout's decoded session, so it is known
   // before the first fetch (no default-then-correct double request).
   const { role } = useCurrentUser();
   const isManager = role === 'Sales Manager';
-  const today = new Date().toISOString().split('T')[0];
+  const today = localISODate();
 
   useEffect(() => {
     // Ignore responses for a date/role that is no longer selected.

@@ -25,7 +25,9 @@ import { ErrorState, getErrorMessage } from '../../../../components/common/Error
 
 type TenantRow = Tenant & { userCount: number };
 
-const usersLimit = (t: TenantRow) => t.subscriptionUsersLimit || 10;
+// 0 means "no limit" (UsersService only enforces a positive limit); a
+// tenant without the field gets the schema default of 10.
+const usersLimit = (t: TenantRow) => t.subscriptionUsersLimit ?? 10;
 
 export default function SubscriptionsPage() {
   const toast = useToast();
@@ -60,7 +62,7 @@ export default function SubscriptionsPage() {
     setForm({
       plan: tenant.plan,
       billingCycle: tenant.billingCycle || 'Annual',
-      subscriptionUsersLimit: tenant.subscriptionUsersLimit || 10
+      subscriptionUsersLimit: tenant.subscriptionUsersLimit ?? 10
     });
   };
 
@@ -96,17 +98,18 @@ export default function SubscriptionsPage() {
     {
       id: 'usage',
       header: 'Users',
-      accessor: (t) => t.userCount / usersLimit(t),
+      accessor: (t) => (usersLimit(t) > 0 ? t.userCount / usersLimit(t) : 0),
       sortable: true,
       cell: (t) => {
         const limit = usersLimit(t);
-        const pct = Math.min(100, (t.userCount / limit) * 100);
-        const over = t.userCount > limit;
+        const unlimited = limit === 0;
+        const pct = unlimited ? 0 : Math.min(100, (t.userCount / limit) * 100);
+        const over = !unlimited && t.userCount > limit;
         return (
           <div className="min-w-[8rem]">
             <div className="flex items-center justify-between gap-2 text-sm tabular-nums">
               <span className={cn(over ? 'font-medium text-danger-700' : 'text-gray-700')}>
-                {formatNumber(t.userCount)} / {formatNumber(limit)}
+                {formatNumber(t.userCount)} / {unlimited ? 'Unlimited' : formatNumber(limit)}
               </span>
               {over && <Badge tone="danger" size="sm">Over limit</Badge>}
             </div>
@@ -181,12 +184,13 @@ export default function SubscriptionsPage() {
             label="User limit"
             type="number"
             inputMode="numeric"
-            min={1}
+            min={0}
+            helperText="0 = unlimited"
             value={form.subscriptionUsersLimit}
             onChange={(e) => setForm({ ...form, subscriptionUsersLimit: Number(e.target.value) })}
             containerClassName="sm:col-span-2"
             error={
-              editingTenant && form.subscriptionUsersLimit < editingTenant.userCount
+              editingTenant && form.subscriptionUsersLimit > 0 && form.subscriptionUsersLimit < editingTenant.userCount
                 ? `Lower than the ${formatNumber(editingTenant.userCount)} users this organization already has`
                 : undefined
             }

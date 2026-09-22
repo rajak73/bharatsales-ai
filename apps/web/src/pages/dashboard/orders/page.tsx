@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { OrdersService, InventoryService } from '@bharatsales/api-client';
+import { OrdersService, InventoryService, OutletsService } from '@bharatsales/api-client';
 import { Order, OrderLineItem, Inventory } from '@bharatsales/shared-types';
 import {
   Alert,
@@ -58,6 +58,28 @@ export default function OrdersPage() {
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  // Outlet id -> name, so the list and drawer show names instead of raw ids.
+  // Optional: if the outlet list can't be loaded the id is shown as before.
+  const [outletNames, setOutletNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    OutletsService.getOutlets()
+      .then((outlets) => {
+        if (cancelled) return;
+        const names: Record<string, string> = {};
+        for (const o of outlets || []) if (o.id) names[String(o.id)] = o.name;
+        setOutletNames(names);
+      })
+      .catch(() => {
+        /* names are optional */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const outletName = useCallback((o: Order) => (o.outletId ? outletNames[String(o.outletId)] || o.outletId : '—'), [outletNames]);
 
   useEffect(() => {
     if (selectedOrder && user?.role === 'Distributor' && selectedOrder.status === 'Submitted') {
@@ -107,8 +129,14 @@ export default function OrdersPage() {
     setActionError('');
     setApproving(true);
     try {
-      await OrdersService.approveOrder(orderId);
-      toast.success(user?.role === 'Distributor' ? 'Order confirmed and stock allocated' : 'Order approved');
+      const result = await OrdersService.approveOrder(orderId);
+      // Approval answers 2xx even when there wasn't enough stock to reserve:
+      // the order is then parked in Hold_Stock instead of Approved.
+      if (result?.status === 'Hold_Stock') {
+        toast.warning('Not enough stock to allocate — the order is on hold until stock is added');
+      } else {
+        toast.success(user?.role === 'Distributor' ? 'Order confirmed and stock allocated' : 'Order approved');
+      }
       await fetchOrders();
     } catch (error: unknown) {
       console.error('Failed to approve order:', error);
@@ -180,9 +208,9 @@ export default function OrdersPage() {
     {
       id: 'outlet',
       header: 'Outlet',
-      accessor: 'outletId',
+      accessor: (o) => outletName(o),
       hideBelow: 'md',
-      cell: (o) => <span className="text-gray-700">{o.outletId || '—'}</span>,
+      cell: (o) => <span className="text-gray-700">{outletName(o)}</span>,
     },
     {
       id: 'total',
@@ -205,7 +233,14 @@ export default function OrdersPage() {
   const showBatchPicker = user?.role === 'Distributor' && selectedOrder?.status === 'Submitted';
   const initialLoad = loading && orders.length === 0;
   const canCancel = !!selectedOrder && ['Draft', 'Submitted'].includes(selectedOrder.status);
-  const canReview = selectedOrder?.status === 'Submitted';
+  // Submitted: first review. Hold_Stock: retry the allocation once stock is
+  // in. Pending_Approval: a manager/admin may sign off the pricing exception
+  // directly (the API refuses this for a Distributor).
+  const canReview =
+    !!selectedOrder &&
+    (selectedOrder.status === 'Submitted' ||
+      selectedOrder.status === 'Hold_Stock' ||
+      (selectedOrder.status === 'Pending_Approval' && user?.role !== 'Distributor'));
 
   const closeDrawer = () => {
     setSelectedOrder(null);
@@ -280,7 +315,7 @@ export default function OrdersPage() {
               <SearchInput
                 value={searchTerm}
                 onValueChange={setSearchTerm}
-                placeholder="Search order no. or outlet ID"
+                placeholder="Search order no. or outlet"
                 aria-label="Search orders"
                 containerClassName="w-full sm:max-w-sm"
               />
@@ -352,7 +387,7 @@ export default function OrdersPage() {
               )}
               {canReview && (
                 <Button leftIcon={<Check />} loading={approving} onClick={() => handleApprove(selectedOrder.id!)}>
-                  {user?.role === 'Distributor' ? 'Confirm & allocate' : 'Approve order'}
+                  {selectedOrder.status === 'Hold_Stock' ? 'Retry allocation' : user?.role === 'Distributor' ? 'Confirm & allocate' : 'Approve order'}
                 </Button>
               )}
             </>
@@ -370,7 +405,7 @@ export default function OrdersPage() {
             <dl className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-surface-muted p-4 text-sm">
               <div className="min-w-0">
                 <dt className="text-foreground-subtle">Outlet</dt>
-                <dd className="mt-0.5 truncate font-medium text-gray-900">{selectedOrder.outletId || '—'}</dd>
+                <dd className="mt-0.5 truncate font-medium text-gray-900">{outletName(selectedOrder)}</dd>
               </div>
               <div className="text-right">
                 <dt className="text-foreground-subtle">Grand total</dt>

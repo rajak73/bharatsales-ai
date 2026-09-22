@@ -57,8 +57,9 @@ export default function SignupPage() {
           }
         >
           <p>
-            <span className="font-medium text-gray-900">{companyName}</span> is waiting for approval from a platform administrator.
-            You can sign in once it&apos;s approved.
+            We&apos;ve sent a verification link to your email address. Open it to verify your email, then{' '}
+            <span className="font-medium text-gray-900">{companyName}</span> needs approval from a platform administrator.
+            You can sign in once both are done.
           </p>
         </ResultState>
       </AuthLayout>

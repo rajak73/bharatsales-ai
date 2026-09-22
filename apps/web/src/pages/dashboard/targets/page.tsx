@@ -28,6 +28,7 @@ import { SalesTarget, User } from '@bharatsales/shared-types';
 import { Plus, Target } from 'lucide-react';
 import { useCurrentUser } from '../../../contexts/CurrentUserContext';
 import { ErrorState, getErrorMessage } from '../../../components/common/ErrorState';
+import { localISODate } from '../../../lib/localDate';
 
 const METRIC_OPTIONS: { label: string; value: 'SalesValue' | 'VisitCount' | 'ProductiveCalls' | 'CollectionValue' }[] = [
   { label: 'Revenue', value: 'SalesValue' },
@@ -36,11 +37,14 @@ const METRIC_OPTIONS: { label: string; value: 'SalesValue' | 'VisitCount' | 'Pro
   { label: 'Collections', value: 'CollectionValue' },
 ];
 
+// Sales targets are set for the field team, not admins, finance or distributors.
+const TARGETABLE_ROLES = ['Sales Representative', 'Sales Manager'];
+
 type PeriodOption = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Annual';
 
 function defaultDateRangeFor(period: PeriodOption): { startDate: string; endDate: string } {
   const now = new Date();
-  const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+  const toISODate = localISODate;
   if (period === 'Daily') {
     return { startDate: toISODate(now), endDate: toISODate(now) };
   }
@@ -365,7 +369,7 @@ export default function TargetsPage() {
           </div>
           <Select id="target-user" label="User" required placeholder="Select user" value={newTarget.user} error={fieldErrors.user}
             onChange={(e) => { setNewTarget({ ...newTarget, user: e.target.value }); setFieldErrors(p => ({ ...p, user: undefined })); }}
-            options={orgUsers.map(u => ({ value: u.id, label: u.name }))} />
+            options={orgUsers.filter(u => TARGETABLE_ROLES.includes(u.role as string)).map(u => ({ value: u.id, label: `${u.name} (${u.role})` }))} />
           <Input id="target-target" label="Target value" required type="number" min={0}
             inputMode={isMoneyMetric(newTarget.metric || undefined) ? 'decimal' : 'numeric'}
             helperText={newTarget.metric ? (isMoneyMetric(newTarget.metric) ? 'Amount in ₹' : 'Count') : undefined}

@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { useCurrentUser } from '../../../contexts/CurrentUserContext';
 import { ErrorState, getErrorMessage } from '../../../components/common/ErrorState';
+import { localISODate } from '../../../lib/localDate';
 
 const ALL_STATUS = 'All Status';
 const STATUS_OPTIONS = [
@@ -118,7 +119,7 @@ export default function TeamPage() {
   const fetchTeamStats = async () => {
     setStatsLoading(true);
     setStatsError('');
-    const today = new Date().toISOString().split('T')[0];
+    const today = localISODate();
     // allSettled: show the stats that loaded, and surface the first failure with a retry.
     const [dsr, targets, beats] = await Promise.allSettled([
       PerformanceService.getTeamDSR(today),
@@ -189,6 +190,7 @@ export default function TeamPage() {
         email: newMember.email,
         role: newMember.role,
         territoryIds: [newMember.territoryId],
+        ...(newMember.mobile.trim() ? { mobile: newMember.mobile.trim() } : {}),
       });
       // The API only returns the token in test runs; normally the invite goes
       // out by email and there is no link to show.

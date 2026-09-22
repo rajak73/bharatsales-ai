@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { InventoryService } from '@bharatsales/api-client';
+import { InventoryService, ProductsService } from '@bharatsales/api-client';
 import { Inventory } from '@bharatsales/shared-types';
 import {
   Alert,
@@ -40,8 +40,11 @@ const displayExpiry = (expiry?: string) => {
   return isNaN(new Date(expiry).getTime()) ? expiry : formatDate(expiry);
 };
 
-const ADJUSTMENT_TYPES = ['Damage', 'Expiry', 'Correction (Positive)', 'Correction (Negative)', 'Transfer In', 'Transfer Out'];
-const EMPTY_ADJUSTMENT = { product: '', batch: '', type: '', quantity: '', reason: '' };
+const ADJUSTMENT_TYPES = ['Purchase', 'Damage', 'Expiry', 'Correction (Positive)', 'Correction (Negative)', 'Transfer In', 'Transfer Out'];
+// Types that can bring a brand-new batch into stock (the API requires an expiry for these).
+const NEW_BATCH_TYPES = ['Purchase', 'Transfer In'];
+const NEW_BATCH = '__new__';
+const EMPTY_ADJUSTMENT = { product: '', batch: '', type: '', quantity: '', reason: '', newBatch: '', expiry: '' };
 
 export default function InventoryPage() {
   const toast = useToast();
@@ -54,6 +57,8 @@ export default function InventoryPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [adjustmentError, setAdjustmentError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  // Whole catalogue, so stock can be received for a product that has no batch yet.
+  const [catalog, setCatalog] = useState<{ id: string; name: string; sku: string }[]>([]);
 
   const fetchInventory = useCallback(async () => {
     try {
@@ -90,37 +95,49 @@ export default function InventoryPage() {
 
   const productOptions = useMemo(() => {
     const seen = new Set<string>();
-    return allInventory
+    const fromStock = allInventory
       .filter((i) => (seen.has(i.productId) ? false : (seen.add(i.productId), true)))
       .map((i) => ({ value: i.productId, label: `${i.productName} (${i.sku})` }));
-  }, [allInventory]);
+    const fromCatalog = catalog
+      .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+      .map((p) => ({ value: p.id, label: `${p.name} (${p.sku})` }));
+    return [...fromStock, ...fromCatalog];
+  }, [allInventory, catalog]);
 
   const batchOptions = useMemo(() => {
     const seen = new Set<string>();
     return allInventory
       .filter((i) => !newAdjustment.product || i.productId === newAdjustment.product)
       .filter((i) => (seen.has(i.batch) ? false : (seen.add(i.batch), true)))
-      .map((i) => ({ value: i.batch, label: i.batch }));
+      .map((i) => ({ value: i.batch, label: i.batch }))
+      .concat([{ value: NEW_BATCH, label: '+ New batch…' }]);
   }, [allInventory, newAdjustment.product]);
 
+  const isNewBatch = newAdjustment.batch === NEW_BATCH;
+  const batchValue = isNewBatch ? newAdjustment.newBatch.trim() : newAdjustment.batch;
+
   const handleAdjustment = async () => {
-    if (newAdjustment.product && newAdjustment.batch && newAdjustment.type && newAdjustment.quantity) {
+    if (canSubmit) {
       setAdjustmentError('');
       setIsSaving(true);
       try {
         await InventoryService.adjustStock({
           productId: newAdjustment.product,
-          batch: newAdjustment.batch,
+          batch: batchValue,
           type: newAdjustment.type,
           quantity: parseInt(newAdjustment.quantity, 10),
           reason: newAdjustment.reason,
+          ...(isNewBatch && newAdjustment.expiry ? { expiry: newAdjustment.expiry } : {}),
         });
 
         // Refresh inventory from server
         const data = await InventoryService.getInventory();
         setAllInventory(data);
 
-        const productName = allInventory.find((i) => i.productId === newAdjustment.product)?.productName ?? newAdjustment.product;
+        const productName =
+          allInventory.find((i) => i.productId === newAdjustment.product)?.productName ??
+          catalog.find((p) => p.id === newAdjustment.product)?.name ??
+          newAdjustment.product;
         toast.success(`Stock adjustment of ${newAdjustment.quantity} units for ${productName} recorded`);
         setShowAdjustmentModal(false);
         setNewAdjustment(EMPTY_ADJUSTMENT);
@@ -135,6 +152,13 @@ export default function InventoryPage() {
 
   const openAdjustment = (preset = EMPTY_ADJUSTMENT) => {
     setAdjustmentError('');
+    if (catalog.length === 0) {
+      ProductsService.getProducts()
+        .then((products) => setCatalog((products || []).filter((p) => p.id).map((p) => ({ id: String(p.id), name: p.name, sku: p.sku }))))
+        .catch(() => {
+          /* catalogue is optional: existing batches can still be adjusted */
+        });
+    }
     setNewAdjustment(preset);
     setShowAdjustmentModal(true);
   };
@@ -143,7 +167,13 @@ export default function InventoryPage() {
   const lowStockCount = allInventory.filter((i) => (i.stock || 0) <= LOW_STOCK_THRESHOLD).length;
   const initialLoad = isLoading && allInventory.length === 0;
   const filtersActive = !!searchTerm || warehouseFilter !== 'All Warehouses';
-  const canSubmit = !!(newAdjustment.product && newAdjustment.batch && newAdjustment.type && newAdjustment.quantity);
+  const canSubmit = !!(
+    newAdjustment.product &&
+    batchValue &&
+    newAdjustment.type &&
+    newAdjustment.quantity &&
+    (!isNewBatch || (NEW_BATCH_TYPES.includes(newAdjustment.type) && newAdjustment.expiry))
+  );
 
   const columns: DataTableColumn<Inventory>[] = [
     {
@@ -241,7 +271,7 @@ export default function InventoryPage() {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => openAdjustment({ product: i.productId, batch: i.batch, type: '', quantity: '', reason: '' })}
+          onClick={() => openAdjustment({ ...EMPTY_ADJUSTMENT, product: i.productId, batch: i.batch })}
           aria-label={`Adjust stock for ${i.productName}, batch ${i.batch}`}
         >
           Adjust
@@ -377,7 +407,7 @@ export default function InventoryPage() {
         onClose={() => setShowAdjustmentModal(false)}
         dismissible={!isSaving}
         title="Stock adjustment"
-        description="Record damage, expiry, corrections or transfers for one batch."
+        description="Receive new stock, or record damage, expiry, corrections or transfers for one batch."
         footer={
           <>
             <Button variant="outline" onClick={() => setShowAdjustmentModal(false)} disabled={isSaving}>
@@ -428,6 +458,29 @@ export default function InventoryPage() {
               onChange={(e) => setNewAdjustment({ ...newAdjustment, type: e.target.value })}
             />
           </div>
+          {isNewBatch && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                label="New batch number"
+                required
+                placeholder="e.g. B-2026-10"
+                value={newAdjustment.newBatch}
+                onChange={(e) => setNewAdjustment({ ...newAdjustment, newBatch: e.target.value })}
+              />
+              <Input
+                label="Expiry date"
+                required
+                type="date"
+                value={newAdjustment.expiry}
+                onChange={(e) => setNewAdjustment({ ...newAdjustment, expiry: e.target.value })}
+                error={
+                  newAdjustment.type && !NEW_BATCH_TYPES.includes(newAdjustment.type)
+                    ? 'A new batch can only be added with Purchase or Transfer In'
+                    : undefined
+                }
+              />
+            </div>
+          )}
           <Input
             label="Quantity"
             required

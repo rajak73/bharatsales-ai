@@ -224,10 +224,12 @@ export function Sidebar({ user, org, collapsed, onToggleCollapsed, mobileOpen, o
         {/* field-pwa itself only ever accepts a 'Sales Representative' login
             (see apps/field-pwa's AuthContext ALLOWED_ROLE) — showing this to
             Sales Managers just sends them to a guaranteed login error. */}
-        {userRole === 'Sales Representative' && (
+        {/* Hidden when no Field PWA URL is configured (e.g. production), so
+            reps aren't sent to a localhost address that can't work. */}
+        {userRole === 'Sales Representative' && !!import.meta.env.VITE_FIELD_PWA_URL && (
           <div className={cn('shrink-0 border-t border-white/10 py-2', rail ? 'px-2' : 'px-2.5')}>
             <a
-              href={import.meta.env.VITE_FIELD_PWA_URL || 'http://localhost:6001'}
+              href={import.meta.env.VITE_FIELD_PWA_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={rail ? 'Open Field PWA (opens in new tab)' : undefined}

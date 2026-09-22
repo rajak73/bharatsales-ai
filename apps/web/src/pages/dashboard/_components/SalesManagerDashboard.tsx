@@ -18,6 +18,7 @@ import {
 } from '@bharatsales/ui';
 import { ErrorState, getErrorMessage } from '../../../components/common/ErrorState';
 import { BreakdownBars, CardSkeleton, ProgressMeter, ViewAllLink, firstName, todayLabel } from './widgets';
+import { localISODate } from '../../../lib/localDate';
 
 export function SalesManagerDashboard({ userName }: { userName: string }) {
   const [beatCompletion, setBeatCompletion] = useState<any>(null);
@@ -29,7 +30,7 @@ export function SalesManagerDashboard({ userName }: { userName: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    const today = new Date().toISOString().split('T')[0];
+    const today = localISODate();
     setLoading(true);
     setLoadError(null);
     // allSettled: show whatever loaded, and surface the first failure with a retry.

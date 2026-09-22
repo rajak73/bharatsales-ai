@@ -53,7 +53,7 @@ export const navGroups: NavGroup[] = [
   {
     title: 'Sales Operations',
     items: [
-      { icon: Target, label: 'Beats', href: '/dashboard/beats', roles: ['Sales Manager'] },
+      { icon: Target, label: 'Beats', href: '/dashboard/beats', roles: ORG_AND_MANAGER },
       { icon: ShoppingCart, label: 'Sales', href: '/dashboard/sales', roles: ['Organization Admin'] },
       { icon: Store, label: 'Outlets', href: '/dashboard/outlets', roles: [...FIELD_EXECUTION, 'Organization Admin'] },
       { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders', roles: FIELD_EXECUTION },
