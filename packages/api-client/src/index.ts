@@ -61,7 +61,12 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // A 401 from a credentials endpoint (wrong password, bad OTP, ...) is an
+    // answer for the form, not an expired session: don't refresh or log out,
+    // or the web app reloads /login and the error message is lost.
+    const isAuthRequest = /\/auth\/(login|register|refresh|forgot-password|reset-password|accept-invitation|verify|otp|sso|mfa|device)/.test(originalRequest?.url || '');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
       if (isRefreshing) {
         return new Promise(function(resolve, reject) {
           failedQueue.push({ resolve, reject });
