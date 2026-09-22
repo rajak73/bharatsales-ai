@@ -1,33 +1,33 @@
-# Build Stage
+# Build Stage — Vite production build of the React SPA
 FROM node:22-alpine AS builder
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN npm i -g pnpm@9.15.9
+
 WORKDIR /app
-RUN npm install -g pnpm turbo
 COPY . .
-RUN turbo prune @bharatsales/web --docker
+RUN pnpm install --frozen-lockfile
 
-FROM node:22-alpine AS installer
-WORKDIR /app
-RUN npm install -g pnpm
-COPY --from=builder /app/out/json/ .
-RUN pnpm install --no-frozen-lockfile
-COPY --from=builder /app/out/full/ .
-COPY tsconfig.json .
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-RUN pnpm turbo run build --filter=@bharatsales/web
+# Vite inlines VITE_* variables at build time.
+ARG VITE_API_URL
+ARG VITE_FIELD_PWA_URL
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_FIELD_PWA_URL=$VITE_FIELD_PWA_URL
+RUN pnpm --filter @bharatsales/web build
 
-# Runner Stage
-FROM node:22-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV production
-
-# Next.js standalone output
-COPY --from=installer /app/apps/web/next.config.js .
-COPY --from=installer /app/apps/web/package.json .
-COPY --from=installer /app/apps/web/public ./apps/web/public
-COPY --from=installer /app/apps/web/.next/standalone ./
-COPY --from=installer /app/apps/web/.next/static ./apps/web/.next/static
+# Runner Stage — static files served by nginx
+FROM nginx:alpine AS runner
+COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+# SPA fallback so client-side routes (/dashboard/...) resolve to index.html;
+# hashed assets are cached long-term, index.html never.
+RUN printf '%s\n' \
+  'server {' \
+  '  listen 3000;' \
+  '  root /usr/share/nginx/html;' \
+  '  index index.html;' \
+  '  location /assets/ { expires 1y; add_header Cache-Control "public, immutable"; try_files $uri =404; }' \
+  '  location / { add_header Cache-Control "no-cache"; try_files $uri $uri/ /index.html; }' \
+  '}' > /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000
-ENV PORT 3000
-CMD ["node", "apps/web/server.js"]
+CMD ["nginx", "-g", "daemon off;"]
