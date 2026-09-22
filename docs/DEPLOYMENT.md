@@ -24,7 +24,7 @@ The project is already live, so this is an in-place upgrade, not a fresh setup:
 |---|---|---|---|
 | Web (Vercel) | https://bharatsales-ai-web.vercel.app | Next.js build calling `https://bharatsales-ai.onrender.com` | React + Vite build (`apps/web/vercel.json`) |
 | API (Render) | https://bharatsales-ai.onrender.com | NestJS | Express, same routes and response shapes |
-| Android APK | GitHub release `v1.0.4-android` (build 5) | talks to the Render API | new build 1.0.5 (6) must be built with EAS on the same Expo project so it installs as an update |
+| Android APK | GitHub release `v1.0.5-android` (build 6) | talks to the Render API | publish new builds with the `Release Android APK` workflow (it checks the signing key) |
 
 Do these **before** merging the migration into `main` (Render and Vercel both auto-deploy `main`; a failed build keeps the previous version live):
 
@@ -191,7 +191,7 @@ gh release create v1.0.5-android ./BharatSales-AI-v1.0.5.apk \
   --notes "versionCode 6. <what changed>"
 ```
 
-Then update the download link in `README.md`. The current published build is [v1.0.4 (build 5)](https://github.com/rajak73/bharatsales-ai/releases/download/v1.0.4-android/BharatSales-AI-v1.0.4.apk).
+Then update the download link in `README.md`. The current published build is [v1.0.5 (build 6)](https://github.com/rajak73/bharatsales-ai/releases/download/v1.0.5-android/BharatSales-AI-v1.0.5.apk).
 
 Android will not install an APK over an existing install with a lower or equal `versionCode`, or one signed with a different key. Always build with the same EAS project and credentials.
 

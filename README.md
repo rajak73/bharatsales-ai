@@ -190,7 +190,7 @@ The full step-by-step guide (Atlas, Render, Vercel, Android and a post-deploy ch
 
 ## Android app
 
-**Download:** [BharatSales-AI-v1.0.4.apk](https://github.com/rajak73/bharatsales-ai/releases/download/v1.0.4-android/BharatSales-AI-v1.0.4.apk) (version 1.0.4, build 5). Open the link on an Android phone and allow "Install unknown apps" when prompted. The APK talks to the production API at `https://bharatsales-ai.onrender.com`.
+**Download:** [BharatSales-AI-v1.0.5.apk](https://github.com/rajak73/bharatsales-ai/releases/download/v1.0.5-android/BharatSales-AI-v1.0.5.apk) (version 1.0.5, build 6). Open the link on an Android phone and allow "Install unknown apps" when prompted. The APK talks to the production API at `https://bharatsales-ai.onrender.com`.
 
 The code in `apps/mobile/app.json` is already at `versionCode` 6, which has not been built or published yet.
 
