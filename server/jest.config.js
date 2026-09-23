@@ -9,7 +9,7 @@ module.exports = {
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@bharatsales/(.*)$': '<rootDir>/../../../packages/$1/src/index.ts',
+    '^@bharatsales/(.*)$': '<rootDir>/../../packages/$1/src/index.ts',
   },
   // In-memory MongoDB replica set for the integration specs (skipped when
   // MONGODB_URI is already set, e.g. in CI with a real Mongo service).
