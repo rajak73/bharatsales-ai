@@ -1,6 +1,6 @@
 # BharatSales UI Guide
 
-How every screen in `apps/web` should look and behave. The components live in
+How every screen in `client` should look and behave. The components live in
 `packages/ui/src` and are imported from `@bharatsales/ui`. The design tokens
 live in `packages/ui/tailwind.config.js`, which is the Tailwind preset for this app.
 

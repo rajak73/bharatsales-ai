@@ -18,14 +18,14 @@ All three talk to a single **Node.js + Express REST API** backed by **MongoDB**.
 
 | Layer | Technology |
 |-------|-----------|
-| Backend API (`apps/api`) | **Node.js 22 + Express 4** + TypeScript, Mongoose 8, Zod validation, JWT auth, node-cron |
+| Backend API (`server`) | **Node.js 22 + Express 4** + TypeScript, Mongoose 8, Zod validation, JWT auth, node-cron |
 | Database | **MongoDB** as a replica set, because orders, dispatch, collections and sync use transactions. Uploaded photos are stored in **GridFS**. |
-| Web dashboard (`apps/web`) | **React 18 + Vite**, react-router 6, Tailwind CSS, Recharts, Leaflet, shared components from `packages/ui` |
+| Web dashboard (`client`) | **React 18 + Vite**, react-router 6, Tailwind CSS, Recharts, Leaflet, shared components from `packages/ui` |
 | Android app (`apps/mobile`) | **Expo** (React Native), expo-router, SQLite offline queue, EAS Build |
 | Field PWA (`apps/field-pwa`) | React 19 + Vite, service worker (vite-plugin-pwa), Dexie (IndexedDB) offline queue |
 | Shared packages | `api-client` (axios HTTP client), `permissions` (RBAC matrix), `shared-types`, `ui` (design system) |
 | Tooling | pnpm 9 workspaces, Turborepo, Jest + Supertest + mongodb-memory-server, Playwright, GitHub Actions |
-| Hosting | Render (API, `render.yaml`), Vercel (web, `apps/web/vercel.json`), MongoDB Atlas |
+| Hosting | Render (API, `render.yaml`), Vercel (web, `client/vercel.json`), MongoDB Atlas |
 
 ## Architecture
 
@@ -72,7 +72,7 @@ bharatsales-ai/
 │   │       ├── uploads/       # photo upload, GridFS / local storage providers
 │   │       ├── schemas/       # Mongoose schemas
 │   │       └── seed*.ts       # seed scripts
-│   ├── web/            # React + Vite dashboard (port 6003), see apps/web/UI_GUIDE.md
+│   ├── web/            # React + Vite dashboard (port 6003), see client/UI_GUIDE.md
 │   ├── mobile/         # Expo app for reps and distributors (Android APK)
 │   └── field-pwa/      # React + Vite offline-first PWA for reps (port 6001)
 ├── packages/
@@ -100,8 +100,8 @@ bharatsales-ai/
 pnpm install
 
 # 2. Environment files (placeholders; edit JWT_SECRET at least)
-cp apps/api/.env.example apps/api/.env          # read by the API at startup (dotenv)
-cp apps/web/.env.example apps/web/.env.local    # VITE_API_URL=http://localhost:6002
+cp server/.env.example server/.env          # read by the API at startup (dotenv)
+cp client/.env.example client/.env.local    # VITE_API_URL=http://localhost:6002
 cp apps/field-pwa/.env.example apps/field-pwa/.env.local
 cp apps/mobile/.env.example apps/mobile/.env    # EXPO_PUBLIC_API_URL (use your LAN IP on a phone)
 
@@ -109,18 +109,18 @@ cp apps/mobile/.env.example apps/mobile/.env    # EXPO_PUBLIC_API_URL (use your 
 docker compose up -d mongo
 
 # 4. Build the shared packages once (permissions, shared-types, api-client)
-pnpm --filter "@bharatsales/api..." --filter "@bharatsales/api-client" build
+pnpm --filter "@bharatsales/server..." --filter "@bharatsales/api-client" build
 
 # 5. Seed demo data. LOCAL ONLY: this deletes the data in the target database.
-#    The seed scripts do not read apps/api/.env; without MONGODB_URI they use
+#    The seed scripts do not read server/.env; without MONGODB_URI they use
 #    mongodb://localhost:27017/bharatsales.
-pnpm --filter @bharatsales/api seed
+pnpm --filter @bharatsales/server seed
 
 # 6. Run everything (API, web, field PWA and the Expo dev server)
 pnpm dev
 #   or one at a time:
-pnpm --filter @bharatsales/api dev         # http://localhost:6002
-pnpm --filter @bharatsales/web dev         # http://localhost:6003
+pnpm --filter @bharatsales/server dev         # http://localhost:6002
+pnpm --filter @bharatsales/client dev         # http://localhost:6003
 pnpm --filter @bharatsales/field-pwa dev   # http://localhost:6001
 pnpm --filter @bharatsales/mobile dev      # Expo (scan the QR code with Expo Go / a dev build)
 ```
@@ -136,7 +136,7 @@ To run MongoDB, the API and the web build all in Docker, use `docker compose up 
 
 ### Demo accounts (LOCAL SEED ONLY, never production)
 
-`pnpm --filter @bharatsales/api seed` deletes the data in the target database and creates demo organisations with one user per role. All of them share the password `password123`, which the script prints at the end.
+`pnpm --filter @bharatsales/server seed` deletes the data in the target database and creates demo organisations with one user per role. All of them share the password `password123`, which the script prints at the end.
 
 | Email | Role (as seeded) |
 |-------|------|
@@ -160,13 +160,13 @@ pnpm lint
 pnpm test              # API Jest + Supertest specs, mobile Jest (sync queue / retry policy)
 pnpm build
 
-pnpm --filter @bharatsales/api test   # API only (jest --runInBand)
+pnpm --filter @bharatsales/server test   # API only (jest --runInBand)
 npx playwright test                   # E2E: starts API, web and PWA dev servers (needs seeded MongoDB)
 ```
 
-The API specs need no running database. Jest's `globalSetup` (`apps/api/src/test/global-setup.ts`) starts an in-memory single-member **replica set with mongodb-memory-server**, so transactions work. If `MONGODB_URI` is already set in the environment, that server is used instead, as CI does. The first run downloads a `mongod` binary.
+The API specs need no running database. Jest's `globalSetup` (`server/src/test/global-setup.ts`) starts an in-memory single-member **replica set with mongodb-memory-server**, so transactions work. If `MONGODB_URI` is already set in the environment, that server is used instead, as CI does. The first run downloads a `mongod` binary.
 
-CI (`.github/workflows/ci.yml`) runs on every push and pull request to `main`. It starts a MongoDB 7 replica set, then runs type-check, lint, the seed script (as a smoke test), tests and build for every workspace, plus a separate Vite build of `apps/web`. CodeQL (`security-extended`) and Dependabot are configured in `.github/`.
+CI (`.github/workflows/ci.yml`) runs on every push and pull request to `main`. It starts a MongoDB 7 replica set, then runs type-check, lint, the seed script (as a smoke test), tests and build for every workspace, plus a separate Vite build of `client`. CodeQL (`security-extended`) and Dependabot are configured in `.github/`.
 
 ---
 
@@ -175,7 +175,7 @@ CI (`.github/workflows/ci.yml`) runs on every push and pull request to `main`. I
 | Part | Where | Config |
 |------|-------|--------|
 | API | Render web service `bharatsales-ai` (https://bharatsales-ai.onrender.com) | `render.yaml` Blueprint |
-| Web dashboard | Vercel, Root Directory `apps/web`, framework Vite | `apps/web/vercel.json` |
+| Web dashboard | Vercel, Root Directory `client`, framework Vite | `client/vercel.json` |
 | Field PWA (optional) | Vercel, Root Directory `apps/field-pwa` | `apps/field-pwa/vercel.json` |
 | Database + photos | MongoDB Atlas (replica set, GridFS) | `MONGODB_URI` |
 | Android app | EAS Build → APK attached to a GitHub release | `apps/mobile/eas.json`, `app.json` |
@@ -237,7 +237,7 @@ A MongoDB connection string was once committed to this repository's git history.
 - [Business rules](docs/BUSINESS_RULES.md) · [Permission matrix](docs/PERMISSION_MATRIX.md)
 - [Offline sync](docs/OFFLINE_SYNC.md) · [Security](docs/SECURITY.md)
 - [Deployment](docs/DEPLOYMENT.md) · [Runbook](docs/RUNBOOK.md) · [Known limitations](docs/KNOWN_LIMITATIONS.md)
-- [UI guide (design system)](apps/web/UI_GUIDE.md) · [Changelog](CHANGELOG.md)
+- [UI guide (design system)](client/UI_GUIDE.md) · [Changelog](CHANGELOG.md)
 - Older reports and audits: [docs/archive/](docs/archive/)
 
 ## License

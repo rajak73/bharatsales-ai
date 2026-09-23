@@ -2,8 +2,8 @@ import { apiClient } from '../index';
 import type { Invoice } from '@bharatsales/shared-types';
 
 // Collection/payment operations live in CollectionsService — the org/role-scoped
-// implementation (see apps/api/src/collections). This module only covers the
-// invoice/ledger endpoints that are genuinely distinct (apps/api/src/finance).
+// implementation (see server/src/collections). This module only covers the
+// invoice/ledger endpoints that are genuinely distinct (server/src/finance).
 export class FinanceService {
   static async getInvoices(): Promise<Invoice[]> {
     const response = await apiClient.get<Invoice[]>('/api/v1/finance/invoices');

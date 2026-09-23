@@ -1,8 +1,8 @@
 # Render Blueprint for the BharatSales API (Node.js + Express + MongoDB).
 # https://render.com/docs/blueprint-spec
 #
-# The web dashboard (apps/web, React + Vite) is deployed on Vercel, see
-# apps/web/vercel.json. The Android APK and the field PWA call this service at
+# The web dashboard (client, React + Vite) is deployed on Vercel, see
+# client/vercel.json. The Android APK and the field PWA call this service at
 # https://bharatsales-ai.onrender.com, so keep the service name / URL stable.
 #
 # Secrets are `sync: false`: Render asks for them when the Blueprint is first
@@ -17,9 +17,9 @@ services:
     # Repo root: the build needs the whole pnpm workspace.
     # --prod=false: NODE_ENV=production is also set at build time, and pnpm
     # would otherwise skip the devDependencies (TypeScript) the build needs.
-    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @bharatsales/api... build
-    # tsc -p apps/api/tsconfig.build.json: rootDir src -> outDir dist.
-    startCommand: node apps/api/dist/main.js
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @bharatsales/server... build
+    # tsc -p server/tsconfig.build.json: rootDir src -> outDir dist.
+    startCommand: node server/dist/main.js
     healthCheckPath: /health
     autoDeploy: true
     envVars:

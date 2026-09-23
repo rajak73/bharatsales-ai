@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Must match the canonical 5 roles used throughout the app: the RBAC matrix
 // (packages/permissions/src/index.ts), Sidebar.tsx nav filtering, and every
-// role-branching check in apps/api and apps/web. A user record with any
+// role-branching check in server and client. A user record with any
 // other role value is invisible to nav/permissions/dashboards.
 export const UserRoleSchema = z.enum([
   'Super Admin',

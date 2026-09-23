@@ -18,7 +18,7 @@
 ## 3. Module Verification Findings
 
 ### Module 4: Attendance & Leave Management
-- **Check-in Security**: Checked via `apps/api/src/visits/visits.service.ts` logic. The system validates geofencing parameters correctly (radius < 50m). Time-drift verification logic is successfully in place.
+- **Check-in Security**: Checked via `server/src/visits/visits.service.ts` logic. The system validates geofencing parameters correctly (radius < 50m). Time-drift verification logic is successfully in place.
 
 ### Module 10: Real-Time Tracking & Live Map
 - **Session Protection**: Verified the API strictly requires `isActive: true` on an attendance session to allow tracking payload submissions.

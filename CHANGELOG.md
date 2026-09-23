@@ -6,7 +6,7 @@ Branch `migrate/express-react`, compared with `main` (c2abc0e). `git diff --stat
 
 The project was moved to the required stack: **Node.js + Express** backend, **React.js** frontend, **MongoDB** database. The HTTP API contract (paths and response shapes) was kept compatible, so the Android APKs already installed keep working.
 
-### Backend: NestJS → plain Express (`apps/api`)
+### Backend: NestJS → plain Express (`server`)
 - Removed NestJS and every `@nestjs/*` package (core, mongoose, jwt, schedule, terminus, throttler, swagger with `/api/docs`, bull), along with Bull/Redis and the `openai` dependency.
 - Added one Express router per domain (`src/<domain>/<domain>.routes.ts`), explicit dependency wiring (`container.ts`, `models.ts`), `app.ts` for middleware and mounting, and `main.ts` for boot and graceful shutdown. The services and Mongoose schemas were kept.
 - Added `core/` middleware: `authenticate`, `requirePermission`, `requireRoles`, `requirePlatformAdmin`, Zod `validateBody` / `validateQuery`, a central error handler (`{ statusCode, message, error }`), an audit middleware and rate limiters.
@@ -30,14 +30,14 @@ The project was moved to the required stack: **Node.js + Express** backend, **Re
 - Mock SSO is available only with `MOCK_SSO_ENABLED=true` outside production. The seed scripts refuse `NODE_ENV=production` without `ALLOW_PROD_SEED=true`.
 - CodeQL (`security-extended`) and Dependabot were added.
 
-### Web: Next.js → React 18 + Vite (`apps/web`)
+### Web: Next.js → React 18 + Vite (`client`)
 - Replaced the Next.js App Router (`src/app/**`) with a Vite SPA: react-router 6 and `React.lazy` pages under `src/pages/**`, a `RequireRole` route guard and `CurrentUserContext`.
 - `NEXT_PUBLIC_*` variables were replaced by `VITE_API_URL`, `VITE_FIELD_PWA_URL`, `VITE_WHATSAPP_NUMBER` and `VITE_CONTACT_EMAIL`.
-- Deployed on Vercel with framework Vite (`apps/web/vercel.json`), with an SPA rewrite to `index.html`.
+- Deployed on Vercel with framework Vite (`client/vercel.json`), with an SPA rewrite to `index.html`.
 
 ### Design system and theme (`packages/ui`)
 - New shared design tokens and components (button, card, input and more) in `packages/ui`, with `packages/ui/tailwind.config.js` as the Tailwind preset.
-- "Navy + Saffron" theme: navy `#0B1F44` for the frame, blue `#1B4FD8` for primary actions, and saffron `#FF8A1F` for one accent CTA per view. The dense dashboard layout is documented in `apps/web/UI_GUIDE.md`. The mobile app mirrors the palette in `apps/mobile/src/theme/tokens.ts`.
+- "Navy + Saffron" theme: navy `#0B1F44` for the frame, blue `#1B4FD8` for primary actions, and saffron `#FF8A1F` for one accent CTA per view. The dense dashboard layout is documented in `client/UI_GUIDE.md`. The mobile app mirrors the palette in `apps/mobile/src/theme/tokens.ts`.
 
 ### Mobile (`apps/mobile`, Expo) and field PWA sync fixes
 - The offline queue now has an `attempts` / `nextAttemptAt` schedule with exponential backoff (5 s doubling, capped at 30 min, at most 8 attempts). Errors are classified as transient (network, 5xx, 408, 429: retried) or permanent (other 4xx: marked failed and shown with Retry / Discard).

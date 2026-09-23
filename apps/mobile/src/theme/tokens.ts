@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 // file now just re-exports this one) plus a few additions needed for
 // skeleton loaders and modal overlays.
 export const colors = {
-  // "Navy + Saffron" theme (shared with apps/web + apps/field-pwa).
+  // "Navy + Saffron" theme (shared with client + apps/field-pwa).
   primary: '#1B4FD8',
   primaryDark: '#163FAE',
   primaryLight: '#DFE8FF',

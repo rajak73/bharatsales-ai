@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "description": "BharatSales AI - Field Sales Automation & Distributor Management SaaS",
   "workspaces": [
+    "client",
+    "server",
     "apps/*",
     "packages/*"
   ],

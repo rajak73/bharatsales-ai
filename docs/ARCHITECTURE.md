@@ -20,15 +20,15 @@ BharatSales AI is a multi-tenant SaaS platform for Indian FMCG, pharma and distr
 
 | Part | Stack |
 |------|-------|
-| API (`apps/api`) | Node.js 22, Express 4, TypeScript, Mongoose 8, Zod, jsonwebtoken, bcryptjs, helmet, express-rate-limit, multer, node-cron |
+| API (`server`) | Node.js 22, Express 4, TypeScript, Mongoose 8, Zod, jsonwebtoken, bcryptjs, helmet, express-rate-limit, multer, node-cron |
 | Database | MongoDB replica set (transactions), GridFS for photos |
-| Web dashboard (`apps/web`) | React 18, Vite, react-router 6, Tailwind, Recharts, Leaflet; shared components from `packages/ui` (see `apps/web/UI_GUIDE.md`) |
+| Web dashboard (`client`) | React 18, Vite, react-router 6, Tailwind, Recharts, Leaflet; shared components from `packages/ui` (see `client/UI_GUIDE.md`) |
 | Field PWA (`apps/field-pwa`) | React 19, Vite, service worker (vite-plugin-pwa, injectManifest), Dexie (IndexedDB) offline queue. Capacitor is configured, but no native project is checked in. |
 | Mobile (`apps/mobile`) | Expo / React Native, expo-router, SecureStore for tokens, expo-sqlite offline queue, EAS Build |
 | Shared packages | `api-client` (typed HTTP client), `permissions` (RBAC matrix), `shared-types`, `ui` |
 | Tooling | pnpm workspaces, Turborepo, Jest + Supertest + mongodb-memory-server, Playwright, GitHub Actions |
 
-## API (`apps/api/src`)
+## API (`server/src`)
 
 The API is a plain Express application. There is no framework DI or decorators: wiring is explicit TypeScript.
 
@@ -104,13 +104,13 @@ Order creation, dispatch, collections and offline sync pushes run inside MongoDB
 ### Real-time and uploads
 - `GET /live-map/reps` returns the current rep positions. The web live map **polls it every 5 seconds**, skipping ticks while the tab is hidden, because a browser `EventSource` cannot send the Bearer token. `GET /live-map/stream` (Server-Sent Events, never compressed) exists, but no client uses it today.
 - `POST /uploads/visit-photo` (authenticated, `Visits:Create`) accepts one image of up to 5 MB. The type is detected from the file's bytes (JPEG / PNG / WebP). The image is stored through the storage provider under a server-generated 128-bit random name, and the route returns `{ url: "/uploads/<name>" }`.
-- `GET /uploads/<name>` is public, so `<img>` tags work without headers. The random name acts as the capability. It streams from GridFS first, then falls back to legacy files on the local disk (`apps/api/uploads`, read-only), with `nosniff` and a sandboxing CSP header.
+- `GET /uploads/<name>` is public, so `<img>` tags work without headers. The random name acts as the capability. It streams from GridFS first, then falls back to legacy files on the local disk (`server/uploads`, read-only), with `nosniff` and a sandboxing CSP header.
 - Storage is chosen by `STORAGE_DRIVER`: `gridfs` (default) is bucket `uploads` in the same MongoDB database; `local` is the disk, for development only.
 
 ## Clients
 
 - **`packages/api-client`** is the single HTTP client for all three apps: axios with a 60-second timeout, a Bearer token and a queued refresh-token retry on 401. Its base URL comes from `EXPO_PUBLIC_API_URL` (mobile) or `VITE_API_URL` (web / PWA), falling back to `http://127.0.0.1:6002`. It still checks a leftover `NEXT_PUBLIC_API_URL` first, which no app sets.
-- **Web** (`apps/web/src`): `App.tsx` declares react-router routes with `React.lazy` pages under `pages/`. `components/layout` holds the dashboard shell, `components/routing` the role guard (`RequireRole`) and page loader, and `contexts/CurrentUserContext` the session. The UI comes from `packages/ui` (tokens in `packages/ui/tailwind.config.js`, rules in `apps/web/UI_GUIDE.md`).
+- **Web** (`client/src`): `App.tsx` declares react-router routes with `React.lazy` pages under `pages/`. `components/layout` holds the dashboard shell, `components/routing` the role guard (`RequireRole`) and page loader, and `contexts/CurrentUserContext` the session. The UI comes from `packages/ui` (tokens in `packages/ui/tailwind.config.js`, rules in `client/UI_GUIDE.md`).
 - **Field PWA** (`apps/field-pwa/src`): screens for the rep's day; `database/` (Dexie) holds the offline queue; `sync/` pushes queued orders / visits with idempotency keys and retries with backoff.
 - **Mobile** (`apps/mobile`): expo-router route groups `(rep)` and `(distributor)`. `src/db` (SQLite) holds the offline queue, stamped with the owning user. `src/sync` replays it with exponential backoff and classifies errors as transient or permanent (see [OFFLINE_SYNC.md](OFFLINE_SYNC.md)). Tokens live in SecureStore. Theme tokens (`src/theme/tokens.ts`) mirror the web design system (navy `#0B1F44`, blue `#1B4FD8`, saffron `#FF8A1F`).
 

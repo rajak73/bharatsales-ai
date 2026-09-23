@@ -48,13 +48,13 @@ Uploaded photos are stored in MongoDB GridFS (`uploads.files` / `uploads.chunks`
 ### Create the first production admin
 ```bash
 # From a machine with the production MONGODB_URI; never run the demo seed on production.
-cd apps/api
+cd server
 NODE_ENV=production ALLOW_PROD_SEED=true MONGODB_URI="<atlas-uri>" \
   PLATFORM_ADMIN_EMAIL="<email>" PLATFORM_ADMIN_PASSWORD="<strong password>" \
   pnpm run seed:platform-admin
 ```
 
-The seed scripts do not read `apps/api/.env`. They print the connection URI, password included, so run them in a private terminal. Full notes: [DEPLOYMENT.md, step 6](DEPLOYMENT.md#6-create-the-first-platform-admin).
+The seed scripts do not read `server/.env`. They print the connection URI, password included, so run them in a private terminal. Full notes: [DEPLOYMENT.md, step 6](DEPLOYMENT.md#6-create-the-first-platform-admin).
 
 ## Troubleshooting
 

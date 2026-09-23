@@ -1,6 +1,6 @@
 # BharatSales AI: Permission Matrix
 
-The single source of truth is `packages/permissions/src/index.ts` (`PermissionsByRole` and `RBAC.can(role, action, resource)`). The API enforces it with `requirePermission(Resource, Action)` in `apps/api/src/core/auth.middleware.ts`, The web dashboard gates pages by role (`RequireRole` in `apps/web/src/components/routing`), and the mobile app splits its screens into `(rep)` and `(distributor)` route groups. The table below is generated from that file. If the two ever differ, the code wins.
+The single source of truth is `packages/permissions/src/index.ts` (`PermissionsByRole` and `RBAC.can(role, action, resource)`). The API enforces it with `requirePermission(Resource, Action)` in `server/src/core/auth.middleware.ts`, The web dashboard gates pages by role (`RequireRole` in `client/src/components/routing`), and the mobile app splits its screens into `(rep)` and `(distributor)` route groups. The table below is generated from that file. If the two ever differ, the code wins.
 
 ## Roles
 
@@ -50,7 +50,7 @@ R = read, C = create, U = update, D = delete, A = approve, E = export, · = no a
 The matrix only answers "may this role do this action on this resource at all". The services then narrow the data:
 
 - **Tenant:** every query is filtered by `organizationId` from the verified JWT. Ids from the client are ignored.
-- **Hierarchy:** Sales Managers see only their own subtree (`apps/api/src/hierarchy/team-scope.ts`).
+- **Hierarchy:** Sales Managers see only their own subtree (`server/src/hierarchy/team-scope.ts`).
 - **Own records:** a Sales Representative sees only the orders they created (`createdByUserId`). For other roles, `GET /orders?mine=true` narrows the list to the caller's own orders.
 - **Distributor:** Distributor users see only data for their `distributorId`.
 - **Validation:** request bodies are Zod-validated and unknown keys stripped, so fields such as `role`, `platformAdmin`, `status` or balances cannot be set unless a route explicitly accepts them.

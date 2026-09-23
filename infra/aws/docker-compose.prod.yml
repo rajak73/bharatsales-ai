@@ -34,11 +34,11 @@ services:
       start_period: 10s
     restart: always
 
-  api:
+  server:
     build:
       context: ../../
-      dockerfile: apps/api/Dockerfile
-    container_name: bharatsales-api-prod
+      dockerfile: server/Dockerfile
+    container_name: bharatsales-server-prod
     ports:
       - "127.0.0.1:6002:6002"
     environment:
@@ -62,21 +62,21 @@ services:
         condition: service_healthy
     restart: always
 
-  web:
+  client:
     build:
       context: ../../
-      dockerfile: apps/web/Dockerfile
+      dockerfile: client/Dockerfile
       args:
         # Vite inlines VITE_* at build time; the nginx image has no runtime env.
         VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required}
         VITE_FIELD_PWA_URL: ${VITE_FIELD_PWA_URL:-}
-    container_name: bharatsales-web-prod
+    container_name: bharatsales-client-prod
     ports:
       # Static React (Vite) build served by nginx inside the container on 3000;
       # the host nginx proxies admin.yourdomain.com to 127.0.0.1:6003.
       - "127.0.0.1:6003:3000"
     depends_on:
-      - api
+      - server
     restart: always
 
 volumes:

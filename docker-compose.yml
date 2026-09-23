@@ -20,11 +20,11 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  api:
+  server:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
-    container_name: bharatsales-api
+      dockerfile: server/Dockerfile
+    container_name: bharatsales-server
     ports:
       - "6002:6002"
     environment:
@@ -42,19 +42,19 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  web:
+  client:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: client/Dockerfile
       args:
         # Vite inlines VITE_* at build time; the nginx image has no runtime env.
         VITE_API_URL: ${VITE_API_URL:-http://localhost:6002}
         VITE_FIELD_PWA_URL: ${VITE_FIELD_PWA_URL:-http://localhost:6001}
-    container_name: bharatsales-web
+    container_name: bharatsales-client
     ports:
       - "6003:3000"
     depends_on:
-      - api
+      - server
     restart: unless-stopped
 
 volumes:

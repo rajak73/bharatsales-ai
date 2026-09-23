@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /*
- * "Navy + Saffron" theme — the same palette as apps/web and apps/mobile.
+ * "Navy + Saffron" theme — the same palette as client and apps/mobile.
  * Colour utilities (primary-*, navy-*, saffron-*, background, border…) come
  * from the shared @bharatsales/ui Tailwind preset; these variables mirror
  * them for any plain-CSS use.

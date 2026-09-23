@@ -36,7 +36,7 @@ done
 echo "=== Playwright 3x ==="
 for i in 1 2 3; do
   echo "Seeding database for Playwright run $i..."
-  pnpm --filter @bharatsales/api exec ts-node src/seed.ts
+  pnpm --filter @bharatsales/server exec ts-node src/seed.ts
   echo "Playwright run $i..."
   pnpm exec playwright test > "playwright_run_$i.log" 2>&1
   echo "Playwright run $i code: $?"

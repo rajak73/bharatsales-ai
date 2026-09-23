@@ -4,7 +4,7 @@ import { buttonClassName, cn, formatINR } from '@bharatsales/ui';
 
 /**
  * Public plan catalogue shown on /pricing. Names, monthly prices and user
- * limits mirror the platform's own plan config (apps/api superadmin
+ * limits mirror the platform's own plan config (server superadmin
  * PLAN_PRICES and platform-settings defaultPlanUserLimits); keep them in sync.
  * Every plan has the same modules; plans differ only by user limit.
  */

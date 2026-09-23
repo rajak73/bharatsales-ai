@@ -25,13 +25,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'cd apps/api && pnpm run dev',
+      command: 'cd server && pnpm run dev',
       url: 'http://localhost:6002/health',
       reuseExistingServer: true,
       timeout: 120 * 1000,
     },
     {
-      command: 'cd apps/web && pnpm run dev',
+      command: 'cd client && pnpm run dev',
       url: 'http://localhost:6003',
       reuseExistingServer: true,
       timeout: 120 * 1000,

@@ -6,7 +6,7 @@
  *   saffron-500 #FF8A1F accent CTA (one per view), 2nd chart series
  *   background #F4F6FB page · white cards · border #E3E8F2
  *
- * Consumed by apps/web via `presets: [require('@bharatsales/ui/tailwind.config')]`.
+ * Consumed by client via `presets: [require('@bharatsales/ui/tailwind.config')]`.
  * Every colour key that existed before (primary, saffron, background,
  * foreground, card, border) is kept so existing class names keep working.
  *

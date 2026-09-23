@@ -4,8 +4,8 @@ This document serves as the master memory and context for AI agents working on t
 **If you are an AI assistant starting a new session on this repository, READ THIS ENTIRE DOCUMENT FIRST.**
 
 ## Architecture Overview
-- **Backend:** NestJS API (`apps/api`)
-- **Frontend / Admin UI:** Next.js App Router (`apps/web`)
+- **Backend:** NestJS API (`server`)
+- **Frontend / Admin UI:** Next.js App Router (`client`)
 - **Frontend / Field App:** React PWA (`apps/field-pwa`)
 - **Database:** MongoDB (accessed via Mongoose inside NestJS)
 - **Monorepo Management:** Turborepo (`turbo`) and `pnpm` workspaces
@@ -29,15 +29,15 @@ The system has been heavily audited and hardened against the "Master BRD".
 3. **Attendance & State Machine (Phase 3):**
    - Geofencing logic verified.
    - `Start Day` -> `Check In` -> `Check Out` -> `End Day` strictly enforced.
-   - Integration tests: `apps/api/src/attendance/attendance.integration.spec.ts`
+   - Integration tests: `server/src/attendance/attendance.integration.spec.ts`
 
 4. **Dispatch & Third-Party Integration (Phase 4-5):**
    - Atomic transactions (`mongoose.startSession`) used for capturing POD and automatically generating Invoices.
    - WhatsApp & Tally ERP simulator adapters are wired in.
 
 5. **End-to-End Verification (Phase 7):**
-   - A critical CORS bug in `apps/api/src/main.ts` was patched (allowing `http://localhost:6003`).
-   - The path for auth was standardized to `@Controller('auth')` in `apps/api/src/auth/auth.controller.ts`.
+   - A critical CORS bug in `server/src/main.ts` was patched (allowing `http://localhost:6003`).
+   - The path for auth was standardized to `@Controller('auth')` in `server/src/auth/auth.controller.ts`.
    - Playwright suites (`npx playwright test e2e/roles.spec.ts` and `e2e/attendance.spec.ts`) now **pass 100%**, verifying UI -> API -> Database flow.
 
 ## Demo Users (Seed Data)
@@ -51,8 +51,8 @@ Demo logins (local seed only):
 
 ## How to Run & Test
 1. **Start infrastructure:** `docker-compose up -d` (starts MongoDB & Redis)
-2. **Start API:** `cd apps/api && pnpm run dev` (Runs on `http://localhost:6002`)
-3. **Start Web:** `cd apps/web && pnpm run dev` (Runs on `http://localhost:6003`)
+2. **Start API:** `cd server && pnpm run dev` (Runs on `http://localhost:6002`)
+3. **Start Web:** `cd client && pnpm run dev` (Runs on `http://localhost:6003`)
 4. **Run E2E Tests:** `npx playwright test e2e/roles.spec.ts` or `npx playwright test e2e/attendance.spec.ts`
 
 ## Where to Pick Up Next

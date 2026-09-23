@@ -45,7 +45,7 @@ export type Role =
 
 const PermissionsByRole: Record<Role, Partial<Record<Resource, Action[]>>> = {
   // Super Admin manages the platform, not tenant-scoped operational data —
-  // their own endpoints (apps/api/src/superadmin) are gated separately by
+  // their own endpoints (server/src/superadmin) are gated separately by
   // the platformAdmin flag, not this matrix. Only grant what a platform
   // operator legitimately needs across every org context: their own
   // notification inbox. Everything else (Orders, Analytics, Reports,

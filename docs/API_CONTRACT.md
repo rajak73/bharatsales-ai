@@ -1,6 +1,6 @@
 # BharatSales AI: API Contract
 
-This is the REST API served by `apps/api` (Node.js + Express). The route list below is generated from the `router.<method>('<path>')` calls in `apps/api/src/**/*.routes.ts` and the mount paths in `apps/api/src/app.ts`. When they disagree, the code wins.
+This is the REST API served by `server` (Node.js + Express). The route list below is generated from the `router.<method>('<path>')` calls in `server/src/**/*.routes.ts` and the mount paths in `server/src/app.ts`. When they disagree, the code wins.
 
 ## Base URL
 

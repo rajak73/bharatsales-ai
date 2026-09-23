@@ -11,10 +11,10 @@ coverage
 
 # Local databases and runtime data
 data/
-apps/api/uploads/
+server/uploads/
 
 # Generated build/test files
 *.tsbuildinfo
 playwright-report/
 test-results/
-apps/web/test-results/
+client/test-results/

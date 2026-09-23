@@ -74,7 +74,7 @@ The platform is built as a highly scalable **Turborepo Monorepo** utilizing `pnp
 - [x] **CI/CD Pipeline**: `.github/workflows/deploy.yml` — runs lint, type-check, tests, and build on every push to `main`.
 - [x] **Security Headers**: `helmet` middleware active.
 - [x] **Audit Logging**: `AuditInterceptor` applied globally for all mutations.
-- [x] **TypeScript Build**: `pnpm --filter @bharatsales/api build` passes with zero errors.
+- [x] **TypeScript Build**: `pnpm --filter @bharatsales/server build` passes with zero errors.
 
 ---
 
@@ -112,13 +112,13 @@ The platform is built as a highly scalable **Turborepo Monorepo** utilizing `pnp
 pnpm install
 
 # Seed the database
-cd apps/api && pnpm run seed
+cd server && pnpm run seed
 
 # Start all services (local)
 pnpm run dev
 
 # Run E2E test suite (23 tests)
-cd apps/api && npx jest src/uat.spec.ts
+cd server && npx jest src/uat.spec.ts
 
 # Build for production
 pnpm run build

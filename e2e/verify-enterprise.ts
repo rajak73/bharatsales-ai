@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../apps/api/src/app.module';
+import { AppModule } from '../server/src/app.module';
 
 async function audit() {
   console.log('Starting Enterprise Logic Audit...');

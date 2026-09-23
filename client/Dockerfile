@@ -13,11 +13,11 @@ ARG VITE_API_URL
 ARG VITE_FIELD_PWA_URL
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_FIELD_PWA_URL=$VITE_FIELD_PWA_URL
-RUN pnpm --filter @bharatsales/web build
+RUN pnpm --filter @bharatsales/client build
 
 # Runner Stage — static files served by nginx
 FROM nginx:alpine AS runner
-COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+COPY --from=builder /app/client/dist /usr/share/nginx/html
 # SPA fallback so client-side routes (/dashboard/...) resolve to index.html;
 # hashed assets are cached long-term, index.html never.
 RUN printf '%s\n' \

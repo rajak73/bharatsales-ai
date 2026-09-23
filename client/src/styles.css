@@ -55,7 +55,7 @@
 /*
  * Legacy component classes, restyled to match @bharatsales/ui so pages that
  * still use them look consistent. New code: use <Button>, <Input>, <Card>
- * from @bharatsales/ui instead (see apps/web/UI_GUIDE.md).
+ * from @bharatsales/ui instead (see client/UI_GUIDE.md).
  */
 @layer components {
   .btn-primary {

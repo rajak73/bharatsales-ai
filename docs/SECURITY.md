@@ -1,6 +1,6 @@
 # BharatSales AI - Security
 
-This describes what the API (`apps/api`, Node.js + Express) actually enforces today. File references are relative to `apps/api/src`.
+This describes what the API (`server`, Node.js + Express) actually enforces today. File references are relative to `server/src`.
 
 ## Authentication
 
@@ -54,7 +54,7 @@ Limits key on `req.ip`, so `TRUST_PROXY` must match the real number of proxies i
 - Rotate `JWT_SECRET` (this logs everyone out once) and the MongoDB Atlas password whenever they may have been exposed, for example after being pasted into chat, committed, or shared.
 - **Known exposure:** a MongoDB Atlas connection string with its password was committed to this repository's git history. Removing it from current files does not remove it from history, so that database user's password must be rotated (see [DEPLOYMENT.md](DEPLOYMENT.md#1-mongodb-atlas)). Never commit connection strings.
 - The seed scripts print `Connected to MongoDB: <uri>`, password included. Run them only in a private terminal, never in shared CI logs, against a production URI.
-- **Demo accounts** are created only by the local seed (`pnpm --filter @bharatsales/api seed`) with a shared demo password. The seed refuses `NODE_ENV=production` unless `ALLOW_PROD_SEED=true`. Demo accounts must never exist on production: create real admins with `seed:platform-admin` and a strong `PLATFORM_ADMIN_PASSWORD`.
+- **Demo accounts** are created only by the local seed (`pnpm --filter @bharatsales/server seed`) with a shared demo password. The seed refuses `NODE_ENV=production` unless `ALLOW_PROD_SEED=true`. Demo accounts must never exist on production: create real admins with `seed:platform-admin` and a strong `PLATFORM_ADMIN_PASSWORD`.
 
 ## Required production environment
 

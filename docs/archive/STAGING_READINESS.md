@@ -41,5 +41,5 @@
 - [x] 26. TypeScript strict type-check: 0 compilation errors across 12 workspace projects.
 
 ## Known Issues Addressed:
-1. **React Hydration Timeout:** Patched `apps/web/src/app/login/page.tsx` with a `mounted` state to prevent the `ReactDevOverlay` from blocking the Playwright browser.
+1. **React Hydration Timeout:** Patched `client/src/app/login/page.tsx` with a `mounted` state to prevent the `ReactDevOverlay` from blocking the Playwright browser.
 2. **Environment Contamination:** Injected local API URL variables (`NEXT_PUBLIC_API_URL` and `VITE_API_URL`) directly into the Playwright and Vite configurations, preventing tests from logging into the production server and failing geofence checks against local databases.

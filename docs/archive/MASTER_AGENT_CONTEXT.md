@@ -4,8 +4,8 @@
 BharatSales AI is a multi-tenant SaaS product for Indian FMCG, Pharma, Consumer Goods, and Agri-input businesses. It includes a public website, Super Admin console, Company Admin Portal, manager dashboards, field sales PWA, and backend APIs for field sales automation and distributor management.
 
 ## Current Stack and Architecture
-- **Backend:** NestJS API (`apps/api`) running on port 6002
-- **Frontend / Admin UI:** Next.js App Router (`apps/web`) running on port 6003
+- **Backend:** NestJS API (`server`) running on port 6002
+- **Frontend / Admin UI:** Next.js App Router (`client`) running on port 6003
 - **Frontend / Field App:** React PWA (`apps/field-pwa`) running on port 6001
 - **Database:** MongoDB via Mongoose
 - **Monorepo Management:** Turborepo and pnpm workspaces
@@ -17,7 +17,7 @@ BharatSales AI is a multi-tenant SaaS product for Indian FMCG, Pharma, Consumer 
 - **Startup commands:**
   - `docker-compose up -d` (MongoDB & Redis)
   - `pnpm install`
-  - `cd apps/api && pnpm run seed`
+  - `cd server && pnpm run seed`
   - `pnpm run dev`
 
 ## Actual Flow Verifications (Playwright UI)

@@ -15,7 +15,7 @@ This lists the current, verifiable limitations of the code on this branch. Each 
 
 ## Mobile (Android)
 
-- **Push notifications do not work end-to-end.** The app gets an Expo push token (`src/lib/registerPushNotifications.ts`) and the API stores it (`POST /auth/push-token`), but **the API never sends a push**: there is no Expo or FCM push call anywhere in `apps/api`. Standalone Android builds also need Firebase Cloud Messaging (FCM) credentials configured in EAS (a `google-services.json` / FCM v1 key), and none are set up (`app.json` has no `googleServicesFile`). In-app notifications (`GET /notifications`) work.
+- **Push notifications do not work end-to-end.** The app gets an Expo push token (`src/lib/registerPushNotifications.ts`) and the API stores it (`POST /auth/push-token`), but **the API never sends a push**: there is no Expo or FCM push call anywhere in `server`. Standalone Android builds also need Firebase Cloud Messaging (FCM) credentials configured in EAS (a `google-services.json` / FCM v1 key), and none are set up (`app.json` has no `googleServicesFile`). In-app notifications (`GET /notifications`) work.
 - **No iOS build.** `app.json` has an iOS bundle id and permission strings, but no iOS build has been configured, signed or tested (no Apple credentials, no iOS-specific `eas.json` settings). Only Android APKs are distributed.
 - **No background location.** `ACCESS_BACKGROUND_LOCATION` is blocked in `app.json`. Location pings for the live map are recorded only while the app is open during a working day.
 - **Manual versioning.** `eas.json` uses `appVersionSource: "local"`, so `android.versionCode` in `app.json` must be bumped by hand before each distributed build. The code is at versionCode 6, while the latest published APK is v1.0.4 (build 5).
@@ -30,7 +30,7 @@ This lists the current, verifiable limitations of the code on this branch. Each 
 ## Web dashboard
 
 - **The live map polls.** `pages/dashboard/live-map` polls `GET /live-map/reps` every 5 seconds, skipping ticks while the tab is hidden, because a browser `EventSource` cannot send the Bearer token. The SSE endpoint `GET /live-map/stream` exists but is unused. Positions are only as fresh as the reps' last pings.
-- **No unit tests** for `apps/web`. It is covered only by type-check, lint and the Playwright E2E suite in `e2e/`, which needs local servers and a seeded database.
+- **No unit tests** for `client`. It is covered only by type-check, lint and the Playwright E2E suite in `e2e/`, which needs local servers and a seeded database.
 
 ## API and infrastructure
 

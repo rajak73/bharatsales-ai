@@ -344,7 +344,7 @@ export class OrdersService {
     }
 
     // Mirrors the real persisted status enum on the Order schema exactly
-    // (apps/api/src/schemas/order.schema.ts) — previously included
+    // (server/src/schemas/order.schema.ts) — previously included
     // 'Allocated'/'Damaged_Delivery'/'Returned'/'Closed' transitions that
     // aren't valid enum values, so those states could never actually be
     // reached (Mongoose validation would reject them).
