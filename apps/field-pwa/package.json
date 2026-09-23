@@ -17,7 +17,7 @@
     "@capacitor/core": "^8.4.2",
     "dexie": "^4.0.8",
     "dexie-react-hooks": "^1.1.7",
-    "lucide-react": "^1.24.0",
+    "lucide-react": "^1.47.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1",
